@@ -53,9 +53,6 @@ import glob
 plt.close('all')
 
 
-
-
-
 """
 dash board tensorboard 
 tensorboard --logdir logdir_folder_path --port default
@@ -104,28 +101,39 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # set train configurations
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
-training_configuration.update_merics(loss_functions_name = 'FL', learning_rate = 1e-3)
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
+                                     learning_type='self_supervised', batch_size= 40, 
+                                     scheduler_name = 'OneCycleLR', max_opt = False,
+                                     epochs_count = 100)
 device = training_configuration.device
 
 # define data loaders 
 """
 slice for debuging
 """
-# test_df = test_df[0:20]
-# train_df = train_df[0:100]
+test_df = test_df[0:20]
+train_df = train_df[0:40]
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df,  \
                            batch_size = training_configuration.batch_size, val_split=val_split,  \
-                               debug_batch_size = 8, random_state = seed, tb_writer = tb_writer, taske_name = 'no_perm')
+                           debug_batch_size = 8, amount_of_patch = 100, random_state = seed, tb_writer = tb_writer, \
+                           taske_name = training_configuration.perm, learning_type = training_configuration.learning_type)
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
 
 
 
 # set model 
-model =  CNN(num_classes = amount_of_class, image_dim = (3,image_dim, image_dim))    
+model =  CNN(num_classes = amount_of_class,
+             image_dim = (3,image_dim, image_dim), 
+             learning_type=training_configuration.learning_type)    
+
+student = generate_student(model, training_configuration, image_dim, amount_of_class)
 
 
+summary(model, (3,image_dim, image_dim))
+if not student is None:
+    summary(student, (3,image_dim, image_dim))
 
 # set optimizer 
 optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
@@ -135,37 +143,19 @@ accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_o
 f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'f_score')
 
 # set loss functions
-classification_criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
-
-
-
-
-EPOCHS = 50
-BATCHES = 100
-steps = []
-lrs = []
-optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9) # Wrapped optimizer
-scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=BATCHES, epochs=EPOCHS)
-
-for epoch in range(EPOCHS):
-    for batch in range(BATCHES):
-        scheduler.step()
-        lrs.append(scheduler.get_last_lr()[0])
-        steps.append(epoch * BATCHES + batch)
-
-plt.figure()
-plt.legend()
-plt.plot(steps, lrs, label='OneCycle')
-plt.show()
+if training_configuration.learning_type == 'supervised':
+    criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
+else:    
+    criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
 
 
 # show example for data after transformations    
 # generate data generation example
 image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
 
-train_results_df = main(model, optimizer, classification_criterion, accuracy_metric , 
-                        train_loader, val_loader, num_epochs=1, device=device, 
-                        tb_writer=tb_writer)
+train_results_df = main(model, student, optimizer, criterion, accuracy_metric , 
+                        train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
+                        tb_writer=tb_writer, max_opt = False)
 
 
 

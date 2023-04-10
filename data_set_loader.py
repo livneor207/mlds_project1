@@ -51,7 +51,8 @@ def parse_test_data(images_path_list):
 class MyDataset(Dataset):
 
   def __init__(self, data_df, class_df,  transform_train, transform_test , amount_of_patch = 4, train = True, data_name = 'train',
-               debug = False, max_debug_image_allowed = 0, means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], taske_name = 'perm'):
+               debug = False, max_debug_image_allowed = 0, means = [0.485, 0.456, 0.406], 
+               stds=[0.229, 0.224, 0.225], taske_name = 'perm' , learning_type = 'supervised'):
     
       
     self.taske_name = taske_name
@@ -62,6 +63,7 @@ class MyDataset(Dataset):
     self.debug_image_idx = 0
     self.max_debug_image_allowed = max_debug_image_allowed
     self.train = train
+    self.learning_type = learning_type
     if train :
         self.transform = transform_train
     else:
@@ -102,6 +104,27 @@ class MyDataset(Dataset):
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(patch_array[0][i_perm_row, i_perm_col])
       return new_image, prem_order
   
+  def get_perm_image(self, transform_image):
+      if self.taske_name == 'perm':
+          new_image, prem_order = self.permutatation_aug(transform_image)
+      else:
+          prem_order = torch.empty(self.amount_of_patch)
+          new_image = transform_image
+      prem_order = torch.Tensor(prem_order)
+      return new_image, prem_order
+  def generate_original_image_plot(self, image, axarr):
+      np_image_0_1 =  np.array(image)
+      np_image_0_1 = np_image_0_1.astype(np.uint8)
+      axarr[0].imshow(np_image_0_1)
+      axarr[0].title.set_text('image before transformation')
+  def generate_transformed_image_plot(self, np_transform_image_0_1, axarr, image_index = 1):
+      np_transform_image_0_1 *= np.array(self.stds)
+      np_transform_image_0_1 += np.array(self.means)
+      np_transform_image_0_1*=255
+      np_transform_image_0_1 = np_transform_image_0_1.astype(np.uint8)
+      axarr[image_index].imshow(np_transform_image_0_1)
+      axarr[image_index].title.set_text(f'image after transformation {image_index}')
+      
     
   def __getitem__(self, idx):
     # get image
@@ -125,12 +148,19 @@ class MyDataset(Dataset):
     
     transform_image =  self.transform(image)
     
-    
-    if self.taske_name == 'perm':
-        new_image, prem_order = self.permutatation_aug(transform_image)
+    if self.learning_type == 'supervised':
+        desire_amount_of_images = 1
     else:
-        prem_order = torch.empty(self.amount_of_patch)
-        new_image = transform_image
+        desire_amount_of_images = 2
+    
+    
+    new_image, prem_order = self.get_perm_image(transform_image)
+    if desire_amount_of_images > 1:
+        new_image2, prem_order2 = self.get_perm_image(transform_image)
+        new_image = torch.concatenate([new_image, new_image2])
+        prem_order = torch.concatenate([prem_order, prem_order2])
+
+        
     transform_image = new_image
     # set sample
     sample = (transform_image, label, torch.Tensor(prem_order), label_name)
@@ -139,19 +169,19 @@ class MyDataset(Dataset):
       
         np_transform_image_0_1 =  transform_image.numpy()
         np_transform_image_0_1 = np_transform_image_0_1.transpose(1,2,0)
+        
+        if desire_amount_of_images<=1:
+            f, axarr = plt.subplots(1,2)
+        else:
+            f, axarr = plt.subplots(1,3)
+        self.generate_original_image_plot(image, axarr)
+        self.generate_transformed_image_plot(np_transform_image_0_1[:,:,0:3], axarr, image_index = 1)
+        if desire_amount_of_images>1:
+            self.generate_transformed_image_plot(np_transform_image_0_1[:,:,3::], axarr, image_index = 2)
 
-        np_transform_image_0_1 *= np.array(self.stds)
-        np_transform_image_0_1 += np.array(self.means)
-        np_transform_image_0_1*=255
-        np_image_0_1 =  np.array(image)
-        np_image_0_1 = np_image_0_1.astype(np.uint8)
-        np_transform_image_0_1 = np_transform_image_0_1.astype(np.uint8)
+        
+      
             
-        f, axarr = plt.subplots(1,2)
-        axarr[0].imshow(np_image_0_1)
-        axarr[0].title.set_text('image before transformation')
-        axarr[1].imshow(np_transform_image_0_1)
-        axarr[1].title.set_text(f'image after transformation')     
         f.suptitle(f'Class is {label_name}') # or plt.suptitle('Main title')
 
 
@@ -159,12 +189,18 @@ class MyDataset(Dataset):
 
 
 def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
-                           means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm' ):
+                           means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
+                           learning_type = 'supervised'):
     
     
     tasks_list = ['perm', 'no_perm']
     if not taske_name in  tasks_list:
         assert False, 'task not defined'
+        
+    if learning_type == 'supervised':
+        p = 0.5
+    else:
+        p = 1
     if taske_name == 'perm':
         data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
                                                 transforms.ToTensor(),
@@ -173,11 +209,11 @@ def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_si
         data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
                                                 transforms.RandomChoice( [
                                                                           transforms.RandomCrop(size=(image_size, image_size)),
-                                                                          transforms.RandomHorizontalFlip(p=0.5),
+                                                                          transforms.RandomHorizontalFlip(p=p),
                                                                           transforms.RandomAffine(degrees=(-5, 5), 
                                                                                                   translate=(0, 0.2), 
                                                                                                   scale=(0.6, 1)),
-                                                                          transforms.RandomVerticalFlip(p=0.5)]),
+                                                                          transforms.RandomVerticalFlip(p=p)]),
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     
@@ -192,10 +228,13 @@ def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_si
     
     train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)
 
-
-    X_train = MyDataset(train_df, class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch, train = True, data_name = 'train', taske_name = taske_name)
-    X_val = MyDataset(val_df,class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch,  train = False, data_name = 'val', taske_name = taske_name)
-    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , amount_of_patch=amount_of_patch, train = False, data_name = 'test', taske_name = taske_name)
+    
+    X_train = MyDataset(train_df, class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch, 
+                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type)
+    X_val = MyDataset(val_df,class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch, 
+                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type)
+    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , amount_of_patch=amount_of_patch,
+                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True)
