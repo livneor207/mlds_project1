@@ -142,7 +142,14 @@ def get_output_shape(model, image_dim):
                 
     return input_tensor.data.shape
 
-
+def get_model_output_shape(model, image_dim):
+    model_layers_names = get_model_layers_names(model)
+    input_tensor = torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))
+    for i_layer in model_layers_names[0::]:
+        backbone_layer = getattr(model, i_layer)
+        input_tensor = backbone_layer(input_tensor)
+                
+    return input_tensor.data.shape
 
 
 
@@ -296,6 +303,60 @@ class CNN(nn.Module):
     def forward(self, images):
         
         classification_pred = self.backbone(images)
+
+        return classification_pred
+    
+    
+
+class SSLMODEL(nn.Module):
+    def __init__(self, ssl_model, num_classes, image_dim = (3,224,224)):
+        super(SSLMODEL, self).__init__()
+        
+        
+        
+
+        channel, height, width = image_dim
+        
+       
+                 
+        freeze_all_layers(ssl_model)    
+                 
+        # get shape after backbone 
+        shape_size = get_model_output_shape(ssl_model, image_dim)
+        
+        # print backbone summary
+        debug = False
+        if debug:    
+            summary(ssl_model, (channel, height, width))
+            
+            # for param in backbone.named_parameters():
+            #       debug= True
+            #       if debug:
+            #           print(param[0])
+      
+        
+        flatten_size = np.prod(list(shape_size))
+        
+        # set regression head
+        hidden_size = int(flatten_size//4)
+        
+        if hidden_size < num_classes:
+            assert False, 'needed to change classifier hidden size due amount of class'
+        classifier_head = torch.nn.Sequential(
+                                    nn.Dropout(p=0.25),
+                                    nn.Linear(flatten_size, hidden_size),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0.25),
+                                    nn.Linear(hidden_size, num_classes)
+                                    )
+        self.ssl_model = ssl_model
+        self.classifier_head = classifier_head
+        
+
+    def forward(self, images):
+        
+        ssl_representation = self.ssl_model(images)
+        classification_pred = self.classifier_head(ssl_representation)
 
         return classification_pred
    

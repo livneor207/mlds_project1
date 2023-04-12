@@ -50,7 +50,8 @@ class TrainingConfiguration:
     optimizer_name: str = 'lion'
     learning_type: str  = 'supervised'
     max_opt : bool = True
-    perm: str = 'no_prem'
+    perm: str = 'no_perm'
+    num_workers  = 0
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -58,18 +59,17 @@ class TrainingConfiguration:
     def update_merics(self, loss_functions_name = 'CE', learning_rate = 1e-3, 
                       learning_type = 'supervised', batch_size = 8,
                       scheduler_name = 'OneCycleLR', max_opt = True,
-                      epochs_count = 20):
+                      epochs_count = 20, perm = 'no_perm', num_workers = 0):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
         self.batch_size = batch_size
         self.scheduler_name = scheduler_name
         self.max_opt = max_opt
-        if learning_type == 'supervised':
-            self.perm = 'no_perm'
-        else:
-            self.perm = 'perm'
+       
         self.epochs_count = epochs_count
+        self.perm = perm
+        self.num_workers = num_workers
 
         
         
