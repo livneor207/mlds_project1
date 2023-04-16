@@ -77,7 +77,7 @@ test_folder_path = os.path.join(data_folder,  'test1', 'test1')
 train_folder_path = os.path.join(data_folder,  'train', 'train')
 log_dir = os.path.join(data_folder,  'expirement1')
 submission_path = os.path.join(data_folder,  'submission.csv')
-
+model_path = os.path.join(data_folder,  'model3.pth')
 # get all files names 
 train_images_path_list = get_all_images_from_specific_folder(train_folder_path)
 test_images_path_list = get_all_images_from_specific_folder(test_folder_path)
@@ -106,9 +106,10 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                     learning_type='self_supervised', batch_size= 40, 
-                                     scheduler_name = 'OneCycleLR', max_opt = False,
-                                     epochs_count = 100, perm= 'perm', num_workers = 8)
+                                     learning_type='self_supervised', batch_size= 100, 
+                                     scheduler_name = 'ReduceLROnPlateau', max_opt = False,
+                                     epochs_count = 50, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3)
 device = training_configuration.device
 
 # define data loaders 
@@ -116,11 +117,11 @@ device = training_configuration.device
 slice for debuging
 """
 test_df = test_df[0:20]
-train_df = train_df[0:40]
+train_df = train_df[0:50]
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df,  \
                            batch_size = training_configuration.batch_size, val_split=val_split,  \
-                           debug_batch_size = 8, amount_of_patch = 100, random_state = seed, tb_writer = tb_writer, \
+                           debug_batch_size = 8, amount_of_patch = 25, random_state = seed, tb_writer = tb_writer, \
                            taske_name = training_configuration.perm, 
                            learning_type = training_configuration.learning_type, num_workers = training_configuration.num_workers)
 # print size of data-sets
@@ -134,10 +135,6 @@ model =  CNN(num_classes = amount_of_class,
              learning_type=training_configuration.learning_type)    
 
 
-
-model_path = r'C:\MSC\mlds_project1\model.pth'
-torch.save(model.state_dict(), model_path)
-# ssl_model =  SSLMODEL(model, num_classes = amount_of_class, image_dim = (3,image_dim, image_dim))
 
 student = generate_student(model, training_configuration, image_dim, amount_of_class)
 
@@ -166,7 +163,7 @@ image, label, perm_order, class_name = generate_input_generation_examples(debug_
 
 train_results_df = main(model, student, optimizer, criterion, accuracy_metric , 
                         train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-                        tb_writer=tb_writer, max_opt = False, model_path = model_path)
+                        tb_writer=tb_writer, max_opt = False, model_path = model_path, scheduler = scheduler)
 
 
 ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,21 +179,21 @@ train_results_df = main(model, student, optimizer, criterion, accuracy_metric ,
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                     learning_type='supervised', batch_size= 40, 
+                                     learning_type='supervised', batch_size= 100, 
                                      scheduler_name = 'OneCycleLR', max_opt = True,
-                                     epochs_count = 100, perm = 'perm', num_workers = 2 )
+                                     epochs_count = 50, perm = 'perm', num_workers = 2, 
+                                     max_lr = 5e-3)
 device = training_configuration.device
 
 # define data loaders 
 """
 slice for debuging
 """
-test_df = test_df[0:20]
-train_df = train_df[0:40]
+
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df,  \
                            batch_size = training_configuration.batch_size, val_split=val_split,  \
-                           debug_batch_size = 8, amount_of_patch = 100, random_state = seed, tb_writer = tb_writer, \
+                           debug_batch_size = 8, amount_of_patch = 25, random_state = seed, tb_writer = tb_writer, \
                            taske_name = training_configuration.perm, 
                            learning_type = training_configuration.learning_type, num_workers = training_configuration.num_workers)
 # print size of data-sets
@@ -205,14 +202,11 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {va
 
 
 
+model.load_state_dict(torch.load(model_path))
+model_path = os.path.join(data_folder,  'model2.pth')
 
-
-model_path = r'C:\MSC\mlds_project1\model.pth'
-torch.save(model.state_dict(), model_path)
 ssl_model =  SSLMODEL(model, num_classes = amount_of_class, image_dim = (3,image_dim, image_dim))
 student= None
-
-
 
 summary(ssl_model, (3,image_dim, image_dim))
 

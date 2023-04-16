@@ -30,8 +30,12 @@ def set_matplotlib():
     plt.close('all')
     sns.set_style("white")
 def get_all_images_from_specific_folder(folder_path, ending = 'jpg'):
-    glob_string = os.path.join(folder_path, '*.' + ending)
-    images_path_list = glob.glob(glob_string)
+    idx =0
+    while idx <=1:
+        glob_string = os.path.join(folder_path, '*.' + ending)
+        images_path_list = glob.glob(glob_string)
+        if len(images_path_list)>0:
+            break
     return images_path_list
 
 

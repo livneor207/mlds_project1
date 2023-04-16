@@ -57,11 +57,11 @@ def freeze_efficientnet_layers(model):
     otherwise manully freeze layers 
     """
     for param in model.named_parameters():
-         debug= False
+         debug= True
          if debug:
              print(param[0])
         
-         if (param[0].find('features.7') !=-1 or  param[0].find('bn') !=-1) :
+         if (param[0].find('features.8') !=-1 or param[0].find('bn') !=-1) :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -256,7 +256,51 @@ class EMA():
 
         
         
+class SSLMODEL(nn.Module):
+    def __init__(self, model, num_classes, image_dim = (3,224,224)):
+        super(SSLMODEL, self).__init__()
+        
+        ssl_model = copy.deepcopy(model)
+        
+        model_bank = ['resnet34', 'resnet50', 'resnet152', 'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
+        model_name = 'efficientnet_v2_m'
+        
+        # freeze all except batch norm layer 
+        freeze_backbone_layers(ssl_model, model_bank,  model_name = model_name , freeze_all = False)
+        
+        
+        def get_output_shape(model, image_dim):
+            return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))).data.shape
+        # get shapes 
+        channel, height, width = image_dim
+                
+        
+        model_layers_names = get_model_layers_names(ssl_model)
+        
+        # print backbone summary
+        debug = False
+        if debug:    
+            summary(ssl_model, (channel, height, width))
+            
+            # for param in backbone.named_parameters():
+            #       debug= True
+            #       if debug:
+            #           print(param[0])
+      
+        update_classifier_head(ssl_model.backbone, image_dim, num_classes, model_name = model_name )
+        self.ssl_model = ssl_model
+        moving_average_decay = 0.99
+        use_momentum = True
+        self.use_momentum = use_momentum
+        self.target_encoder = None
+        self.student_ema_updater = EMA(moving_average_decay)
+        
 
+    def forward(self, images):
+        
+        classification_pred = self.ssl_model(images)
+
+        return classification_pred
 class CNN(nn.Module):
     def __init__(self, num_classes, image_dim = (3,224,224), model_name = 'efficientnet_v2_m', learning_type = 'supervised'):
         super(CNN, self).__init__()
@@ -268,7 +312,7 @@ class CNN(nn.Module):
         backbone = model_sellection(model_bank, model_name = model_name)
 
         # freeze all except batch norm layer 
-        freeze_backbone_layers(backbone, model_bank,  model_name = model_name, freeze_all = True)
+        freeze_backbone_layers(backbone, model_bank,  model_name = model_name)
         
         
         def get_output_shape(model, image_dim):
@@ -305,61 +349,27 @@ class CNN(nn.Module):
         classification_pred = self.backbone(images)
 
         return classification_pred
+
+        
     
-    
+def freeze_ssl_layers(model):        
+    """
+    freeze by defult all layer
+    otherwise manully freeze layers 
+    """
+    model_layers_names = get_model_layers_names(model.backbone)
 
-class SSLMODEL(nn.Module):
-    def __init__(self, ssl_model, num_classes, image_dim = (3,224,224)):
-        super(SSLMODEL, self).__init__()
-        
-        
-        
+    for param in model.named_parameters():
+         debug= False
+         if debug:
+             print(param[0])
+         if 0 :
+         # if (param[0].find(model_layers_names[-1]) !=-1  or  param[0].find('bn') !=-1) or param[0].find('features.7') !=-1:
+             print(param[0])
+             param[1].requires_grad = True
+         else:
+             param[1].requires_grad = False 
 
-        channel, height, width = image_dim
-        
-       
-                 
-        freeze_all_layers(ssl_model)    
-                 
-        # get shape after backbone 
-        shape_size = get_model_output_shape(ssl_model, image_dim)
-        
-        # print backbone summary
-        debug = False
-        if debug:    
-            summary(ssl_model, (channel, height, width))
-            
-            # for param in backbone.named_parameters():
-            #       debug= True
-            #       if debug:
-            #           print(param[0])
-      
-        
-        flatten_size = np.prod(list(shape_size))
-        
-        # set regression head
-        hidden_size = int(flatten_size//4)
-        
-        if hidden_size < num_classes:
-            assert False, 'needed to change classifier hidden size due amount of class'
-        classifier_head = torch.nn.Sequential(
-                                    nn.Dropout(p=0.25),
-                                    nn.Linear(flatten_size, hidden_size),
-                                    nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0.25),
-                                    nn.Linear(hidden_size, num_classes)
-                                    )
-        self.ssl_model = ssl_model
-        self.classifier_head = classifier_head
-        
-
-    def forward(self, images):
-        
-        ssl_representation = self.ssl_model(images)
-        classification_pred = self.classifier_head(ssl_representation)
-
-        return classification_pred
-   
 
 
 

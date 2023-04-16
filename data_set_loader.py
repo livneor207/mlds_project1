@@ -190,7 +190,7 @@ class MyDataset(Dataset):
 
 def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
-                           learning_type = 'supervised'):
+                           learning_type = 'supervised', num_workers = 2):
     
     
     tasks_list = ['perm', 'no_perm']
@@ -237,10 +237,10 @@ def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_si
                        train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type)
 
        
-    train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True)
-    val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False)
-    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False)
-    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=True)
     # if not tb_writer is None and 0:
     #     add_data_embedings(val_loader, tb_writer, n=300)
 

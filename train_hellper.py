@@ -59,7 +59,8 @@ class TrainingConfiguration:
     def update_merics(self, loss_functions_name = 'CE', learning_rate = 1e-3, 
                       learning_type = 'supervised', batch_size = 8,
                       scheduler_name = 'OneCycleLR', max_opt = True,
-                      epochs_count = 20, perm = 'no_perm', num_workers = 0):
+                      epochs_count = 20, perm = 'no_perm', num_workers = 0,
+                      max_lr = 1e-2):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -70,6 +71,7 @@ class TrainingConfiguration:
         self.epochs_count = epochs_count
         self.perm = perm
         self.num_workers = num_workers
+        self.max_lr = max_lr
 
         
         
@@ -158,39 +160,7 @@ def convert_2_float_and_require_grad(tensor):
     tensor.require_grad = True
     return tensor
 
-def set_metrics(model, training_configuration, amount_of_class = 13, alpha = None):
-    loss_name = training_configuration.loss_functions_name 
-    learning_rate = training_configuration.learning_rate
-    device = training_configuration.device
-    optimizer_name = training_configuration.optimizer_name
-    gamma = 2
-    
-    if loss_name == 'CE':
-        criterion = nn.CrossEntropyLoss()
-    else:
-        if alpha is None:
-            criterion = FocalLoss(gamma=gamma)
-        else:
-            weights = torch.Tensor(1-alpha)
-            criterion = FocalLoss(gamma=gamma, weights= weights)
 
-    
-    # optimizer settings 
-    if optimizer_name == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    else:
-        weight_decay = training_configuration.weight_decay
-        optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
-      
-    # f-score
-    accuracy_metric = F1Score(task="multiclass", num_classes = amount_of_class, average =  'weighted')
-    
-    # Scheduler123qwe
-    scheduler =  sellect_scheduler(optimizer, data_loader, scheduler = 'LambdaLR')
-    
-
-
-    return criterion, optimizer, accuracy_metric, scheduler
 def set_similiarities_loss(classification_loss_name = 'CosineSimilarity'):
     loss_name = classification_loss_name 
     
@@ -228,7 +198,7 @@ def set_classifcation_loss(training_configuration, alpha = None):
 def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = 'LambdaLR'):
     
 
-    scheduler_bank = ['LambdaLR', 'OneCycleLR', 'None']
+    scheduler_bank = ['LambdaLR', 'OneCycleLR','ReduceLROnPlateau', 'None']
     if not scheduler_name in scheduler_bank:
         assert False, 'scheduler not defined'
     if scheduler_name == 'LambdaLR':
@@ -242,6 +212,12 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
         max_lr = training_configuration.max_lr
         steps_per_epoch = len(data_loader)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=max_lr, steps_per_epoch=steps_per_epoch, epochs=epochs_count)
+    elif scheduler_name == 'ReduceLROnPlateau':
+        factor = 0.3  # reduce by factor 0.5
+        patience = 2  # epochs
+        threshold = 5e-2
+        verbose = True
+        scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=factor, patience=patience, verbose=verbose, threshold=threshold)
     elif scheduler_name == 'None':
         scheduler = None
     return scheduler
@@ -420,8 +396,7 @@ def train(model, student, optimizer, classification_criterion, accuracy_metric, 
             pbar.set_description(message.format(np.round(accuracy,3), \
                                                 np.round(f1_score.item(),3), np.round(classification_loss.item(),3)))
             pbar.update()
-            if not scheduler is None:
-               scheduler.step()  
+           
           
     total_accuracy =  np.round(total_accuracy /  data_loader.dataset.__len__(),3)
     total_f1_score =  np.round(total_f1_score.item() /  data_loader.dataset.__len__(),3)
@@ -444,7 +419,7 @@ def main(model, student, optimizer, classification_criterion, accuracy_metric,
         best_model_score  = 0
     else:
         best_model_score = 1e5
-    max_patience = 15
+    max_patience = 7
     for epoch in range(num_epochs):
         train_accuracy, train_f1_score, train_classification_loss = train(model, student, optimizer, classification_criterion, accuracy_metric, train_loader, device, scheduler=scheduler )
         val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, accuracy_metric, val_loader, device)
@@ -454,7 +429,12 @@ def main(model, student, optimizer, classification_criterion, accuracy_metric,
             current_val = val_f1_score
         else:
             current_val = val_classification_loss
-
+        if not scheduler is None:
+           if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(train_classification_loss)
+           else:
+               scheduler.step()  
+            
         # print current results
         print(f'Epoch Summary {epoch}:\n'+\
               f'1) Train: f1-score {train_f1_score}, '+ \
