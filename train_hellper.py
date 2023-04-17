@@ -213,7 +213,7 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
         steps_per_epoch = len(data_loader)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=max_lr, steps_per_epoch=steps_per_epoch, epochs=epochs_count)
     elif scheduler_name == 'ReduceLROnPlateau':
-        factor = 0.3  # reduce by factor 0.5
+        factor = 0.5  # reduce by factor 0.5
         patience = 2  # epochs
         threshold = 5e-2
         verbose = True
@@ -431,7 +431,7 @@ def main(model, student, optimizer, classification_criterion, accuracy_metric,
             current_val = val_classification_loss
         if not scheduler is None:
            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                scheduler.step(train_classification_loss)
+                scheduler.step(val_classification_loss)
            else:
                scheduler.step()  
             

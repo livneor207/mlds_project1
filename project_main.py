@@ -230,8 +230,7 @@ image, label, perm_order, class_name = generate_input_generation_examples(debug_
 
 train_results_df = main(ssl_model, student, optimizer, criterion, accuracy_metric , 
                         train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-                        tb_writer=tb_writer, max_opt = True)
-
+                        tb_writer=tb_writer, max_opt = True, scheduler = scheduler)
 
 
 
