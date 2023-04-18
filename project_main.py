@@ -53,8 +53,14 @@ import glob
 plt.close('all')
 
 
+# from torchmetrics.classification import MulticlassHammingDistance
+# input2_argsort.requires_grad = True
+# input1_argsort.requires_grad = False 
 
+# metric = MulticlassHammingDistance(num_classes=5, task = '')
 
+# loss = metric(input1_argsort , input2_argsort )
+# loss.backward()
 
 
 """
@@ -108,35 +114,40 @@ training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='self_supervised', batch_size= 100, 
                                      scheduler_name = 'ReduceLROnPlateau', max_opt = False,
-                                     epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3)
+                                     epochs_count = 10, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 0.25,
+                                     amount_of_patch = 25)
 device = training_configuration.device
 
 # define data loaders 
 """
 slice for debuging
 """
+
+
+
 test_df = test_df[0:20]
-train_df = train_df[0:50]
+train_df = train_df[0:25]
 train_loader, val_loader, test_loader, debug_loader = \
-    initialize_dataloaders(train_df, test_df,  \
-                           batch_size = training_configuration.batch_size, val_split=val_split,  \
-                           debug_batch_size = 8, amount_of_patch = 25, random_state = seed, tb_writer = tb_writer, \
-                           taske_name = training_configuration.perm, 
-                           learning_type = training_configuration.learning_type, num_workers = training_configuration.num_workers)
+    initialize_dataloaders(train_df, test_df, 
+                           training_configuration, 
+                           val_split=val_split,  
+                           debug_batch_size = 8, 
+                           random_state = seed, tb_writer = tb_writer)
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
 
 
-
 # set model 
-model =  CNN(num_classes = amount_of_class,
-             image_dim = (3,image_dim, image_dim), 
-             learning_type=training_configuration.learning_type)    
+model = CNN(training_configuration, 
+             num_classes = amount_of_class,
+             image_dim = (3,image_dim, image_dim))
 
 
-
-student = generate_student(model, training_configuration, image_dim, amount_of_class)
+student = generate_student(model, 
+                           training_configuration, 
+                           image_dim, 
+                           amount_of_class)
 
 
 summary(model, (3,image_dim, image_dim))
@@ -156,14 +167,21 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
 
+ranking_criterion = set_rank_loss(loss_name = 'MarginRankingLoss', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example
 image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
 
-train_results_df = main(model, student, optimizer, criterion, accuracy_metric , 
-                        train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-                        tb_writer=tb_writer, max_opt = False, model_path = model_path, scheduler = scheduler)
+train_results_df = main(model, student, optimizer, criterion,
+                        ranking_criterion, accuracy_metric , 
+                        train_loader, val_loader,
+                        num_epochs=training_configuration.epochs_count,
+                        device=device, 
+                        tb_writer=tb_writer, 
+                        max_opt = training_configuration.max_opt, 
+                        model_path = model_path, 
+                        scheduler = scheduler)
 
 
 ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -178,11 +196,14 @@ train_results_df = main(model, student, optimizer, criterion, accuracy_metric ,
 
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
+
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='supervised', batch_size= 100, 
-                                     scheduler_name = 'OneCycleLR', max_opt = True,
-                                     epochs_count = 50, perm = 'perm', num_workers = 2, 
-                                     max_lr = 5e-3)
+                                     scheduler_name = 'ReduceLROnPlateau', max_opt = False,
+                                     epochs_count = 10, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3, hidden_size = 512, amount_of_patch = 25)
+
+
 device = training_configuration.device
 
 # define data loaders 
@@ -191,24 +212,31 @@ slice for debuging
 """
 
 train_loader, val_loader, test_loader, debug_loader = \
-    initialize_dataloaders(train_df, test_df,  \
-                           batch_size = training_configuration.batch_size, val_split=val_split,  \
-                           debug_batch_size = 8, amount_of_patch = 25, random_state = seed, tb_writer = tb_writer, \
-                           taske_name = training_configuration.perm, 
-                           learning_type = training_configuration.learning_type, num_workers = training_configuration.num_workers)
+    initialize_dataloaders(train_df, test_df, 
+                           training_configuration, 
+                           val_split=val_split,  
+                           debug_batch_size = 8, 
+                           random_state = seed, tb_writer = tb_writer)
 # print size of data-sets
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
 
 
 
-model.load_state_dict(torch.load(model_path))
+# model.load_state_dict(torch.load(model_path))
 model_path = os.path.join(data_folder,  'model2.pth')
 
-ssl_model =  SSLMODEL(model, num_classes = amount_of_class, image_dim = (3,image_dim, image_dim))
+ssl_model =  SSLMODEL(model, 
+                      num_classes=amount_of_class, 
+                      image_dim=(3,image_dim, image_dim)
+                      )
 student= None
 
 summary(ssl_model, (3,image_dim, image_dim))
+
+
+
+
 
 # set optimizer 
 optimizer, scheduler =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
@@ -223,14 +251,18 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
 
+ranking_criterion = set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example
 image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
 
-train_results_df = main(ssl_model, student, optimizer, criterion, accuracy_metric , 
+
+train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , 
                         train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-                        tb_writer=tb_writer, max_opt = True, scheduler = scheduler)
+                        tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, scheduler = scheduler)
+
+
 
 
 

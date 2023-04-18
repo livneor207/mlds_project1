@@ -171,9 +171,9 @@ class MyDataset(Dataset):
         np_transform_image_0_1 = np_transform_image_0_1.transpose(1,2,0)
         
         if desire_amount_of_images<=1:
-            f, axarr = plt.subplots(1,2)
+            f, axarr = plt.subplots(1,2, figsize=(10,20))
         else:
-            f, axarr = plt.subplots(1,3)
+            f, axarr = plt.subplots(1,3, figsize=(10,30))
         self.generate_original_image_plot(image, axarr)
         self.generate_transformed_image_plot(np_transform_image_0_1[:,:,0:3], axarr, image_index = 1)
         if desire_amount_of_images>1:
@@ -188,10 +188,15 @@ class MyDataset(Dataset):
     return sample
 
 
-def initialize_dataloaders(all_train_df,  test_df, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
+def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
                            learning_type = 'supervised', num_workers = 2):
     
+    batch_size = training_configuration.batch_size
+    amount_of_patch = training_configuration.amount_of_patch
+    taske_name = training_configuration.perm
+    learning_type = training_configuration.learning_type
+    num_workers = training_configuration.num_workers
     
     tasks_list = ['perm', 'no_perm']
     if not taske_name in  tasks_list:

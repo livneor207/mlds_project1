@@ -51,7 +51,11 @@ class TrainingConfiguration:
     learning_type: str  = 'supervised'
     max_opt : bool = True
     perm: str = 'no_perm'
-    num_workers  = 0
+    num_workers: int = 0
+    hidden_size: int = 512
+    balance_factor: float = 1
+    amount_of_patch = 25
+    
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -60,7 +64,8 @@ class TrainingConfiguration:
                       learning_type = 'supervised', batch_size = 8,
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
-                      max_lr = 1e-2):
+                      max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
+                      amount_of_patch = 25):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -72,9 +77,10 @@ class TrainingConfiguration:
         self.perm = perm
         self.num_workers = num_workers
         self.max_lr = max_lr
+        self.hidden_size = hidden_size
+        self.balance_factor = balance_factor
+        self.amount_of_patch = amount_of_patch
 
-        
-        
         
         
 def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
@@ -113,35 +119,38 @@ def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
 
     return rank_metric
 
-
-def set_rank_loss(loss_name = 'MarginRankingLoss', margin = 1, num_labels = 1):
+def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
     """
     example
-    input1 = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-    input2 =  torch.tensor([[1000,1,100,5,4], [2,1,3,5,4], [1000,701,703,2000,704]],requires_grad = True, dtype = torch.float)
+    target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
+    pred =  torch.tensor([[700,500,3,10,5], [2,40,3,5,0], [1000,701,500000,2000,704]],requires_grad = True, dtype = torch.float)
+    target_argsort = torch.argsort(target, dim=1)
+    pred_argsort = torch.argsort(pred, dim=1)
+    
+    pred, target  = pred.to(torch.float), target.to(torch.float)
+    pred_norm = LA.norm(pred, 2)
+    target_norm = LA.norm(target, 2)
+    
+    target_normelized = (target-target.mean())/target_norm
+    pred_normelized = (pred-pred.mean())/pred_norm
 
-    input1_argsort = torch.argsort(input1, dim=1)
-    input2_argsort = torch.argsort(input2, dim=1)
-    input1_argsort = convert_2_float_and_require_grad(input1_argsort)
-    input2_argsort = convert_2_float_and_require_grad(input2_argsort)
-    target = (input1_argsort-torch.arange(0,input1.shape[1])).sign()
-    target = (input1_argsort-input2_argsort).sign()
+    target_normelized = convert_2_float_and_require_grad(target_normelized)
+    pred_normelized = convert_2_float_and_require_grad(pred_normelized)
+    target = (target_argsort-pred_argsort).sign()
+    ranking_criterion = torch.nn.MarginRankingLoss()
 
-    loss = torch.nn.MarginRankingLoss(margin=1, size_average=True, reduce=True, reduction='mean')
-    loss(input1_argsort, input2_argsort, target)
+    loss = ranking_criterion(target_normelized, pred_normelized, target)
+
+    loss.backward()
     """
    
     if loss_name == 'MarginRankingLoss':
-        ranking_loss = torch.nn.MarginRankingLoss(margin=margin, size_average=True, reduce=True, reduction='mean')
-    elif loss_name == 'MarginRankingLoss':
-        from torchmetrics.classification import MultilabelRankingLoss
-        ranking_loss = MultilabelRankingLoss(num_labels=num_labels)
-       # preds = torch.rand(10, 5)
-       # target = torch.randint(2, (10, 5))
-       # mlrl(preds, target)
+        ranking_criterion = torch.nn.MarginRankingLoss(margin=margin, size_average=True, reduce=True, reduction='mean')
+    elif loss_name == 'HingeEmbeddingLoss':
+        ranking_criterion = nn.HingeEmbeddingLoss()
     else:
         assert False, "no acceptable loss choosen" 
-    return ranking_loss
+    return ranking_criterion
 
 
 def calculate_rank_loss(pred, target):
@@ -157,7 +166,6 @@ def calculate_rank_loss(pred, target):
 
 def convert_2_float_and_require_grad(tensor):
     tensor = tensor.to(torch.float)
-    tensor.require_grad = True
     return tensor
 
 
@@ -215,7 +223,7 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
     elif scheduler_name == 'ReduceLROnPlateau':
         factor = 0.5  # reduce by factor 0.5
         patience = 2  # epochs
-        threshold = 5e-2
+        threshold = 1e-2
         verbose = True
         scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=factor, patience=patience, verbose=verbose, threshold=threshold)
     elif scheduler_name == 'None':
@@ -262,7 +270,41 @@ def set_metric(training_configuration, amount_of_class = 13, metric_name = 'accu
 
     return accuracy_metric
 
-def step(model, student, data, labels, criterion, accuracy_metric, perm_order = None, optimizer=None):
+
+def prepare_for_rank_cretertion(target, pred):
+    target_argsort = torch.argsort(target, dim=1)
+    pred_argsort = torch.argsort(pred, dim=1)
+    
+    pred, target  = pred.to(torch.float), target.to(torch.float)
+    pred_norm = LA.norm(pred, 2)
+    target_norm = LA.norm(target, 2)
+    
+    target_normelized = (target-target.mean())/target_norm
+    pred_normelized = (pred-pred.mean())/pred_norm
+
+    target_normelized = convert_2_float_and_require_grad(target_normelized)
+    pred_normelized = convert_2_float_and_require_grad(pred_normelized)
+    target = (target_argsort-pred_argsort).sign()
+    # yy2 =target.detach().numpy()
+    # print(f"number of zeros: {yy2.size - np.count_nonzero(yy2)}")
+
+    return target, target_normelized, pred_normelized
+
+
+def calculate_rank_loss(ranking_criterion, target, pred):
+    target, target_normelized, pred_normelized = prepare_for_rank_cretertion(target, pred)
+    if isinstance(ranking_criterion, torch.nn.MarginRankingLoss):
+        ranking_loss = ranking_criterion(target_normelized, pred_normelized, target)
+    elif isinstance(ranking_criterion, torch.nn.HingeEmbeddingLoss) :
+        # pred_argsort,target_argsort  = pred_argsort.to(torch.float), target_argsort.to(torch.float)
+        # projection1_norm = LA.norm(pred_argsort, 2)
+        # projection2_norm = LA.norm(target_argsort, 2)
+        # projection1_normelized = pred_argsort/projection1_norm
+        # projection2_normelized = target_argsort/projection2_norm
+        ranking_loss = ranking_criterion(projection1_normelized, projection2_normelized)
+
+    return ranking_loss
+def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_metric, perm_order = None, optimizer=None):
     
     if data.shape[1]<=3:
         learning_type = 'supervised'
@@ -271,14 +313,12 @@ def step(model, student, data, labels, criterion, accuracy_metric, perm_order = 
           with torch.no_grad():
             classification_pred = model(data)
         else:
-          classification_pred = model(data)
-        classification_pred = classification_pred.cpu()
-        criterion_loss = criterion(m(classification_pred.cpu()), labels.argmax(1))
-        
+            classification_pred = model(data)
+        criterion_loss = criterion(m(classification_pred), labels.argmax(1))
         
         _, predicted = torch.max(classification_pred.data, 1) # for getting predictions class
         _, labels_target = torch.max(labels.data, 1) # for getting predictions class
-        f1_score = accuracy_metric(predicted.cpu(), labels_target)
+        f1_score = accuracy_metric(predicted, labels_target)
 
         accuracy = (predicted == labels_target).sum().item()/labels.shape[0] # get accuracy val
 
@@ -293,58 +333,79 @@ def step(model, student, data, labels, criterion, accuracy_metric, perm_order = 
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
         prems_size  =  perm_order.shape[1]
-        prem1 = perm_order[:,0:prems_size//2]
-        prem2 = perm_order[:,prems_size//2::]
+        target_prem1 = perm_order[:,0:prems_size//2]
+        target_prem2 = perm_order[:,prems_size//2::]
         if optimizer is  None:
           with torch.no_grad():
-            projection1_1 = model(data1)
-            projection1_2 = model(data2)
+            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
 
-            projection2_1 = student(data1)
-            projection2_2 = student(data2)
+            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            representation_pred_2_2, perm_pred_2_2 = student(data2)
         else:
-           projection1_1 = model(data1)
-           projection1_2 = model(data2)
+            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
 
-           projection2_1 = student(data1)
-           projection2_2 = student(data2)
+            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            representation_pred_2_2, perm_pred_2_2 = student(data2)
 
-        projection1_1 = projection1_1.cpu()
-        projection1_2 = projection1_2.cpu()
+        # representation_pred_1_1 = representation_pred_1_1.cpu()
+        # representation_pred_1_2 = representation_pred_1_2.cpu()
+        # representation_pred_2_1 = representation_pred_2_1.cpu()
+        # representation_pred_2_2 = representation_pred_2_2.cpu()
         
-        projection2_1 = projection2_1.cpu()
-        projection2_2 = projection2_2.cpu()
-        
+        # perm_pred_1_1 = perm_pred_1_1.cpu()
+        # perm_pred_1_2 = perm_pred_1_2.cpu()
+        # perm_pred_2_1 = perm_pred_2_1.cpu()
+        # perm_pred_2_2 = perm_pred_2_2.cpu()
         
         # projection1_norm = LA.norm(projection1, 2)
         # projection2_norm = LA.norm(projection2, 2)
         # projection1_normelized = projection1/projection1_norm
         # projection2_normelized = projection2/projection2_norm
-        similiarities_loss = criterion(projection1_1, projection2_2.detach())
+        
+        
+        
+        
+        ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
+        ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
+        ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
+        ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
+        
+        rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
+        balance_factor = model.balance_factor
+        rank_loss *= balance_factor 
+      
+        
+        similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
         criterion_loss1 = 2-2*similiarities_loss
         # criterion_loss1 = criterion_loss1.mean()
-
-        similiarities_loss = criterion(projection1_2, projection2_1)
+        
+       
+        similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
         criterion_loss2 = 2-2*similiarities_loss
         # criterion_loss2 = criterion_loss2.mean()
 
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
+        accuracy = criterion_loss.item()
+        f1_score = rank_loss
+        criterion_loss += rank_loss
         if optimizer is not None:
             criterion_loss.backward()
             optimizer.step()
             
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
-        f1_score = torch.Tensor([0])
-        accuracy = 0
+        # f1_score = torch.Tensor([0])
+        # accuracy = 0
         
     
                 
     return criterion_loss, accuracy, f1_score
 
 
-def eval_model(model, student, classification_criterion, accuracy_metric, data_loader, device):
+def eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, data_loader, device):
     total_accuracy = 0.
     total_f1_score = 0.
     total_classification_loss = 0.
@@ -356,7 +417,8 @@ def eval_model(model, student, classification_criterion, accuracy_metric, data_l
         gc.collect()
         if idx>1 and debug:
             break
-        classification_loss, accuracy, f1_score = step(model, student,  data.to(device), target, classification_criterion, accuracy_metric, perm_order)
+        classification_loss, accuracy, f1_score =  \
+            step(model, student,  data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device) )
         total_accuracy += accuracy*batch_size
         total_f1_score += f1_score*batch_size
         total_classification_loss += classification_loss*batch_size
@@ -368,7 +430,7 @@ def eval_model(model, student, classification_criterion, accuracy_metric, data_l
     return total_accuracy, total_f1_score, total_classification_loss
 
 
-def train(model, student, optimizer, classification_criterion, accuracy_metric, data_loader, device, scheduler= None):
+def train(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, data_loader, device, scheduler= None):
     total_accuracy = 0.
     total_f1_score = 0
     total_classification_loss = 0
@@ -385,7 +447,7 @@ def train(model, student, optimizer, classification_criterion, accuracy_metric, 
             if idx >1 and debug:
                 break
             optimizer.zero_grad()
-            classification_loss, accuracy, f1_score  = step(model,student, data.to(device), target, classification_criterion, accuracy_metric, perm_order, optimizer)
+            classification_loss, accuracy, f1_score  = step(model,student, data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device), optimizer)
             if not student is  None:
                 update_moving_average(model.student_ema_updater, student, model)
 
@@ -404,7 +466,7 @@ def train(model, student, optimizer, classification_criterion, accuracy_metric, 
 
     return total_accuracy, total_f1_score, total_classification_loss
             
-def main(model, student, optimizer, classification_criterion, accuracy_metric, 
+def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, 
          train_loader, val_loader, num_epochs, device, tb_writer = None, 
          scheduler = None, model_path = '', max_opt = True):
     accuracy_train_list = []
@@ -419,10 +481,10 @@ def main(model, student, optimizer, classification_criterion, accuracy_metric,
         best_model_score  = 0
     else:
         best_model_score = 1e5
-    max_patience = 7
+    max_patience = 9
     for epoch in range(num_epochs):
-        train_accuracy, train_f1_score, train_classification_loss = train(model, student, optimizer, classification_criterion, accuracy_metric, train_loader, device, scheduler=scheduler )
-        val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, accuracy_metric, val_loader, device)
+        train_accuracy, train_f1_score, train_classification_loss = train(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, train_loader, device, scheduler=scheduler )
+        val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, val_loader, device)
         
         
         if max_opt:

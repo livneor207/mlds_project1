@@ -9,18 +9,14 @@ import copy
 def update_moving_average(ema_updater, student_model, teacher_model):
     max_update_size = list(student_model.parameters()).__len__()-1
     for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.parameters(), student_model.parameters())):
-        try:
-            if idx == 650:
-                break
-            # print(idx)
+            
+            # print(teacher_params.shape)
             # get current weights
             old_weight, up_weight = student_params.data, teacher_params.data
             
             # update student weights
             student_params.data = ema_updater.update_average(old_weight, up_weight)
-        except:
-            pass
-            a=5
+        
 def model_sellection(model_bank, model_name = 'efficientnet_v2_m' ):
     """
     https://pytorch.org/vision/stable/models.html
@@ -93,7 +89,16 @@ def freeze_all_layers(model):
          if debug:
              print(param[0])
          param[1].requires_grad = False
-            
+def unfreeze_all_layers(model):        
+    """
+    freeze by defult all layer
+    otherwise manully freeze layers 
+    """
+    for param in model.named_parameters():
+         debug= False
+         if debug:
+             print(param[0])
+         param[1].requires_grad = True      
             
 def freeze_backbone_layers(model, model_bank, model_name = 'resnet34', freeze_all = True):        
     """
@@ -153,7 +158,7 @@ def get_model_output_shape(model, image_dim):
 
 
 
-def update_classifier_head(backbone, image_dim, num_classes, model_name = 'efficientnet' ):
+def update_classifier_head(backbone, image_dim, num_classes, model_name = 'efficientnet'):
     # get shape after backbone 
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
@@ -185,24 +190,30 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
         
 
         
-def generate_student(teacher, training_configuration, image_dim, amount_of_class, model_name = 'efficientnet' ):
+def generate_student(teacher, training_configuration, image_dim, amount_of_class, model_name = 'efficientnet', amount_of_patch = 1 ):
+    
+    amount_of_patch = training_configuration.amount_of_patch
+    
     if training_configuration.learning_type == 'supervised':
         student = None
     else:
-        student  =  CNN(num_classes = amount_of_class,
-                                image_dim = (3,image_dim, image_dim), 
-                                learning_type=training_configuration.learning_type)  
+        student  =  CNN(training_configuration, 
+                        num_classes = amount_of_class,
+                        image_dim = (3,image_dim, image_dim))  
         
         student.load_state_dict(teacher.state_dict())
-        last_layer_name = get_model_layers_names(student.backbone)[-1]
-        projection_layer = getattr(student.backbone, last_layer_name)
-        project_layer_list = get_model_layers_names(projection_layer)
-        amount_of_layers = project_layer_list.__len__()
+        # last_layer_name = get_model_layers_names(student.backbone)[-1]
+        # projection_layer = getattr(student.backbone, last_layer_name)
+        # project_layer_list = get_model_layers_names(projection_layer)
+        # amount_of_layers = project_layer_list.__len__()
+        
+        student.REPRESENTATION_HEAD = nn.Identity()
 
-        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-3])
-        setattr(student.backbone, last_layer_name, new_projection_layer)
-
-        freeze_all_layers(student)
+        
+        # new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-3])
+        # setattr(student.backbone, last_layer_name, new_projection_layer)
+        
+        
         
         update_moving_average(teacher.student_ema_updater, student, teacher)
                 
@@ -214,35 +225,53 @@ def generate_student(teacher, training_configuration, image_dim, amount_of_class
 
 
 
-def update_representation_head(backbone, image_dim, num_classes, model_name = 'efficientnet' ):
+def update_representation_head(backbone, image_dim, num_classes, \
+                               model_name = 'efficientnet', \
+                               amount_of_patch = 25, hidden_size=512):
     # get shape after backbone 
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
     
     # set regression head
-    hidden_size = int(512)
+    hidden_size = int(hidden_size)
     
     if hidden_size//4 < num_classes:
         assert False, 'needed to change classifier hidden size due amount of class'
-    HEAD = torch.nn.Sequential(
+    BODY = torch.nn.Sequential(
                                 nn.Dropout(p=0.3),
                                 nn.Linear(flatten_size, int(flatten_size*0.75)),
                                 nn.ReLU(inplace=True),
                                 nn.Dropout(p=0.25),
                                 nn.Linear(int(flatten_size*0.75), hidden_size),
-                                nn.ReLU(inplace=True),
+                                nn.ReLU(inplace=True)
+                                
+                                )
+    
+    REPRESENTATION_HEAD = torch.nn.Sequential(
                                 nn.Dropout(p=0.25),
                                 nn.Linear(hidden_size, hidden_size), 
                                 nn.ReLU(inplace=True)
-
                                 )
+    PERM_HEAD = torch.nn.Sequential(
+                                nn.Dropout(p=0.25),
+                                nn.Linear(hidden_size, hidden_size),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(hidden_size, hidden_size//2),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(hidden_size//2,amount_of_patch),
+                                nn.Tanh()
+                                )
+    # nn.Tanh()
+    
+    
     
     if model_name.find('resnet') != -1:
         # set classification head 
-        backbone.fc = HEAD
+        backbone.fc = BODY
     elif model_name.find('efficientnet') != -1:
         # set classification head 
-        backbone.classifier = HEAD
+        backbone.classifier = BODY
+    return PERM_HEAD, REPRESENTATION_HEAD
         
 class EMA():
     def __init__(self, beta):
@@ -261,7 +290,9 @@ class SSLMODEL(nn.Module):
         super(SSLMODEL, self).__init__()
         
         ssl_model = copy.deepcopy(model)
-        
+        ssl_model.learning_type = 'supervised'
+        del ssl_model.PERM_HEAD
+        del ssl_model.REPRESENTATION_HEAD
         model_bank = ['resnet34', 'resnet50', 'resnet152', 'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
         model_name = 'efficientnet_v2_m'
         
@@ -286,7 +317,7 @@ class SSLMODEL(nn.Module):
             #       debug= True
             #       if debug:
             #           print(param[0])
-      
+        
         update_classifier_head(ssl_model.backbone, image_dim, num_classes, model_name = model_name )
         self.ssl_model = ssl_model
         moving_average_decay = 0.99
@@ -302,9 +333,15 @@ class SSLMODEL(nn.Module):
 
         return classification_pred
 class CNN(nn.Module):
-    def __init__(self, num_classes, image_dim = (3,224,224), model_name = 'efficientnet_v2_m', learning_type = 'supervised'):
+    def __init__(self, training_configuration, num_classes = 2 , image_dim = (3,224,224), model_name = 'efficientnet_v2_m',
+                 learning_type = 'supervised', amount_of_patch = 1,  hidden_size = 512):
         super(CNN, self).__init__()
         
+        learning_type=training_configuration.learning_type
+        amount_of_patch = training_configuration.amount_of_patch
+        hidden_size=training_configuration.hidden_size
+        balance_factor=training_configuration.balance_factor
+
         
         model_bank = ['resnet34', 'resnet50', 'resnet152', 'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
         model_name = 'efficientnet_v2_m'
@@ -328,27 +365,35 @@ class CNN(nn.Module):
         if debug:    
             summary(backbone, (channel, height, width))
             
-            # for param in backbone.named_parameters():
-            #       debug= True
-            #       if debug:
-            #           print(param[0])
-      
+    
         if learning_type== 'supervised':
-            update_classifier_head(backbone, image_dim, num_classes, model_name = model_name )
+            update_classifier_head(backbone, image_dim, num_classes, model_name = model_name)
+            PERM_HEAD, REPRESENTATION_HEAD = None, None
         else:
-            update_representation_head(backbone, image_dim, num_classes, model_name = model_name )
+            PERM_HEAD, REPRESENTATION_HEAD = update_representation_head(backbone, image_dim, num_classes,
+                                                                        model_name = model_name,
+                                                                        amount_of_patch = amount_of_patch,
+                                                                        hidden_size=hidden_size)
         self.backbone = backbone
+        self.PERM_HEAD = PERM_HEAD
+        self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
+
         moving_average_decay = 0.01
         use_momentum = True
         self.use_momentum = use_momentum
         self.target_encoder = None
         self.student_ema_updater = EMA(moving_average_decay)
-
+        self.learning_type = learning_type
+        self.balance_factor = balance_factor
     def forward(self, images):
-        
-        classification_pred = self.backbone(images)
-
-        return classification_pred
+        if self.learning_type== 'supervised':
+            classification_pred = self.backbone(images)
+            return classification_pred
+        else:
+            projection_output = self.backbone(images)
+            perm_pred = self.PERM_HEAD(projection_output)
+            representation_pred = self.REPRESENTATION_HEAD(projection_output)
+            return representation_pred, perm_pred
 
         
     
@@ -361,7 +406,7 @@ def freeze_ssl_layers(model):
 
     for param in model.named_parameters():
          debug= False
-         if debug:
+         if debug: 
              print(param[0])
          if 0 :
          # if (param[0].find(model_layers_names[-1]) !=-1  or  param[0].find('bn') !=-1) or param[0].find('features.7') !=-1:
