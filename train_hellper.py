@@ -13,22 +13,18 @@ from lion_pytorch import Lion
 import torch.nn as nn
 import pandas as pd 
 from torch import linalg as LA
+from model_builder import *
 
-def update_moving_average(ema_updater, student_model, teacher_model):
-    max_update_size = list(student_model.parameters()).__len__()-1
-    for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.parameters(), student_model.parameters())):
-        try:
-            if idx == 650:
-                break
-            # print(idx)
-            # get current weights
-            old_weight, up_weight = student_params.data, teacher_params.data
-            
-            # update student weights
-            student_params.data = ema_updater.update_average(old_weight, up_weight)
-        except:
-            pass
-            a=5
+# def update_moving_average(ema_updater, student_model, teacher_model):
+#     max_update_size = list(student_model.parameters()).__len__()-1
+#     for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.parameters(), student_model.parameters())):
+#         # print(idx)
+#         # get current weights
+#         old_weight, up_weight = student_params.data, teacher_params.data
+        
+#         # update student weights
+#         student_params.data = ema_updater.update_average(old_weight, up_weight)
+       
 class TrainingConfiguration:
     '''
     Describes configuration of the training process
@@ -339,13 +335,11 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
           with torch.no_grad():
             representation_pred_1_1, perm_pred_1_1 = model(data1)
             representation_pred_1_2, perm_pred_1_2 = model(data2)
-
             representation_pred_2_1, perm_pred_2_1 = student(data1)
             representation_pred_2_2, perm_pred_2_2 = student(data2)
         else:
             representation_pred_1_1, perm_pred_1_1 = model(data1)
             representation_pred_1_2, perm_pred_1_2 = model(data2)
-
             representation_pred_2_1, perm_pred_2_1 = student(data1)
             representation_pred_2_2, perm_pred_2_2 = student(data2)
 

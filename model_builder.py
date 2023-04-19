@@ -57,7 +57,7 @@ def freeze_efficientnet_layers(model):
          if debug:
              print(param[0])
         
-         if (param[0].find('features.8') !=-1 or param[0].find('bn') !=-1) :
+         if (param[0].find('features.8') !=-1 or param[0].find('features.0') !=-1  or param[0].find('bn') !=-1) :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -202,6 +202,7 @@ def generate_student(teacher, training_configuration, image_dim, amount_of_class
                         image_dim = (3,image_dim, image_dim))  
         
         student.load_state_dict(teacher.state_dict())
+
         # last_layer_name = get_model_layers_names(student.backbone)[-1]
         # projection_layer = getattr(student.backbone, last_layer_name)
         # project_layer_list = get_model_layers_names(projection_layer)
@@ -216,7 +217,8 @@ def generate_student(teacher, training_configuration, image_dim, amount_of_class
         
         
         update_moving_average(teacher.student_ema_updater, student, teacher)
-                
+        freeze_all_layers(student)
+ 
                 
                 
 
@@ -238,6 +240,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     if hidden_size//4 < num_classes:
         assert False, 'needed to change classifier hidden size due amount of class'
     BODY = torch.nn.Sequential(
+                                nn.Flatten(),
                                 nn.Dropout(p=0.3),
                                 nn.Linear(flatten_size, int(flatten_size*0.75)),
                                 nn.ReLU(inplace=True),
@@ -252,15 +255,16 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 nn.Linear(hidden_size, hidden_size), 
                                 nn.ReLU(inplace=True)
                                 )
-    PERM_HEAD = torch.nn.Sequential(
-                                nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size, hidden_size),
-                                nn.ReLU(inplace=True),
-                                nn.Linear(hidden_size, hidden_size//2),
-                                nn.ReLU(inplace=True),
-                                nn.Linear(hidden_size//2,amount_of_patch),
-                                nn.Tanh()
-                                )
+    grid_size = int(amount_of_patch**0.5)
+    prem_hidden = grid_size*grid_size*24
+    PERM_HEAD = torch.nn.Sequential(nn.AdaptiveAvgPool2d(grid_size),
+                                    nn.Flatten(),
+                                    nn.Linear(prem_hidden, prem_hidden//2),
+                                    nn.ReLU(inplace=True),
+                                    nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.ReLU(inplace=True),
+                                    nn.Linear(prem_hidden//4,amount_of_patch),
+                                    nn.Tanh())
     # nn.Tanh()
     
     
@@ -332,6 +336,30 @@ class SSLMODEL(nn.Module):
         classification_pred = self.ssl_model(images)
 
         return classification_pred
+    
+    
+def forward_using_loop(model, data):
+    layer_input = data
+    for layer_idx , layer  in enumerate(model.backbone.children()):
+        model_layers_names = get_model_layers_names(layer)
+        # print(len(model_layers_names))
+        if len(model_layers_names) == 0:
+                layer_output  = layer(layer_input)
+                if layer_idx == 0 :
+                    gemotric_output = layer_output
+                layer_input = layer_output
+        else:
+    
+            for sub_layer_idx , sub_layer  in enumerate(layer.children()):
+    
+                layer_output  = sub_layer(layer_input)
+                if layer_idx == 0 and sub_layer_idx == 0:
+                    gemotric_output = layer_output
+                layer_input = layer_output
+    return layer_output, gemotric_output
+
+
+
 class CNN(nn.Module):
     def __init__(self, training_configuration, num_classes = 2 , image_dim = (3,224,224), model_name = 'efficientnet_v2_m',
                  learning_type = 'supervised', amount_of_patch = 1,  hidden_size = 512):
@@ -347,10 +375,14 @@ class CNN(nn.Module):
         model_name = 'efficientnet_v2_m'
         # sellecting backbone from torchvision models
         backbone = model_sellection(model_bank, model_name = model_name)
-
-        # freeze all except batch norm layer 
-        freeze_backbone_layers(backbone, model_bank,  model_name = model_name)
         
+       
+        
+        
+        # dummy_array =  torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))
+        
+        # freeze all except batch norm layer 
+        freeze_backbone_layers(backbone, model_bank,  model_name = model_name , freeze_all = False)
         
         def get_output_shape(model, image_dim):
             return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))).data.shape
@@ -374,11 +406,12 @@ class CNN(nn.Module):
                                                                         model_name = model_name,
                                                                         amount_of_patch = amount_of_patch,
                                                                         hidden_size=hidden_size)
+
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
-
-        moving_average_decay = 0.01
+        
+        moving_average_decay = 0.99
         use_momentum = True
         self.use_momentum = use_momentum
         self.target_encoder = None
@@ -390,8 +423,11 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            projection_output = self.backbone(images)
-            perm_pred = self.PERM_HEAD(projection_output)
+            # projection_output = self.backbone(images)
+            # geometric_output = self.backbone.features[0](images)
+            projection_output, geometric_output = forward_using_loop(self, images)
+
+            perm_pred = self.PERM_HEAD(geometric_output)
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
             return representation_pred, perm_pred
 

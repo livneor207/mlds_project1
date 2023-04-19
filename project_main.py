@@ -127,7 +127,7 @@ slice for debuging
 
 
 test_df = test_df[0:20]
-train_df = train_df[0:25]
+train_df = train_df[0:20]
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
@@ -142,6 +142,46 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {va
 model = CNN(training_configuration, 
              num_classes = amount_of_class,
              image_dim = (3,image_dim, image_dim))
+# model_layers_names = get_model_layers_names(model.backbone)
+
+
+# # dummy_array = torch.rand((2,3,224, 224 ))
+
+# t1  = time.time()
+# model(dummy_array)
+# t2 = time.time()
+# t2-t1
+# t1  = time.time()
+
+# layer_input = dummy_array
+# def forward_using_loop(model, data):
+#     layer_input = data
+#     for layer_idx , layer  in enumerate(model.backbone.children()):
+#         model_layers_names = get_model_layers_names(layer)
+#         # print(len(model_layers_names))
+#         if len(model_layers_names) == 0:
+#                 layer_output  = layer(layer_input)
+#                 if layer_idx == 0 :
+#                     gemotric_output = layer_output
+#                 layer_input = layer_output
+#         else:
+    
+#             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
+    
+#                 layer_output  = sub_layer(layer_input)
+#                 if layer_idx == 0 and sub_layer_idx == 0:
+#                     gemotric_output = layer_output
+#                 layer_input = layer_output
+#     return layer_output, gemotric_output
+
+
+
+            
+            
+# layer_output, gemotric_output = forward_using_loop(model, dummy_array)
+# t2 = time.time()
+# t2-t1
+
 
 
 student = generate_student(model, 
