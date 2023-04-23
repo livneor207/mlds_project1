@@ -14,8 +14,8 @@ from tensorboard_hellper import add_data_embedings
 import pandas as pd
 import patchify
 from patchify import patchify
-
-
+from utils import *
+import torchvision
 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
@@ -34,13 +34,35 @@ def data_statistics(train_df):
     return train_statistic_df, alpha
 
 
-def parse_train_data(images_path_list):
-    class_name_list = list(map(lambda x: os.path.basename(x).split('.')[0], images_path_list))
-    data_class_df = pd.DataFrame([['cat', 0],['dog',1]], columns = ['class_name', 'class_index'])
-    train_df = pd.DataFrame(class_name_list, columns = ['class_name'])
-    train_df['image_path'] = images_path_list
-    train_df = pd.merge(train_df, data_class_df, how = 'left', on = ['class_name'])
-    return train_df
+def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True):
+    if task_name == 'cat_dogs':
+        
+        # get all files names 
+        images_path_list = get_all_images_from_specific_folder(folder_path)
+        
+        
+        class_name_list = list(map(lambda x: os.path.basename(x).split('.')[0], images_path_list))
+        data_class_df = pd.DataFrame([['cat', 0],['dog',1]], columns = ['class_name', 'class_index'])
+        data_df = pd.DataFrame(class_name_list, columns = ['class_name'])
+        data_df['image_path'] = images_path_list
+        data_df = pd.merge(data_df, data_class_df, how = 'left', on = ['class_name'])
+        if data_df.isnull().values.any():
+            data_df = data_df[['image_path']]
+        data = None
+        data_df = data_df.sample(frac=1).reset_index(drop=True)
+
+    elif task_name == 'CIFAR10':
+         
+        data_set = torchvision.datasets.CIFAR10('./', train=train, download=True)
+
+        class_name_df =  pd.DataFrame(data_set.classes, columns = ['class_name'])
+        class_name_df['class_index'] = np.arange(class_name_df.shape[0])
+        data_df = pd.DataFrame(data_set.targets, columns = ['class_index'])
+        data_df = pd.merge(data_df,class_name_df,  how = 'left', on = ['class_index'])
+        data = data_set.data
+    return data_df, data
+
+
 def parse_test_data(images_path_list):
     test_df = pd.DataFrame()
     test_df['image_path'] = images_path_list
@@ -50,9 +72,10 @@ def parse_test_data(images_path_list):
 
 class MyDataset(Dataset):
 
-  def __init__(self, data_df, class_df,  transform_train, transform_test , amount_of_patch = 4, train = True, data_name = 'train',
+  def __init__(self, data_df,  class_df,  transform_train, transform_test ,index_list = None, amount_of_patch = 4, train = True, data_name = 'train',
                debug = False, max_debug_image_allowed = 0, means = [0.485, 0.456, 0.406], 
-               stds=[0.229, 0.224, 0.225], taske_name = 'perm' , learning_type = 'supervised'):
+               stds=[0.229, 0.224, 0.225], taske_name = 'perm' , learning_type = 'supervised',
+               data=None):
     
       
     self.taske_name = taske_name
@@ -64,6 +87,16 @@ class MyDataset(Dataset):
     self.max_debug_image_allowed = max_debug_image_allowed
     self.train = train
     self.learning_type = learning_type
+    if index_list is None:
+        index_list= np.arange(0, data_df.shape[0])
+    self.index_list = index_list
+    self.pill_transform = transforms.ToPILImage()
+    if data is None:
+        read_image = True
+    else:
+        read_image = False
+    self.read_image= read_image
+    self.data =  data
     if train :
         self.transform = transform_train
     else:
@@ -78,7 +111,7 @@ class MyDataset(Dataset):
     
     
   def __len__(self):
-    return self.data_df.shape[0]
+    return self.index_list.size
   
   def permutatation_aug(self, transform_image):
       amount_of_patch = self.amount_of_patch
@@ -129,10 +162,14 @@ class MyDataset(Dataset):
   def __getitem__(self, idx):
     # get image
     
-    data_df_row = self.data_df.iloc[idx]
+    data_df_row = self.data_df.iloc[self.index_list[idx]]
     label_file_name = data_df_row['class_index']
-    image_path = data_df_row['image_path']
-
+    if self.read_image:
+        image_path = data_df_row['image_path']
+        image = Image.open(image_path) 
+    else:
+        image = self.data[self.index_list[idx]]
+        image = self.pill_transform(image)
     if self.data_name in ['train', 'val']:
         label_target = data_df_row['class_index']
         label_name = data_df_row['class_name']
@@ -144,7 +181,6 @@ class MyDataset(Dataset):
     label[label_target] = 1
     label =  torch.Tensor(label)
     label = label.to(torch.float)
-    image = Image.open(image_path) 
     
     transform_image =  self.transform(image)
     
@@ -152,7 +188,6 @@ class MyDataset(Dataset):
         desire_amount_of_images = 1
     else:
         desire_amount_of_images = 2
-    
     
     new_image, prem_order = self.get_perm_image(transform_image)
     if desire_amount_of_images > 1:
@@ -190,7 +225,7 @@ class MyDataset(Dataset):
 
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
-                           learning_type = 'supervised', num_workers = 2):
+                           learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None):
     
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
@@ -230,16 +265,22 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     class_df =  all_train_df[['class_name', 'class_index']]
     class_df =  class_df.drop_duplicates(subset=['class_name'])
     
-    
-    train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)
+    # targets =  train_dataset.targets
+    try:
+        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
+    except:
+        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+
+
+    # train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)
 
     
-    X_train = MyDataset(train_df, class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch, 
-                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type)
-    X_val = MyDataset(val_df,class_df, data_transforms, test_transforms ,amount_of_patch=amount_of_patch, 
-                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type)
-    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , amount_of_patch=amount_of_patch,
-                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type)
+    X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 
+                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data)
+    X_val = MyDataset(all_train_df,class_df, data_transforms, test_transforms ,index_list = val_index, amount_of_patch=amount_of_patch, 
+                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data)
+    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = None, amount_of_patch=amount_of_patch,
+                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=True)

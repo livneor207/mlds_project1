@@ -44,6 +44,7 @@ from torchmetrics import F1Score
 from torch.nn import functional as F
 from focal_loss.focal_loss import FocalLoss
 from torch.utils.tensorboard import SummaryWriter
+import torchvision
 from tensorboard_hellper import *
 from utils import *
 from data_set_loader import *
@@ -51,6 +52,15 @@ from train_hellper import *
 from model_builder import *
 import glob
 plt.close('all')
+
+
+"""
+# TODO! remove features.7.4.block.3
+# TODO! add to training configuration in colab
+# TODO! unuse\run perm head
+
+"""
+
 
 
 # from torchmetrics.classification import MulticlassHammingDistance
@@ -84,15 +94,14 @@ train_folder_path = os.path.join(data_folder,  'train', 'train')
 log_dir = os.path.join(data_folder,  'expirement1')
 submission_path = os.path.join(data_folder,  'submission.csv')
 model_path = os.path.join(data_folder,  'model3.pth')
-# get all files names 
-train_images_path_list = get_all_images_from_specific_folder(train_folder_path)
-test_images_path_list = get_all_images_from_specific_folder(test_folder_path)
+
+
+task_name  = 'CIFAR10'
 
 # parse train data
-train_df = parse_train_data(train_images_path_list)
-train_df = train_df.sample(frac=1).reset_index(drop=True)
+train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True)
+test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False)
 
-test_df = parse_train_data(train_images_path_list)
 
 # log to tensorboard, tensorboard summary writer
 tb_writer = SummaryWriter(
@@ -111,12 +120,12 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # set train configurations
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
-training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-4,
                                      learning_type='self_supervised', batch_size= 100, 
                                      scheduler_name = 'ReduceLROnPlateau', max_opt = False,
-                                     epochs_count = 10, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 0.25,
-                                     amount_of_patch = 25)
+                                     epochs_count = 50, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 0.05,
+                                     amount_of_patch = 25, moving_average_decay = 0.01)
 device = training_configuration.device
 
 # define data loaders 
@@ -124,65 +133,29 @@ device = training_configuration.device
 slice for debuging
 """
 
+test_df = test_df[0:30]
+train_df = train_df[0:30]
+if train_data is not None:
+    train_data = train_data[0:30]
+    test_data = test_data[0:30]
 
-
-test_df = test_df[0:20]
-train_df = train_df[0:20]
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
                            val_split=val_split,  
                            debug_batch_size = 8, 
-                           random_state = seed, tb_writer = tb_writer)
+                           random_state = seed,
+                           tb_writer = tb_writer,
+                           train_data=train_data,
+                           test_data=test_data)
+    
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
 
-
-# set model 
+# # set model 
 model = CNN(training_configuration, 
-             num_classes = amount_of_class,
-             image_dim = (3,image_dim, image_dim))
-# model_layers_names = get_model_layers_names(model.backbone)
-
-
-# # dummy_array = torch.rand((2,3,224, 224 ))
-
-# t1  = time.time()
-# model(dummy_array)
-# t2 = time.time()
-# t2-t1
-# t1  = time.time()
-
-# layer_input = dummy_array
-# def forward_using_loop(model, data):
-#     layer_input = data
-#     for layer_idx , layer  in enumerate(model.backbone.children()):
-#         model_layers_names = get_model_layers_names(layer)
-#         # print(len(model_layers_names))
-#         if len(model_layers_names) == 0:
-#                 layer_output  = layer(layer_input)
-#                 if layer_idx == 0 :
-#                     gemotric_output = layer_output
-#                 layer_input = layer_output
-#         else:
-    
-#             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
-    
-#                 layer_output  = sub_layer(layer_input)
-#                 if layer_idx == 0 and sub_layer_idx == 0:
-#                     gemotric_output = layer_output
-#                 layer_input = layer_output
-#     return layer_output, gemotric_output
-
-
-
-            
-            
-# layer_output, gemotric_output = forward_using_loop(model, dummy_array)
-# t2 = time.time()
-# t2-t1
-
-
+              num_classes = amount_of_class,
+              image_dim = (3,image_dim, image_dim))
 
 student = generate_student(model, 
                            training_configuration, 
@@ -241,7 +214,8 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      learning_type='supervised', batch_size= 100, 
                                      scheduler_name = 'ReduceLROnPlateau', max_opt = False,
                                      epochs_count = 10, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, amount_of_patch = 25)
+                                     max_lr = 5e-3, hidden_size = 512, amount_of_patch = 25,
+                                     moving_average_decay = 0.01)
 
 
 device = training_configuration.device
@@ -309,3 +283,4 @@ train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criter
 
 
 
+ 

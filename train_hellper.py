@@ -50,8 +50,8 @@ class TrainingConfiguration:
     num_workers: int = 0
     hidden_size: int = 512
     balance_factor: float = 1
-    amount_of_patch = 25
-    
+    amount_of_patch: float = 25
+    moving_average_decay: float = 0.01
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -61,7 +61,7 @@ class TrainingConfiguration:
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      amount_of_patch = 25):
+                      amount_of_patch = 25, moving_average_decay = 0.01):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -76,6 +76,7 @@ class TrainingConfiguration:
         self.hidden_size = hidden_size
         self.balance_factor = balance_factor
         self.amount_of_patch = amount_of_patch
+        self.moving_average_decay = moving_average_decay
 
         
         
@@ -320,6 +321,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         if optimizer is not None:
             criterion_loss.backward()
+            debug_grad= True
+            if debug_grad:
+                print_grad(model)
             optimizer.step()
         
     else:
@@ -333,15 +337,31 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         target_prem2 = perm_order[:,prems_size//2::]
         if optimizer is  None:
           with torch.no_grad():
-            representation_pred_1_1, perm_pred_1_1 = model(data1)
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
-            representation_pred_2_1, perm_pred_2_1 = student(data1)
-            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            representation_pred_1_1 = model(data1)
+            representation_pred_1_2 = model(data2)
+            representation_pred_2_1 = student(data1)
+            representation_pred_2_2 = student(data2)
         else:
-            representation_pred_1_1, perm_pred_1_1 = model(data1)
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
-            representation_pred_2_1, perm_pred_2_1 = student(data1)
-            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            representation_pred_1_1 = model(data1)
+            representation_pred_1_2 = model(data2)
+            representation_pred_2_1 = student(data1)
+            representation_pred_2_2 = student(data2)
+            
+            
+        
+        
+        
+        # if optimizer is  None:
+        #   with torch.no_grad():
+        #     representation_pred_1_1, perm_pred_1_1 = model(data1)
+        #     representation_pred_1_2, perm_pred_1_2 = model(data2)
+        #     representation_pred_2_1, perm_pred_2_1 = student(data1)
+        #     representation_pred_2_2, perm_pred_2_2 = student(data2)
+        # else:
+        #     representation_pred_1_1, perm_pred_1_1 = model(data1)
+        #     representation_pred_1_2, perm_pred_1_2 = model(data2)
+        #     representation_pred_2_1, perm_pred_2_1 = student(data1)
+        #     representation_pred_2_2, perm_pred_2_2 = student(data2)
 
         # representation_pred_1_1 = representation_pred_1_1.cpu()
         # representation_pred_1_2 = representation_pred_1_2.cpu()
@@ -361,14 +381,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         
         
-        ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
-        ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
-        ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
-        ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
+        # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
+        # ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
+        # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
+        # ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
-        rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
+        # rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
         balance_factor = model.balance_factor
-        rank_loss *= balance_factor 
+        # rank_loss *= balance_factor 
       
         
         similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
@@ -383,15 +403,20 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
         accuracy = criterion_loss.item()
-        f1_score = rank_loss
-        criterion_loss += rank_loss
+        # f1_score = rank_loss
+        # criterion_loss += rank_loss
         if optimizer is not None:
             criterion_loss.backward()
+            debug_grad= True
+            if debug_grad:
+                print_grad(student)
+            
+                     
             optimizer.step()
             
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
-        # f1_score = torch.Tensor([0])
+        f1_score = torch.Tensor([0])
         # accuracy = 0
         
     
@@ -476,6 +501,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     else:
         best_model_score = 1e5
     max_patience = 9
+    patience = 0
     for epoch in range(num_epochs):
         train_accuracy, train_f1_score, train_classification_loss = train(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, train_loader, device, scheduler=scheduler )
         val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, val_loader, device)
