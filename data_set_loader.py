@@ -72,7 +72,8 @@ def parse_test_data(images_path_list):
 
 class MyDataset(Dataset):
 
-  def __init__(self, data_df,  class_df,  transform_train, transform_test ,index_list = None, amount_of_patch = 4, train = True, data_name = 'train',
+  def __init__(self, data_df,  class_df,  transform_train, transform_test ,index_list = None, amount_of_patch = 4, 
+               train = True, data_name = 'train',
                debug = False, max_debug_image_allowed = 0, means = [0.485, 0.456, 0.406], 
                stds=[0.229, 0.224, 0.225], taske_name = 'perm' , learning_type = 'supervised',
                data=None):
@@ -134,7 +135,22 @@ class MyDataset(Dataset):
           to_row = (row+1)*patch_row_size
           from_col = col*patch_col_size
           to_col =  (col+1)*patch_col_size
-          new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(patch_array[0][i_perm_row, i_perm_col])
+          
+          
+          patch_image = patch_array[0][i_perm_row, i_perm_col]
+          border_size = 1
+          row_size, col_size = patch_image.shape[1::]
+          masked_patch = patch_image.copy()
+          # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
+          padd_val = 0
+          masked_patch[:,:,0:border_size]  = padd_val
+          masked_patch[:,:,col_size-border_size::]  =  padd_val
+          masked_patch[:,0:border_size,:]  =padd_val
+          masked_patch[:,row_size-border_size::,:]  =padd_val
+          # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
+          
+          
+          new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
       return new_image, prem_order
   
   def get_perm_image(self, transform_image):
@@ -243,7 +259,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         p = 1
     center_crop_size = int(0.65*image_size)
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([
+        data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     elif taske_name == 'no_perm':

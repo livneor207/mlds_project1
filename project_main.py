@@ -96,7 +96,7 @@ submission_path = os.path.join(data_folder,  'submission.csv')
 model_path = os.path.join(data_folder,  'model3.pth')
 
 
-task_name  = 'CIFAR10'
+task_name  = 'cat_dogs'
 
 # parse train data
 train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True)
@@ -121,19 +121,19 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                     learning_type='supervised', batch_size= 100, 
-                                     scheduler_name = 'ReduceLROnPlateau', max_opt = False,
-                                     epochs_count = 50, perm= 'no_perm', num_workers = 0, 
+                                     learning_type='self_supervised', batch_size= 100, 
+                                     scheduler_name = 'None', max_opt = False,
+                                     epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-                                     amount_of_patch = 25, moving_average_decay = 0.99,
-                                     weight_decay = 1e-4)
+                                     amount_of_patch = 16, moving_average_decay = 0.99,
+                                     weight_decay = 1e-2)
 device = training_configuration.device
 
 # define data loaders 
 """
 slice for debuging
 """
-amount_for_debug = 50
+amount_for_debug = 20
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -144,11 +144,12 @@ train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
                            val_split=val_split,  
-                           debug_batch_size = 32, 
+                           debug_batch_size = 8, 
                            random_state = seed,
                            tb_writer = tb_writer,
                            train_data=train_data,
-                           test_data=test_data)
+                           test_data=test_data,
+                           image_size = image_dim)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
@@ -212,11 +213,11 @@ training_configuration.get_device_type()
 
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='supervised', batch_size= 100, 
-                                     scheduler_name = 'ReduceLROnPlateau', max_opt = False,
+                                     scheduler_name = 'None', max_opt = True,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-                                     amount_of_patch = 25, moving_average_decay = 0.99,
-                                     weight_decay=1e-4)
+                                     amount_of_patch = 16, moving_average_decay = 0.99,
+                                     weight_decay=1e-2)
 
 
 device = training_configuration.device
@@ -234,7 +235,8 @@ train_loader, val_loader, test_loader, debug_loader = \
                            random_state = seed,
                            tb_writer = tb_writer,
                            train_data=train_data,
-                           test_data=test_data)
+                           test_data=test_data,
+                           image_size = image_dim)
 # print size of data-sets
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
@@ -297,10 +299,10 @@ training_configuration.get_device_type()
 
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='supervised', batch_size= 100, 
-                                     scheduler_name = 'ReduceLROnPlateau', max_opt = False,
+                                     scheduler_name = 'None', max_opt = True,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-                                     amount_of_patch = 25, moving_average_decay = 0.01)
+                                     amount_of_patch = 16, moving_average_decay = 0.01)
 
 
 device = training_configuration.device
