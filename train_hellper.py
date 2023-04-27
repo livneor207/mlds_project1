@@ -52,6 +52,7 @@ class TrainingConfiguration:
     balance_factor: float = 1
     amount_of_patch: float = 25
     moving_average_decay: float = 0.01
+    weight_decay: float = 1e-3
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -61,7 +62,7 @@ class TrainingConfiguration:
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      amount_of_patch = 25, moving_average_decay = 0.01):
+                      amount_of_patch = 25, moving_average_decay = 0.01, weight_decay = 1e-3):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -77,6 +78,7 @@ class TrainingConfiguration:
         self.balance_factor = balance_factor
         self.amount_of_patch = amount_of_patch
         self.moving_average_decay = moving_average_decay
+        self.weight_decay = weight_decay
 
         
         
@@ -234,7 +236,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     device = training_configuration.device
     optimizer_name = training_configuration.optimizer_name
     scheduler_name = training_configuration.scheduler_name
-
+    weight_decay = training_configuration.weight_decay
     
     optimizer_bank = ['adam', 'lion']
     if not optimizer_name in optimizer_bank:
@@ -243,7 +245,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     if optimizer_name == 'adam':
       optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     elif optimizer_name == 'lion':
-      optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = 1e-3)
+      optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     
     # Scheduler
     scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = scheduler_name)
@@ -321,7 +323,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         if optimizer is not None:
             criterion_loss.backward()
-            debug_grad= True
+            debug_grad= False
             if debug_grad:
                 print_grad(model)
             optimizer.step()

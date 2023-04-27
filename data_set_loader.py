@@ -241,23 +241,25 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         p = 0.5
     else:
         p = 1
+    center_crop_size = int(0.65*image_size)
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
+        data_transforms =   transforms.Compose([
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     elif taske_name == 'no_perm':
         data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
                                                 transforms.RandomChoice( [
-                                                                          transforms.RandomCrop(size=(image_size, image_size)),
+                                                                          transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
                                                                           transforms.RandomHorizontalFlip(p=p),
-                                                                          transforms.RandomAffine(degrees=(-5, 5), 
-                                                                                                  translate=(0, 0.2), 
-                                                                                                  scale=(0.6, 1)),
-                                                                          transforms.RandomVerticalFlip(p=p)]),
+                                                                          transforms.ColorJitter(brightness=.25, hue=.25,
+                                                                                                 saturation = 0.25, contrast = 0.25)]),
+                                                # transforms.CenterCrop((center_crop_size,center_crop_size)),
+                                                transforms.Resize((image_size,image_size)),
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     
-    test_transforms =  transforms.Compose([transforms.Resize((image_size,image_size)),
+    test_transforms =  transforms.Compose([ transforms.Resize((image_size,image_size)),
+                                            # transforms.CenterCrop((center_crop_size, center_crop_size)),
                                             transforms.ToTensor(),
                                             transforms.Normalize(means, stds)])
 

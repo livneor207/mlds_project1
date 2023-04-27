@@ -6,6 +6,8 @@ import numpy as np
 import copy
 
 
+        
+        
 def update_moving_average(ema_updater, student_model, teacher_model):
     max_update_size = list(student_model.parameters()).__len__()-1
     for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.named_parameters(), student_model.named_parameters())):
@@ -232,7 +234,7 @@ def generate_student(teacher, training_configuration, image_dim,
         project_layer_list = get_model_layers_names(projection_layer)
         amount_of_layers = project_layer_list.__len__()
 
-        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-3])
+        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-4])
         setattr(student.backbone, last_layer_name, new_projection_layer)
         
         
@@ -295,16 +297,16 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 # nn.BatchNorm1d(flatten_size),
                                 nn.Dropout(p=0.3),
                                 nn.Linear(flatten_size, hidden2),
-                                # nn.BatchNorm1d(hidden2),
+                                nn.BatchNorm1d(hidden2),
                                 nn.ReLU(inplace=True),
                                 nn.Dropout(p=0.25),
                                 nn.Linear(hidden2, hidden_size),
-                                # nn.BatchNorm1d(hidden_size),
+                                nn.BatchNorm1d(hidden_size),
                                 nn.ReLU(inplace=True),
                                 nn.Dropout(p=0.25),            
-                                nn.Linear(hidden_size, hidden_size),
+                                nn.Linear(hidden_size, hidden_size))
                                 # nn.BatchNorm1d(hidden_size),
-                                nn.ReLU(inplace=True))
+                                # nn.ReLU(inplace=True))
                                 
     
                                 
