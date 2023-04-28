@@ -557,7 +557,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
                                                          'validation': val_f1_score}, epoch)
             
             # adding model weights to tensorboard as histogram
-            add_model_weights_as_histogram(model, tb_writer, epoch)
+            # add_model_weights_as_histogram(model, tb_writer, epoch)
         
        
             

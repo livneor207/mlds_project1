@@ -9,7 +9,7 @@ import copy
         
         
 def update_moving_average(ema_updater, student_model, teacher_model):
-    max_update_size = list(student_model.parameters()).__len__()-1
+    # max_update_size = list(student_model.parameters()).__len__()-1
     for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.named_parameters(), student_model.named_parameters())):
             # print(idx)
             # if idx == 650:

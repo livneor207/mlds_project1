@@ -16,7 +16,7 @@ import patchify
 from patchify import patchify
 from utils import *
 import torchvision
-
+import time 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
     amount_of_class = train_statistic_df.shape[0] 
@@ -204,8 +204,10 @@ class MyDataset(Dataset):
         desire_amount_of_images = 1
     else:
         desire_amount_of_images = 2
-    
+    t1 = time.time()
     new_image, prem_order = self.get_perm_image(transform_image)
+    total =  t1 - time.time()
+
     if desire_amount_of_images > 1:
         new_image2, prem_order2 = self.get_perm_image(transform_image)
         new_image = torch.concatenate([new_image, new_image2])
