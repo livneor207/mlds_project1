@@ -27,27 +27,28 @@ def update_moving_average(ema_updater, student_model, teacher_model):
             student_params[1].data = ema_updater.update_average(old_weight, up_weight)
             # print(student_params[1].requires_grad)
         
-def model_sellection(model_bank, model_name = 'efficientnet_v2_m' ):
+def model_sellection(model_bank, model_name = 'efficientnet_v2_m', weights = 'IMAGENET1K_V1' ):
     """
     https://pytorch.org/vision/stable/models.html
     """
 
     if model_name not in model_bank:
         assert False, 'model is not defined'
-    if model_name == 'resnet34':
-        
-        backbone = models.resnet34(weights='IMAGENET1K_V1')
+    if model_name == 'resnet18':
+        backbone = models.resnet18(weights=weights)
+    elif model_name == 'resnet34':
+        backbone = models.resnet34(weights=weights)
     elif model_name == 'resnet50':
-        backbone = models.resnet50(weights='IMAGENET1K_V1')
+        backbone = models.resnet50(weights=weights)
     elif model_name == 'resnet152':
         # defult model - resnet18
-        backbone = models.resnet152(weights='IMAGENET1K_V1')
+        backbone = models.resnet152(weights=weights)
     elif model_name == 'efficientnet_v2_s':
-        backbone = models.efficientnet_v2_s(weights='IMAGENET1K_V1')
+        backbone = models.efficientnet_v2_s(weights=weights)
     elif model_name == 'efficientnet_v2_m':
-        backbone = models.efficientnet_v2_m(weights='IMAGENET1K_V1')
+        backbone = models.efficientnet_v2_m(weights=weights)
     elif model_name == 'efficientnet_v2_l':
-        backbone = models.efficientnet_v2_l(weights='IMAGENET1K_V1')
+        backbone = models.efficientnet_v2_l(weights=weights)
     # for param in backbone.named_parameters():
     #      debug= True
     #      if debug:
@@ -91,11 +92,11 @@ def freeze_resnet_layers(model):
     otherwise manully freeze layers 
     """
     for param in model.named_parameters():
-         debug= False
+         debug= True
          if debug:
              print(param[0])
-        
-         if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1) :
+        #  if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
+         if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -123,14 +124,16 @@ def unfreeze_all_layers(model):
              print(param[0])
          param[1].requires_grad = True      
             
-def freeze_backbone_layers(model, model_bank, model_name = 'resnet34', freeze_all = True):        
+def freeze_backbone_layers(model, model_bank, model_name = 'resnet34', freeze_all = True, unfreeze = False):        
     """
     freeze by defult all layer
     otherwise manully freeze layers 
     """
-    if model_name not in model_bank:
+    if unfreeze:
+      pass
+    elif model_name not in model_bank:
         assert False, 'model is not defined'
-    if freeze_all:
+    elif freeze_all:
         freeze_all_layers(model)
     elif model_name.find('resnet') != -1:
         freeze_resnet_layers(model)
@@ -181,7 +184,7 @@ def get_model_output_shape(model, image_dim):
 
 
 
-def update_classifier_head(backbone, image_dim, num_classes, model_name = 'efficientnet'):
+def update_classifier_head(backbone, image_dim, num_classes, model_name = 'efficientnet_v2_m'):
     # get shape after backbone 
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
@@ -215,7 +218,8 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
         
 def generate_student(teacher, training_configuration, image_dim, 
                      amount_of_class, model_name = 'efficientnet',
-                     amount_of_patch = 1, freeze_all = False ):
+                     amount_of_patch = 1, freeze_all = False,
+                     weights = 'IMAGENET1K_V1', unfreeze = True):
     
     amount_of_patch = training_configuration.amount_of_patch
     
@@ -224,7 +228,10 @@ def generate_student(teacher, training_configuration, image_dim,
     else:
         student  =  CNN(training_configuration, 
                         num_classes = amount_of_class,
-                        image_dim = (3,image_dim, image_dim), freeze_all = freeze_all)  
+                        image_dim = (3,image_dim, image_dim),
+                        freeze_all = freeze_all,
+                        model_name = model_name,
+                        weights=weights, unfreeze = unfreeze)  
         
         student.load_state_dict(teacher.state_dict())
         
@@ -272,7 +279,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     # set regression head
     hidden_size = int(hidden_size)
-    hidden2 = int(flatten_size*0.75)
+    hidden2 = int(flatten_size*2)
     if hidden_size//4 < num_classes:
         assert False, 'needed to change classifier hidden size due amount of class'
     
@@ -292,36 +299,52 @@ def update_representation_head(backbone, image_dim, num_classes, \
     """
     BRD BATCH NORM --> RELU --> DROPOUT
     """
+    # BODY = torch.nn.Sequential(
+    #                             nn.Dropout(p=0),
+    #                             nn.Linear(flatten_size, hidden2),
+    #                             nn.BatchNorm1d(hidden2),
+    #                             nn.ReLU(inplace=True),
+    #                             nn.Dropout(p=0),
+    #                             nn.Linear(hidden2, hidden_size),
+    #                             nn.BatchNorm1d(hidden_size),
+    #                             nn.ReLU(inplace=True),
+    #                             nn.Dropout(p=0),            
+    #                             nn.Linear(hidden_size, hidden_size))
+
     BODY = torch.nn.Sequential(
-                                # nn.Flatten(),
-                                # nn.BatchNorm1d(flatten_size),
-                                nn.Dropout(p=0.3),
-                                nn.Linear(flatten_size, hidden2),
-                                nn.BatchNorm1d(hidden2),
-                                nn.ReLU(inplace=True),
-                                nn.Dropout(p=0.25),
-                                nn.Linear(hidden2, hidden_size),
-                                nn.BatchNorm1d(hidden_size),
-                                nn.ReLU(inplace=True),
-                                nn.Dropout(p=0.25),            
-                                nn.Linear(hidden_size, hidden_size))
-                                # nn.BatchNorm1d(hidden_size),
-                                # nn.ReLU(inplace=True))
+                                nn.Flatten()
+                                )
                                 
     
                                 
     
     REPRESENTATION_HEAD = torch.nn.Sequential(  
-                                                nn.Dropout(p=0.25),            
-                                                nn.Linear(hidden_size, hidden_size),
-                                                # nn.BatchNorm1d(hidden_size),
-                                                nn.ReLU(inplace=True)
+                                                nn.Dropout(p=0),
+                                                nn.Linear(flatten_size, hidden2),
+                                                nn.BatchNorm1d(hidden2),
+                                                nn.ReLU(inplace=True),
+                                                nn.Dropout(p=0),
+                                                nn.Linear(hidden2, hidden_size),
+                                                nn.BatchNorm1d(hidden_size),
+                                                nn.ReLU(inplace=True),
+                                                nn.Dropout(p=0),            
+                                                nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
     prem_hidden = 512
-    PERM_HEAD = torch.nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                                    nn.Flatten(),
+    
+    # PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0.3),
+    #                                 nn.Linear(flatten_size, hidden_size),
+    #                                 nn.BatchNorm1d(hidden_size),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0.25),
+    #                                 nn.Linear(hidden_size, amount_of_patch)
+    #                                 )
+    
+    
+    PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0),
                                     nn.BatchNorm1d(prem_hidden),
+                                    nn.ReLU(inplace=True),
                                     nn.Linear(prem_hidden,amount_of_patch))
     
     freeze_all_layers(PERM_HEAD)
@@ -350,18 +373,29 @@ class EMA():
         
         
 class SSLMODEL(nn.Module):
-    def __init__(self, model, num_classes, image_dim = (3,224,224),  freeze_all = False):
+    def __init__(self, model,
+                 num_classes, 
+                 image_dim=(3,224,224), 
+                 freeze_all=False,
+                 model_name='efficientnet_v2_m',
+                 unfreeze=False):
+      
         super(SSLMODEL, self).__init__()
         
         ssl_model = copy.deepcopy(model)
         ssl_model.learning_type = 'supervised'
         del ssl_model.PERM_HEAD
         del ssl_model.REPRESENTATION_HEAD
-        model_bank = ['resnet34', 'resnet50', 'resnet152', 'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
-        model_name = 'efficientnet_v2_m'
+        model_bank = ['resnet18','resnet34', 'resnet50', 
+                      'resnet152', 'efficientnet_v2_m', 
+                      'efficientnet_v2_s', 'efficientnet_v2_l']
+        # model_name = 'efficientnet_v2_m'
         
         # freeze all except batch norm layer 
-        freeze_backbone_layers(ssl_model, model_bank,  model_name = model_name , freeze_all = freeze_all)
+        freeze_backbone_layers(ssl_model, model_bank, 
+                               model_name = model_name , 
+                               freeze_all = freeze_all,
+                               unfreeze = unfreeze)
         
         
         def get_output_shape(model, image_dim):
@@ -402,7 +436,7 @@ def forward_using_loop(model, data):
     layer_input = data
     for layer_idx , layer  in enumerate(model.backbone.children()):
         model_layers_names = get_model_layers_names(layer)
-        # print(len(model_layers_names))
+        print(len(model_layers_names))
         if len(model_layers_names) == 0:
                 layer_output  = layer(layer_input)
                 if layer_idx == 0 :
@@ -421,8 +455,12 @@ def forward_using_loop(model, data):
 
 
 class CNN(nn.Module):
-    def __init__(self, training_configuration, num_classes = 2 , image_dim = (3,224,224), model_name = 'efficientnet_v2_m',
-                 learning_type = 'supervised', amount_of_patch = 1,  hidden_size = 512, freeze_all = False):
+    def __init__(self, training_configuration, num_classes = 2 , 
+                 image_dim = (3,224,224), model_name = 'efficientnet_v2_m',
+                 learning_type = 'supervised', amount_of_patch = 1, 
+                 hidden_size = 512, freeze_all = False, 
+                 weights = 'IMAGENET1K_V1', unfreeze = False):
+        
         super(CNN, self).__init__()
         
         learning_type=training_configuration.learning_type
@@ -432,16 +470,23 @@ class CNN(nn.Module):
         moving_average_decay=training_configuration.moving_average_decay
 
         
-        model_bank = ['resnet34', 'resnet50', 'resnet152', 'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
-        model_name = 'efficientnet_v2_m'
+        model_bank = ['resnet18','resnet34', 'resnet50', 'resnet152',
+                      'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
+        
         # sellecting backbone from torchvision models
-        backbone = model_sellection(model_bank, model_name = model_name)
+        backbone = model_sellection(model_bank, 
+                                    model_name=model_name,
+                                    weights=weights)
         
        
         # dummy_array =  torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))
         
         # freeze all except batch norm layer 
-        freeze_backbone_layers(backbone, model_bank,  model_name = model_name , freeze_all = freeze_all)
+        freeze_backbone_layers(backbone, 
+                               model_bank, 
+                               model_name=model_name, 
+                               freeze_all=freeze_all,
+                               unfreeze=unfreeze)
         
         def get_output_shape(model, image_dim):
             return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))).data.shape
@@ -465,7 +510,7 @@ class CNN(nn.Module):
                                                                         model_name = model_name,
                                                                         amount_of_patch = amount_of_patch,
                                                                         hidden_size=hidden_size)
-            PERM_HEAD, REPRESENTATION_HEAD = None, None
+            # PERM_HEAD, REPRESENTATION_HEAD = None, None
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
@@ -487,15 +532,15 @@ class CNN(nn.Module):
             # projection_output, geometric_output = forward_using_loop(self, images)
             
             
-            # projection_output = self.backbone(images)
+            projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
-            # # perm_pred = self.PERM_HEAD(geometric_output)
-            # representation_pred = self.REPRESENTATION_HEAD(projection_output)
+            perm_pred = self.PERM_HEAD(projection_output)
+            representation_pred = self.REPRESENTATION_HEAD(projection_output)
             
             
-            representation_pred = self.backbone(images)
+            # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
-            return representation_pred
+            return representation_pred, perm_pred
 
     
 def freeze_ssl_layers(model):        

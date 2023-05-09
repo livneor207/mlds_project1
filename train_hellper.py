@@ -62,7 +62,8 @@ class TrainingConfiguration:
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      amount_of_patch = 25, moving_average_decay = 0.01, weight_decay = 1e-3):
+                      amount_of_patch = 25, moving_average_decay = 0.01,
+                      weight_decay = 1e-3, optimizer_name = 'lion'):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -79,6 +80,7 @@ class TrainingConfiguration:
         self.amount_of_patch = amount_of_patch
         self.moving_average_decay = moving_average_decay
         self.weight_decay = weight_decay
+        self.optimizer_name = optimizer_name
 
         
         
@@ -147,6 +149,13 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
         ranking_criterion = torch.nn.MarginRankingLoss(margin=margin, size_average=True, reduce=True, reduction='mean')
     elif loss_name == 'HingeEmbeddingLoss':
         ranking_criterion = nn.HingeEmbeddingLoss()
+    elif loss_name == 'KLDivLoss':
+        ranking_criterion = nn.KLDivLoss(reduction="batchmean")
+        # target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
+        # pred =  torch.tensor([[2,1,5,3,4], [2,4,3,4,1], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
+        # pred = F.log_softmax(pred, dim=1)
+        # target = F.softmax(target, dim=1)
+        # output = kl_loss(pred, target)
     else:
         assert False, "no acceptable loss choosen" 
     return ranking_criterion
@@ -291,9 +300,32 @@ def prepare_for_rank_cretertion(target, pred):
 
 
 def calculate_rank_loss(ranking_criterion, target, pred):
-    target, target_normelized, pred_normelized = prepare_for_rank_cretertion(target, pred)
     if isinstance(ranking_criterion, torch.nn.MarginRankingLoss):
+        target, target_normelized, pred_normelized = prepare_for_rank_cretertion(target, pred)
+
         ranking_loss = ranking_criterion(target_normelized, pred_normelized, target)
+    elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
+        
+        pred_norm = LA.norm(pred, 2)
+        target_norm = LA.norm(target, 2)
+        ((pred.argsort(1)-target)==0).sum()/target.numel()
+        # target_normelized = (target-target.mean())
+        # pred_normelized = (pred-pred.mean())
+        
+        target_normelized = target/target_norm
+        pred_normelized = pred/pred_norm
+        
+        
+        pred_log_softmax = F.log_softmax(pred, dim=1)
+        target_softmax= F.softmax(target, dim=1)
+        
+        
+        pred_log_softmax = F.log_softmax(pred_normelized, dim=1)
+        target_softmax = F.softmax(target_normelized, dim=1)
+        
+        
+        ranking_loss = ranking_criterion(pred_log_softmax, target_softmax)
+    
     elif isinstance(ranking_criterion, torch.nn.HingeEmbeddingLoss) :
         # pred_argsort,target_argsort  = pred_argsort.to(torch.float), target_argsort.to(torch.float)
         # projection1_norm = LA.norm(pred_argsort, 2)
@@ -337,34 +369,51 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         prems_size  =  perm_order.shape[1]
         target_prem1 = perm_order[:,0:prems_size//2]
         target_prem2 = perm_order[:,prems_size//2::]
-        if optimizer is  None:
-          with torch.no_grad():
-            representation_pred_1_1 = model(data1)
-            representation_pred_1_2 = model(data2)
-            representation_pred_2_1 = student(data1)
-            representation_pred_2_2 = student(data2)
-        else:
-            representation_pred_1_1 = model(data1)
-            representation_pred_1_2 = model(data2)
-            representation_pred_2_1 = student(data1)
-            representation_pred_2_2 = student(data2)
-            
-            
-        
-        
         
         # if optimizer is  None:
         #   with torch.no_grad():
-        #     representation_pred_1_1, perm_pred_1_1 = model(data1)
-        #     representation_pred_1_2, perm_pred_1_2 = model(data2)
-        #     representation_pred_2_1, perm_pred_2_1 = student(data1)
-        #     representation_pred_2_2, perm_pred_2_2 = student(data2)
+        #     representation_pred_1_1 = model(data1)
+        #     representation_pred_1_2 = model(data2)
+        #     representation_pred_2_1 = student(data1)
+        #     representation_pred_2_2 = student(data2)
         # else:
-        #     representation_pred_1_1, perm_pred_1_1 = model(data1)
-        #     representation_pred_1_2, perm_pred_1_2 = model(data2)
-        #     representation_pred_2_1, perm_pred_2_1 = student(data1)
-        #     representation_pred_2_2, perm_pred_2_2 = student(data2)
+        #     representation_pred_1_1 = model(data1)
+        #     torch.cuda.empty_cache()
 
+        #     representation_pred_1_2 = model(data2)
+        #     torch.cuda.empty_cache()
+
+        #     representation_pred_2_1 = student(data1)
+        #     torch.cuda.empty_cache()
+
+        #     representation_pred_2_2 = student(data2)
+        #     torch.cuda.empty_cache()
+
+            
+            
+        
+        
+        
+        if optimizer is  None:
+          with torch.no_grad():
+            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            torch.cuda.empty_cache()
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            torch.cuda.empty_cache()
+            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            torch.cuda.empty_cache()
+            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            torch.cuda.empty_cache()
+        else:
+            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            torch.cuda.empty_cache()
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            torch.cuda.empty_cache()
+            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            torch.cuda.empty_cache()
+            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            torch.cuda.empty_cache()
+        """
         # representation_pred_1_1 = representation_pred_1_1.cpu()
         # representation_pred_1_2 = representation_pred_1_2.cpu()
         # representation_pred_2_1 = representation_pred_2_1.cpu()
@@ -379,34 +428,41 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # projection2_norm = LA.norm(projection2, 2)
         # projection1_normelized = projection1/projection1_norm
         # projection2_normelized = projection2/projection2_norm
+        """
         
         
+    
+
+        ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
+        ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
+        ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
+        ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
-        
-        # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
-        # ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
-        # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
-        # ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
-        
-        # rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
+        rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
         balance_factor = model.balance_factor
-        # rank_loss *= balance_factor 
+        rank_loss *= balance_factor 
       
+        # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
         
         similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
-        criterion_loss1 = 2-2*similiarities_loss
+        # criterion_loss1 = 2-2*similiarities_loss
+        criterion_loss1 = similiarities_loss
+
         # criterion_loss1 = criterion_loss1.mean()
         
        
         similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
-        criterion_loss2 = 2-2*similiarities_loss
+        # criterion_loss2 = 2-2*similiarities_loss
+        criterion_loss2 = similiarities_loss
+
         # criterion_loss2 = criterion_loss2.mean()
 
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
         accuracy = criterion_loss.item()
-        # f1_score = rank_loss
-        # criterion_loss += rank_loss
+        f1_score = rank_loss
+        # f1_score = torch.Tensor([0])
+        criterion_loss += rank_loss
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= True
@@ -418,7 +474,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
             
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
-        f1_score = torch.Tensor([0])
+        
         # accuracy = 0
         
     
@@ -440,6 +496,8 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
             break
         classification_loss, accuracy, f1_score =  \
             step(model, student,  data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device) )
+        del data, target, perm_order , target_name
+        gc.collect()
         total_accuracy += accuracy*batch_size
         total_f1_score += f1_score*batch_size
         total_classification_loss += classification_loss*batch_size
@@ -462,13 +520,14 @@ def train(model, student, optimizer, classification_criterion, ranking_criterion
         for idx, (data, target, perm_order , target_name)  in enumerate(pbar):
             batch_size = target.shape[0]
 
-            torch.cuda.empty_cache()
-            gc.collect()
+            
 
             if idx >1 and debug:
                 break
             optimizer.zero_grad()
             classification_loss, accuracy, f1_score  = step(model,student, data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device), optimizer)
+            del data, target, perm_order , target_name
+            gc.collect()
             if not student is  None:
                 update_moving_average(model.student_ema_updater, student, model)
 

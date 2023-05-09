@@ -96,7 +96,7 @@ submission_path = os.path.join(data_folder,  'submission.csv')
 model_path = os.path.join(data_folder,  'model3.pth')
 
 
-task_name  = 'cat_dogs'
+task_name  = 'CIFAR10'
 
 # parse train data
 train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True)
@@ -121,19 +121,20 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                     learning_type='self_supervised', batch_size= 100, 
+                                     learning_type='self_supervised', batch_size= 16, 
                                      scheduler_name = 'None', max_opt = False,
-                                     epochs_count = 1, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-                                     amount_of_patch = 16, moving_average_decay = 0.99,
-                                     weight_decay = 1e-2)
+                                     epochs_count = 50, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3, hidden_size = 512, balance_factor =1,
+                                     amount_of_patch = 4, moving_average_decay = 0.996,
+                                     weight_decay = 1e-2, optimizer_name = 'adam')
+
 device = training_configuration.device
 
 # define data loaders 
 """
 slice for debuging
 """
-amount_for_debug = 20
+amount_for_debug = 100
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -144,7 +145,7 @@ train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
                            val_split=val_split,  
-                           debug_batch_size = 8, 
+                           debug_batch_size = 16, 
                            random_state = seed,
                            tb_writer = tb_writer,
                            train_data=train_data,
@@ -157,12 +158,235 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {va
 # # set model 
 model = CNN(training_configuration, 
               num_classes = amount_of_class,
-              image_dim = (3,image_dim, image_dim), freeze_all=False)
+              image_dim = (3,image_dim, image_dim),
+              freeze_all=False, 
+              model_name = 'resnet18',
+              weights=None,
+              unfreeze=True)
 
 student = generate_student(model, 
                            training_configuration, 
                            image_dim, 
-                           amount_of_class)
+                           amount_of_class,
+                           model_name = 'resnet18',
+                           weights = None,
+                           unfreeze = True)
+
+summary(model, (3,image_dim, image_dim))
+if not student is None:
+    summary(student, (3,image_dim, image_dim))
+
+# set optimizer 
+optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+
+# set accuracy metrics
+accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
+f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'f_score')
+
+# set loss functions
+if training_configuration.learning_type == 'supervised':
+    criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
+else:    
+    criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
+    criterion = torch.nn.MSELoss()
+
+ranking_criterion = set_rank_loss(loss_name = 'KLDivLoss', margin = 1, num_labels = 1)
+
+# show example for data after transformations    
+# generate data generation example
+image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
+
+
+print(label)
+print(class_name)
+model.to(device)
+representation =  model.backbone(image[:,0:3,:,:].to(device))
+representation2 =  model.backbone(image[:,3::,:,:].to(device))
+representation
+
+criterion(representation[0,:], representation[13,:])
+
+
+
+train_results_df = main(model, student, optimizer, criterion,
+                        ranking_criterion, accuracy_metric , 
+                        train_loader, val_loader,
+                        num_epochs=training_configuration.epochs_count,
+                        device=device, 
+                        tb_writer=tb_writer, 
+                        max_opt = training_configuration.max_opt, 
+                        model_path = model_path, 
+                        scheduler = scheduler)
+
+
+a=5 
+# import torch.nn.functional as F
+# kl_loss = nn.KLDivLoss(reduction="batchmean")
+# target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
+# pred =  torch.tensor([[2,1,5,3,4], [2,4,3,4,1], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
+# pred = F.log_softmax(pred, dim=1)
+# target = F.softmax(target, dim=1)
+# output = kl_loss(pred, target)
+
+
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+model_path = os.path.join(data_folder,  'model3.pth')
+
+training_configuration =  TrainingConfiguration()
+training_configuration.get_device_type()
+
+
+
+
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
+                                      learning_type='self_supervised', batch_size= 100, 
+                                      scheduler_name = 'None', max_opt = True,
+                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
+                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
+                                      amount_of_patch = 4, moving_average_decay = 0.996,
+                                      weight_decay=1e-2, optimizer_name = 'adam')
+
+
+device = training_configuration.device
+
+model = CNN(training_configuration, 
+              num_classes = amount_of_class,
+              image_dim = (3,image_dim, image_dim),
+              freeze_all=False, 
+              model_name = 'resnet18',
+              weights=None,
+              unfreeze=False)
+
+
+training_configuration.learning_type = 'supervised'
+
+# define data loaders 
+"""
+slice for debuging
+"""
+
+train_loader, val_loader, test_loader, debug_loader = \
+    initialize_dataloaders(train_df, test_df, 
+                            training_configuration, 
+                            val_split=val_split,  
+                            debug_batch_size = 8, 
+                            random_state = seed,
+                            tb_writer = tb_writer,
+                            train_data=train_data,
+                            test_data=test_data,
+                            image_size = image_dim)
+# print size of data-sets
+# print size of data-sets
+print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
+
+
+
+model.load_state_dict(torch.load(model_path))
+model_path = os.path.join(data_folder,  'model2.pth')
+
+ssl_model =  SSLMODEL(model, 
+                      num_classes=amount_of_class, 
+                      image_dim=(3,image_dim, image_dim),
+                      model_name = 'resnet18',
+                      freeze_all = False,
+                      unfreeze = False,
+                      )
+student= None
+
+summary(ssl_model, (3,image_dim, image_dim))
+
+# set optimizer 
+optimizer, scheduler =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+
+# set accuracy metrics
+accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
+f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'f_score')
+
+# set loss functions
+if training_configuration.learning_type == 'supervised':
+    criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
+else:    
+    criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
+    criterion = torch.nn.MSELoss()
+ranking_criterion = set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1)
+
+# show example for data after transformations    
+# generate data generation example
+image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
+
+
+train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , 
+                        train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
+                        tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, scheduler = scheduler)
+
+
+
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# """
+# fuuly - supervised
+# """
+
+
+training_configuration =  TrainingConfiguration()
+training_configuration.get_device_type()
+
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
+                                      learning_type='supervised', batch_size= 100, 
+                                      scheduler_name = 'None', max_opt = True,
+                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
+                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
+                                      amount_of_patch = 16, moving_average_decay = 0.01)
+
+
+device = training_configuration.device
+
+# define data loaders 
+"""
+slice for debuging
+"""
+
+# train_loader, val_loader, test_loader, debug_loader = \
+#     initialize_dataloaders(train_df, test_df, 
+#                            training_configuration, 
+#                            val_split=val_split,  
+#                            debug_batch_size = 8, 
+#                            random_state = seed,
+#                            tb_writer = tb_writer,
+#                            train_data=train_data,
+#                            test_data=test_data)
+# # print size of data-sets
+# # print size of data-sets
+# print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
+
+
+
+
+# # set model 
+model = CNN(training_configuration, 
+              num_classes = amount_of_class,
+              image_dim = (3,image_dim, image_dim),
+              freeze_all=False,
+              weights='IMAGENET1K_V1',
+              model_name = 'resnet18'
+              )
+
+student = None
 
 summary(model, (3,image_dim, image_dim))
 if not student is None:
@@ -196,177 +420,6 @@ train_results_df = main(model, student, optimizer, criterion,
                         max_opt = training_configuration.max_opt, 
                         model_path = model_path, 
                         scheduler = scheduler)
-
-
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# training_configuration =  TrainingConfiguration()
-# training_configuration.get_device_type()
-
-# training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-#                                      learning_type='supervised', batch_size= 100, 
-#                                      scheduler_name = 'None', max_opt = True,
-#                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
-#                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-#                                      amount_of_patch = 16, moving_average_decay = 0.99,
-#                                      weight_decay=1e-2)
-
-
-# device = training_configuration.device
-
-# # define data loaders 
-# """
-# slice for debuging
-# """
-
-# train_loader, val_loader, test_loader, debug_loader = \
-#     initialize_dataloaders(train_df, test_df, 
-#                            training_configuration, 
-#                            val_split=val_split,  
-#                            debug_batch_size = 8, 
-#                            random_state = seed,
-#                            tb_writer = tb_writer,
-#                            train_data=train_data,
-#                            test_data=test_data,
-#                            image_size = image_dim)
-# # print size of data-sets
-# # print size of data-sets
-# print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
-
-
-
-# # model.load_state_dict(torch.load(model_path))
-# model_path = os.path.join(data_folder,  'model2.pth')
-
-# ssl_model =  SSLMODEL(model, 
-#                       num_classes=amount_of_class, 
-#                       image_dim=(3,image_dim, image_dim)
-#                       )
-# student= None
-
-# summary(ssl_model, (3,image_dim, image_dim))
-
-# # set optimizer 
-# optimizer, scheduler =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
-
-# # set accuracy metrics
-# accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
-# f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'f_score')
-
-# # set loss functions
-# if training_configuration.learning_type == 'supervised':
-#     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
-# else:    
-#     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-
-# ranking_criterion = set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1)
-
-# # show example for data after transformations    
-# # generate data generation example
-# image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
-
-
-# train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , 
-#                         train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-#                         tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, scheduler = scheduler)
-
-
-
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# """
-# fuuly - supervised
-# """
-
-
-# training_configuration =  TrainingConfiguration()
-# training_configuration.get_device_type()
-
-# training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-#                                      learning_type='supervised', batch_size= 100, 
-#                                      scheduler_name = 'None', max_opt = True,
-#                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
-#                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-#                                      amount_of_patch = 16, moving_average_decay = 0.01)
-
-
-# device = training_configuration.device
-
-# # define data loaders 
-# """
-# slice for debuging
-# """
-
-# # train_loader, val_loader, test_loader, debug_loader = \
-# #     initialize_dataloaders(train_df, test_df, 
-# #                            training_configuration, 
-# #                            val_split=val_split,  
-# #                            debug_batch_size = 8, 
-# #                            random_state = seed,
-# #                            tb_writer = tb_writer,
-# #                            train_data=train_data,
-# #                            test_data=test_data)
-# # # print size of data-sets
-# # # print size of data-sets
-# # print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
-
-
-
-
-# # # set model 
-# model = CNN(training_configuration, 
-#               num_classes = amount_of_class,
-#               image_dim = (3,image_dim, image_dim), freeze_all=False)
-
-# student = None
-
-# summary(model, (3,image_dim, image_dim))
-# if not student is None:
-#     summary(student, (3,image_dim, image_dim))
-
-# # set optimizer 
-# optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
-
-# # set accuracy metrics
-# accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
-# f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'f_score')
-
-# # set loss functions
-# if training_configuration.learning_type == 'supervised':
-#     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
-# else:    
-#     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-
-# ranking_criterion = set_rank_loss(loss_name = 'MarginRankingLoss', margin = 1, num_labels = 1)
-
-# # show example for data after transformations    
-# # generate data generation example
-# image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
-
-# train_results_df = main(model, student, optimizer, criterion,
-#                         ranking_criterion, accuracy_metric , 
-#                         train_loader, val_loader,
-#                         num_epochs=training_configuration.epochs_count,
-#                         device=device, 
-#                         tb_writer=tb_writer, 
-#                         max_opt = training_configuration.max_opt, 
-#                         model_path = model_path, 
-#                         scheduler = scheduler)
 
 
 

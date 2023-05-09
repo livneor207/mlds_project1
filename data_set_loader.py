@@ -138,7 +138,7 @@ class MyDataset(Dataset):
           
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
-          border_size = 1
+          border_size = 3
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -209,6 +209,8 @@ class MyDataset(Dataset):
     total =  t1 - time.time()
 
     if desire_amount_of_images > 1:
+        transform_image =  self.transform(image)
+
         new_image2, prem_order2 = self.get_perm_image(transform_image)
         new_image = torch.concatenate([new_image, new_image2])
         prem_order = torch.concatenate([prem_order, prem_order2])
@@ -259,24 +261,32 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         p = 0.5
     else:
         p = 1
-    center_crop_size = int(0.65*image_size)
+    center_crop_size = int(0.75*image_size)
+
+    resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
+    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR)
+
+    rand_choise = transforms.RandomChoice( [
+                              transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
+                              transforms.RandomHorizontalFlip(p=p),
+                              transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25),
+                              transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))])
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
+        data_transforms =   transforms.Compose([resize_transforms,
+                                                rand_choise,
+                                                resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     elif taske_name == 'no_perm':
-        data_transforms =   transforms.Compose([transforms.Resize((image_size,image_size)),
-                                                transforms.RandomChoice( [
-                                                                          transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
-                                                                          transforms.RandomHorizontalFlip(p=p),
-                                                                          transforms.ColorJitter(brightness=.25, hue=.25,
-                                                                                                 saturation = 0.25, contrast = 0.25)]),
+        data_transforms =   transforms.Compose([resize_transforms,
+                                                
+                                                rand_choise,
                                                 # transforms.CenterCrop((center_crop_size,center_crop_size)),
-                                                transforms.Resize((image_size,image_size)),
+                                                resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     
-    test_transforms =  transforms.Compose([ transforms.Resize((image_size,image_size)),
+    test_transforms =  transforms.Compose([ resize_transforms,
                                             # transforms.CenterCrop((center_crop_size, center_crop_size)),
                                             transforms.ToTensor(),
                                             transforms.Normalize(means, stds)])
