@@ -95,8 +95,8 @@ def freeze_resnet_layers(model):
          debug= True
          if debug:
              print(param[0])
-        #  if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
-         if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
+        #  if (param[0].find('layer4.1') !=-1 or  param[0].find('bn') !=-1) :
+         if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1) :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False

@@ -309,15 +309,41 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         pred_norm = LA.norm(pred, 2)
         target_norm = LA.norm(target, 2)
         ((pred.argsort(1)-target)==0).sum()/target.numel()
-        # target_normelized = (target-target.mean())
-        # pred_normelized = (pred-pred.mean())
-        
-        target_normelized = target/target_norm
-        pred_normelized = pred/pred_norm
         
         
-        pred_log_softmax = F.log_softmax(pred, dim=1)
-        target_softmax= F.softmax(target, dim=1)
+
+        
+        max_pred = pred.max()
+        min_pred = pred.min()
+        max_target = target.max()
+        yy = (pred-min_pred)/(max_pred-min_pred)
+        pred_normelized = max_target*((pred-min_pred)/(max_pred-min_pred))
+        
+        
+        
+        target_normelized = (target-target.mean())
+        pred_normelized = (pred_normelized-target.mean())
+
+
+
+        #pred_normelized = (pred-pred.mean())
+
+        
+        # max_target = target_normelized.max()
+        # min_target = target_normelized.min()
+        
+        
+
+        
+        # pred_normelized = 2*(pred_normelized-min_target)/(max_target-min_target)
+        
+        
+        # target_normelized = target_normelized/target_norm
+        # pred_normelized = pred_normelized/pred_norm
+        
+        
+        # pred_log_softmax = F.log_softmax(pred, dim=1)
+        # target_softmax= F.softmax(target, dim=1)
         
         
         pred_log_softmax = F.log_softmax(pred_normelized, dim=1)
@@ -445,15 +471,15 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
         
         similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
-        # criterion_loss1 = 2-2*similiarities_loss
-        criterion_loss1 = similiarities_loss
+        criterion_loss1 = 2-2*similiarities_loss
+        # criterion_loss1 = similiarities_loss
 
         # criterion_loss1 = criterion_loss1.mean()
         
        
         similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
-        # criterion_loss2 = 2-2*similiarities_loss
-        criterion_loss2 = similiarities_loss
+        criterion_loss2 = 2-2*similiarities_loss
+        # criterion_loss2 = similiarities_loss
 
         # criterion_loss2 = criterion_loss2.mean()
 

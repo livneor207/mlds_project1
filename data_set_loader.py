@@ -114,7 +114,9 @@ class MyDataset(Dataset):
   def __len__(self):
     return self.index_list.size
   
-  def permutatation_aug(self, transform_image):
+  def permutatation_aug(self, image):
+      transform_image =  self.transform(image)
+
       amount_of_patch = self.amount_of_patch
       dim_size = transform_image.shape[0]
       amount_of_rows = int(amount_of_patch**0.5)
@@ -138,7 +140,7 @@ class MyDataset(Dataset):
           
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
-          border_size = 3
+          border_size = 2
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -146,17 +148,20 @@ class MyDataset(Dataset):
           masked_patch[:,:,0:border_size]  = padd_val
           masked_patch[:,:,col_size-border_size::]  =  padd_val
           masked_patch[:,0:border_size,:]  =padd_val
-          masked_patch[:,row_size-border_size::,:]  =padd_val
+          masked_patch[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
       return new_image, prem_order
   
-  def get_perm_image(self, transform_image):
+  def get_perm_image(self, image):
       if self.taske_name == 'perm':
-          new_image, prem_order = self.permutatation_aug(transform_image)
+          
+          new_image, prem_order = self.permutatation_aug(image)
       else:
+          transform_image =  self.transform(image)
+
           prem_order = torch.empty(self.amount_of_patch)
           new_image = transform_image
       prem_order = torch.Tensor(prem_order)
@@ -198,20 +203,20 @@ class MyDataset(Dataset):
     label =  torch.Tensor(label)
     label = label.to(torch.float)
     
-    transform_image =  self.transform(image)
+    # transform_image =  self.transform(image)
     
     if self.learning_type == 'supervised':
         desire_amount_of_images = 1
     else:
         desire_amount_of_images = 2
     t1 = time.time()
-    new_image, prem_order = self.get_perm_image(transform_image)
+    new_image, prem_order = self.get_perm_image(image)
     total =  t1 - time.time()
 
     if desire_amount_of_images > 1:
-        transform_image =  self.transform(image)
+        # transform_image =  self.transform(image)
 
-        new_image2, prem_order2 = self.get_perm_image(transform_image)
+        new_image2, prem_order2 = self.get_perm_image(image)
         new_image = torch.concatenate([new_image, new_image2])
         prem_order = torch.concatenate([prem_order, prem_order2])
 
