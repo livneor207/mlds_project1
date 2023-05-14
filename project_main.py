@@ -72,6 +72,19 @@ plt.close('all')
 # loss = metric(input1_argsort , input2_argsort )
 # loss.backward()
 
+# def getPositionEncoding(seq_len, d, n=10000):
+#     P = np.zeros((seq_len, d))
+#     for k in range(seq_len):
+#         for i in np.arange(int(d/2)):
+#             denominator = np.power(n, 2*i/d)
+#             P[k, 2*i] = np.sin(k/denominator)
+#             P[k, 2*i+1] = np.cos(k/denominator)
+#     return P
+ 
+# P = getPositionEncoding(seq_len=200, d=9, n=100)
+# print(P)
+
+
 
 """
 dash board tensorboard 
@@ -130,7 +143,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      learning_type='self_supervised', batch_size= 16, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 256, balance_factor = 0.1,
+                                     max_lr = 5e-3, hidden_size = 256, balance_factor = 1,
                                      amount_of_patch = 9, moving_average_decay = 0.996,
                                      weight_decay = 1e-4, optimizer_name = 'lion')
 
@@ -205,10 +218,9 @@ f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = 
 if training_configuration.learning_type == 'supervised':
     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
 else:    
-    criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    criterion = torch.nn.MSELoss()
+    criterion=  set_similiarities_loss(classification_loss_name = 'MSE')
 
-ranking_criterion = set_rank_loss(loss_name = 'KLDivLoss', margin = 1, num_labels = 1)
+ranking_criterion = set_rank_loss(loss_name = 'MSE', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example

@@ -157,6 +157,8 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
         # pred = F.log_softmax(pred, dim=1)
         # target = F.softmax(target, dim=1)
         # output = kl_loss(pred, target)
+    elif loss_name == 'MSE':
+         ranking_criterion = torch.nn.MSELoss()
     else:
         assert False, "no acceptable loss choosen" 
     return ranking_criterion
@@ -181,12 +183,15 @@ def convert_2_float_and_require_grad(tensor):
 def set_similiarities_loss(classification_loss_name = 'CosineSimilarity'):
     loss_name = classification_loss_name 
     
-    loss_bank = ['CosineSimilarity']
+    loss_bank = ['CosineSimilarity', 'MSE']
     if not loss_name in loss_bank:
         assert False, 'loss is not defined'
     
     if loss_name == 'CosineSimilarity':
        criterion = nn.CosineSimilarity(dim=1, eps=1e-6)
+    elif loss_name == 'MSE':
+        criterion = torch.nn.MSELoss()
+
     return criterion
 
 
@@ -305,6 +310,8 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         target, target_normelized, pred_normelized = prepare_for_rank_cretertion(target, pred)
 
         ranking_loss = ranking_criterion(target_normelized, pred_normelized, target)
+    elif isinstance(ranking_criterion, torch.nn.MSELoss):
+            ranking_loss = ranking_criterion(pred, target)
     elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
         
         
@@ -313,18 +320,18 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         # ranking_loss = criterion(pred, target)
         # ranking_loss = torch.multiply(ranking_loss, (target/target.max())**9)
         # ranking_loss  = (ranking_loss.sum()/target.shape[0])
-
+        ranking_loss = ranking_criterion(pred,target)
         # (target.argsort(1)-pred.argsort(1)==0).sum()
         
-        temperature_target, dummy = target.max(1)
-        temperature_pred, dummy = pred.max(1)
+        # temperature_target, dummy = target.max(1)
+        # temperature_pred, dummy = pred.max(1)
         
-        pred_probs_ordered = nn.functional.softmax(torch.div(pred.T, 1).T, dim=1)
-        y_true_probs_ordered = nn.functional.softmax(torch.div(target.T, 1).T, dim=1)
+        # pred_probs_ordered = nn.functional.softmax(torch.div(pred.T, 1).T, dim=1)
+        # y_true_probs_ordered = nn.functional.softmax(torch.div(target.T, 1).T, dim=1)
 
-        # Compute the KL divergence between the true and predicted probabilities
+        # # Compute the KL divergence between the true and predicted probabilities
         
-        ranking_loss = ranking_criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
+        # ranking_loss = ranking_criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
         
         
         
@@ -495,7 +502,6 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
-        rank_loss *= balance_factor 
         
         
         
@@ -531,10 +537,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
+        
+        criterion_loss *= balance_factor 
+
         accuracy = criterion_loss.item()
         f1_score = rank_loss
         # f1_score = torch.Tensor([0])
-        # criterion_loss += rank_loss
+        
+        criterion_loss += rank_loss
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= True

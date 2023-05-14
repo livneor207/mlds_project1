@@ -91,14 +91,15 @@ def freeze_resnet_layers(model):
     freeze by defult all layer
     otherwise manully freeze layers 
     """
+    
     for param in model.named_parameters():
          debug= True
          if debug:
              print(param[0])
-         if param[0].find('layer4.2') !=-1:
+         if param[0].find('layer4.2') !=-1 or param[0].find('layer4.1') !=-1:
 
-         # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
-         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1) :
+         # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
+         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False

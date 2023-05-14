@@ -17,6 +17,9 @@ from patchify import patchify
 from utils import *
 import torchvision
 import time 
+import itertools
+from itertools import permutations
+
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
     amount_of_class = train_statistic_df.shape[0] 
@@ -111,7 +114,19 @@ def gen_matrix_order(n):
      matrix_order = grid
      # print(matrix_order)
      return matrix_order
+# def getPositionEncoding(seq_len, d, n=10000):
+#      P = np.zeros((seq_len, d))
+#      for k in range(seq_len):
+#          for i in np.arange(int(d/2)):
+#              denominator = np.power(n, 2*i/d)
+#              P[k, 2*i] = np.sin(k/denominator)
+#              P[k, 2*i+1] = np.cos(k/denominator)
+#          torch.Tensor(P[k])
+#      return P
+ 
+    
 
+ 
 class MyDataset(Dataset):
 
   def __init__(self, data_df,  
@@ -128,9 +143,10 @@ class MyDataset(Dataset):
                stds=[0.229, 0.224, 0.225], 
                taske_name = 'perm' , 
                learning_type = 'supervised',
-               data=None):
+               data=None,
+               all_permutation_option= None):
     
-      
+    self.all_permutation_option = all_permutation_option
     self.taske_name = taske_name
     self.amount_of_patch = amount_of_patch
     self.means = means
@@ -168,10 +184,21 @@ class MyDataset(Dataset):
   
     
  
-      
+  def getPositionEncoding(self, perm_order, d, n=10000):
+       k = self.all_permutation_option.index(tuple(perm_order))
+       P = np.zeros((1, d))
+       for i in np.arange(int(d/2)):
+          denominator = np.power(n, 2*i/d)
+          P[0, 2*i] = np.sin(k/denominator)
+          P[0, 2*i+1] = np.cos(k/denominator)
+       return P
+   
+    
   def permutatation_aug(self, image):
       
       
+      
+     
       transform_image =  self.transform(image)
 
       
@@ -183,14 +210,14 @@ class MyDataset(Dataset):
 
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
       patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
-      prem_order  = random.sample(range(amount_of_patch), amount_of_patch)
+      perm_order  = random.sample(range(amount_of_patch), amount_of_patch)
       
       
       
       new_image = torch.zeros_like(transform_image)
       row = 0
       col = 0
-      for index, i_perm in enumerate(prem_order):
+      for index, i_perm in enumerate(perm_order):
           i_perm_row = i_perm//amount_of_rows
           i_perm_col = i_perm%amount_of_rows
           
@@ -202,7 +229,7 @@ class MyDataset(Dataset):
           from_col = col*patch_col_size
           to_col =  (col+1)*patch_col_size
           
-          prem_order[index] = matrix_order[i_perm_row, i_perm_col]
+          # perm_order[index] = matrix_order[i_perm_row, i_perm_col]
 
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
@@ -213,25 +240,27 @@ class MyDataset(Dataset):
           padd_val = 0
           masked_patch[:,:,0:border_size]  = padd_val
           masked_patch[:,:,col_size-border_size::]  =  padd_val
-          masked_patch[:,0:border_size,:]  =padd_val
+          masked_patch[:,0:border_size,:]  = padd_val
           masked_patch[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
-      return new_image, prem_order
+      perm_order = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
+      
+      return new_image, perm_order
   
   def get_perm_image(self, image):
       if self.taske_name == 'perm':
           
-          new_image, prem_order = self.permutatation_aug(image)
+          new_image, perm_order = self.permutatation_aug(image)
       else:
           transform_image =  self.transform(image)
 
-          prem_order = torch.empty(self.amount_of_patch)
+          perm_order = torch.empty(self.amount_of_patch)
           new_image = transform_image
-      prem_order = torch.Tensor(prem_order)
-      return new_image, prem_order
+      perm_order = torch.Tensor(perm_order)
+      return new_image, perm_order
   def generate_original_image_plot(self, image, axarr):
       np_image_0_1 =  np.array(image)
       np_image_0_1 = np_image_0_1.astype(np.uint8)
@@ -277,7 +306,7 @@ class MyDataset(Dataset):
     else:
         desire_amount_of_images = 2
     t1 = time.time()
-    new_image, prem_order = self.get_perm_image(image)
+    new_image, perm_order = self.get_perm_image(image)
     total =  t1 - time.time()
 
     if desire_amount_of_images > 1:
@@ -285,12 +314,12 @@ class MyDataset(Dataset):
 
         new_image2, prem_order2 = self.get_perm_image(image)
         new_image = torch.concatenate([new_image, new_image2])
-        prem_order = torch.concatenate([prem_order, prem_order2])
+        perm_order = torch.concatenate([perm_order, prem_order2])
 
         
     transform_image = new_image
     # set sample
-    sample = (transform_image, label, torch.Tensor(prem_order), label_name)
+    sample = (transform_image, label, torch.Tensor(perm_order), label_name)
     
     if self.debug:
       
@@ -317,13 +346,23 @@ class MyDataset(Dataset):
 
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
-                           learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None):
+                           learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True):
     
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
     taske_name = training_configuration.perm
     learning_type = training_configuration.learning_type
     num_workers = training_configuration.num_workers
+    
+    
+    
+    all_permutation_option = list(permutations(range(0, amount_of_patch)))
+
+    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=100)
+    # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
+    # permutation_dictionary[tuple(perm_order)]
+    
+    
     
     tasks_list = ['perm', 'no_perm']
     if not taske_name in  tasks_list:
@@ -337,12 +376,14 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
 
     resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR)
-
-    rand_choise = transforms.RandomChoice( [
-                              transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
-                              transforms.RandomHorizontalFlip(p=p),
-                              transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25),
-                              transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))])
+    if rand_choise:
+        rand_choise = transforms.RandomChoice( [
+                                  transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
+                                  transforms.RandomHorizontalFlip(p=p),
+                                  transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25),
+                                  transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))])
+    else:
+        rand_choise = transforms.RandomChoice( [transforms.RandomHorizontalFlip(p=0)])
     if taske_name == 'perm':
         data_transforms =   transforms.Compose([resize_transforms,
                                                 rand_choise,
@@ -378,11 +419,11 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
 
     
     X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 
-                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data)
+                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data, all_permutation_option=all_permutation_option)
     X_val = MyDataset(all_train_df,class_df, data_transforms, test_transforms ,index_list = val_index, amount_of_patch=amount_of_patch, 
-                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data)
+                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data, all_permutation_option=all_permutation_option)
     X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = None, amount_of_patch=amount_of_patch,
-                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data)
+                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, all_permutation_option=all_permutation_option)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=True)
