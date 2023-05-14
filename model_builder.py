@@ -95,8 +95,10 @@ def freeze_resnet_layers(model):
          debug= True
          if debug:
              print(param[0])
-        #  if (param[0].find('layer4.1') !=-1 or  param[0].find('bn') !=-1) :
-         if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1) :
+         if param[0].find('layer4.2') !=-1:
+
+         # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1) :
+         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1) :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -233,7 +235,7 @@ def generate_student(teacher, training_configuration, image_dim,
                         model_name = model_name,
                         weights=weights, unfreeze = unfreeze)  
         
-        student.load_state_dict(teacher.state_dict())
+        # student.load_state_dict(teacher.state_dict())
         
         
         last_layer_name = get_model_layers_names(student.backbone)[-1]
@@ -279,7 +281,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     # set regression head
     hidden_size = int(hidden_size)
-    hidden2 = int(flatten_size*2)
+    hidden2 = 2056
     if hidden_size//4 < num_classes:
         assert False, 'needed to change classifier hidden size due amount of class'
     
@@ -319,19 +321,19 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 
     
     REPRESENTATION_HEAD = torch.nn.Sequential(  
-                                                nn.Dropout(p=0),
+                                                nn.Dropout(p=0.3),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0),
+                                                nn.Dropout(p=0.25),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0),            
+                                                nn.Dropout(p=0.25),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
-    prem_hidden = 512
+    prem_hidden = flatten_size
     
     # PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0.3),
     #                                 nn.Linear(flatten_size, hidden_size),
@@ -341,13 +343,39 @@ def update_representation_head(backbone, image_dim, num_classes, \
     #                                 nn.Linear(hidden_size, amount_of_patch)
     #                                 )
     
+    prem_hidden2 = int(prem_hidden*0.75)
+    # PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden, prem_hidden2),
+    #                                 nn.BatchNorm1d(prem_hidden2),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 nn.BatchNorm1d(prem_hidden2),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 nn.BatchNorm1d(prem_hidden2),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden2,amount_of_patch))
     
-    PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0),
+    
+    PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0.3),
+                                    # nn.Linear(prem_hidden, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
                                     nn.BatchNorm1d(prem_hidden),
                                     nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0.25),
                                     nn.Linear(prem_hidden,amount_of_patch))
     
-    freeze_all_layers(PERM_HEAD)
+    # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
     
@@ -364,6 +392,7 @@ class EMA():
     def __init__(self, beta):
         super().__init__()
         self.beta = beta
+        self.initial_beta = beta
 
     def update_average(self, old, new):
         if old is None:
@@ -472,7 +501,7 @@ class CNN(nn.Module):
         
         model_bank = ['resnet18','resnet34', 'resnet50', 'resnet152',
                       'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
-        
+        # model_name = 'resnet50'
         # sellecting backbone from torchvision models
         backbone = model_sellection(model_bank, 
                                     model_name=model_name,
@@ -488,7 +517,7 @@ class CNN(nn.Module):
                                freeze_all=freeze_all,
                                unfreeze=unfreeze)
         
-        def get_output_shape(model, image_dim):
+        def getge_output_shape(model, image_dim):
             return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))).data.shape
         # get shapes 
         channel, height, width = image_dim
@@ -511,6 +540,11 @@ class CNN(nn.Module):
                                                                         amount_of_patch = amount_of_patch,
                                                                         hidden_size=hidden_size)
             # PERM_HEAD, REPRESENTATION_HEAD = None, None
+        
+        # for param in PERM_HEAD.named_parameters():
+        #     print(param[1].requires_grad)
+             
+        
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD

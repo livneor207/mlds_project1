@@ -34,12 +34,11 @@ def data_statistics(train_df):
     return train_statistic_df, alpha
 
 
-def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True):
+def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, current_folder = ''):
     if task_name == 'cat_dogs':
         
         # get all files names 
         images_path_list = get_all_images_from_specific_folder(folder_path)
-        
         
         class_name_list = list(map(lambda x: os.path.basename(x).split('.')[0], images_path_list))
         data_class_df = pd.DataFrame([['cat', 0],['dog',1]], columns = ['class_name', 'class_index'])
@@ -54,12 +53,38 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True):
     elif task_name == 'CIFAR10':
          
         data_set = torchvision.datasets.CIFAR10('./', train=train, download=True)
-
+        # trainval
         class_name_df =  pd.DataFrame(data_set.classes, columns = ['class_name'])
         class_name_df['class_index'] = np.arange(class_name_df.shape[0])
         data_df = pd.DataFrame(data_set.targets, columns = ['class_index'])
         data_df = pd.merge(data_df,class_name_df,  how = 'left', on = ['class_index'])
+       
         data = data_set.data
+    elif task_name == 'OxfordIIITPet':
+        data_set = torchvision.datasets.OxfordIIITPet(root=current_folder, split  = train, download=True)
+        
+        
+        data_class_df =  pd.DataFrame(data_set.class_to_idx.items(), columns = ['class_name', 'class_index'])
+        folder_path  = os.path.join(current_folder, 'oxford-iiit-pet', 'images')
+        # get all files names 
+        images_path_list = get_all_images_from_specific_folder(folder_path)
+        
+        class_name_list = list(map(lambda x: (' ').join(os.path.basename(x).split('_')[0:-1]), images_path_list))
+        data_df = pd.DataFrame(class_name_list, columns = ['class_name'])
+        data_df['image_path'] = images_path_list
+        
+        data_class_df['class_name'] = data_class_df['class_name'].str.lower()
+        data_df['class_name'] = data_df['class_name'].str.lower()
+
+
+
+        data_df = pd.merge(data_df, data_class_df, how = 'left', on = ['class_name'])
+        if data_df.isnull().values.any():
+            data_df = data_df[['image_path']]
+        data = None
+        data_df = data_df.sample(frac=1).reset_index(drop=True)
+    
+        
     return data_df, data
 
 
@@ -68,14 +93,41 @@ def parse_test_data(images_path_list):
     test_df['image_path'] = images_path_list
     return test_df
 
-
+def gen_matrix_order(n):
+     # n = 4
+     grid = np.zeros((n, n))
+     
+     for i in range(n):
+         for j in range(n):
+             distances = []
+             for k in range(n):
+                 for l in range(n):
+                     distance = np.sqrt((k - i)**2 + (l - j)**2)
+                     distances.append(distance)
+             distances.remove(0)
+             weight = sum([1/d for d in distances])
+             grid[i, j] = weight + (i% n+  n*j)*0.1
+     # matrix_order = grid/grid.max()
+     matrix_order = grid
+     # print(matrix_order)
+     return matrix_order
 
 class MyDataset(Dataset):
 
-  def __init__(self, data_df,  class_df,  transform_train, transform_test ,index_list = None, amount_of_patch = 4, 
-               train = True, data_name = 'train',
-               debug = False, max_debug_image_allowed = 0, means = [0.485, 0.456, 0.406], 
-               stds=[0.229, 0.224, 0.225], taske_name = 'perm' , learning_type = 'supervised',
+  def __init__(self, data_df,  
+               class_df,  
+               transform_train,
+               transform_test,
+               index_list = None, 
+               amount_of_patch = 4, 
+               train = True, 
+               data_name = 'train',
+               debug = False, 
+               max_debug_image_allowed = 0, 
+               means = [0.485, 0.456, 0.406], 
+               stds=[0.229, 0.224, 0.225], 
+               taske_name = 'perm' , 
+               learning_type = 'supervised',
                data=None):
     
       
@@ -114,15 +166,27 @@ class MyDataset(Dataset):
   def __len__(self):
     return self.index_list.size
   
+    
+ 
+      
   def permutatation_aug(self, image):
+      
+      
       transform_image =  self.transform(image)
+
+      
 
       amount_of_patch = self.amount_of_patch
       dim_size = transform_image.shape[0]
       amount_of_rows = int(amount_of_patch**0.5)
+      matrix_order = gen_matrix_order(amount_of_rows)
+
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
       patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
       prem_order  = random.sample(range(amount_of_patch), amount_of_patch)
+      
+      
+      
       new_image = torch.zeros_like(transform_image)
       row = 0
       col = 0
@@ -138,6 +202,8 @@ class MyDataset(Dataset):
           from_col = col*patch_col_size
           to_col =  (col+1)*patch_col_size
           
+          prem_order[index] = matrix_order[i_perm_row, i_perm_col]
+
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
           border_size = 2
@@ -187,7 +253,8 @@ class MyDataset(Dataset):
     label_file_name = data_df_row['class_index']
     if self.read_image:
         image_path = data_df_row['image_path']
-        image = Image.open(image_path) 
+        image = Image.open(image_path).convert('RGB')
+        
     else:
         image = self.data[self.index_list[idx]]
         image = self.pill_transform(image)

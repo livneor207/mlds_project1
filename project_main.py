@@ -96,11 +96,17 @@ submission_path = os.path.join(data_folder,  'submission.csv')
 model_path = os.path.join(data_folder,  'model3.pth')
 
 
-task_name  = 'CIFAR10'
-
+task_name  = 'OxfordIIITPet'
+if task_name == 'CIFAR10':
+    train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
+    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False, current_folder = current_folder)
+elif task_name == 'OxfordIIITPet':
+    train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train='trainval', current_folder= current_folder)
+    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train='test', current_folder = current_folder)
 # parse train data
-train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True)
-test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False)
+
+# 'trainval'
+# 'test'
 
 
 # log to tensorboard, tensorboard summary writer
@@ -124,9 +130,9 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      learning_type='self_supervised', batch_size= 16, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 5,
+                                     max_lr = 5e-3, hidden_size = 256, balance_factor = 0.1,
                                      amount_of_patch = 9, moving_average_decay = 0.996,
-                                     weight_decay = 1e-2, optimizer_name = 'adam')
+                                     weight_decay = 1e-4, optimizer_name = 'lion')
 
 device = training_configuration.device
 
@@ -134,7 +140,7 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 100
+amount_for_debug = 500
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -156,14 +162,14 @@ train_loader, val_loader, test_loader, debug_loader = \
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
 
 # # set model 
-model = CNN(training_configuration, 
-              num_classes = amount_of_class,
-              image_dim = (3,image_dim, image_dim),
-              freeze_all=False, 
-              model_name = 'resnet18',
-              weights=None,
-              unfreeze=True)
-model.load_state_dict(torch.load(model_path))
+# model = CNN(training_configuration, 
+#               num_classes = amount_of_class,
+#               image_dim = (3,image_dim, image_dim),
+#               freeze_all=False, 
+#               model_name = 'resnet18',
+#               weights=None,
+#               unfreeze=True)
+# model.load_state_dict(torch.load(model_path))
 
 
 
@@ -171,7 +177,7 @@ model = CNN(training_configuration,
               num_classes = amount_of_class,
               image_dim = (3,image_dim, image_dim),
               freeze_all=False, 
-              model_name = 'resnet18',
+              model_name = 'resnet50',
               weights='IMAGENET1K_V1',
               unfreeze=False)
 
@@ -180,7 +186,7 @@ student = generate_student(model,
                            training_configuration, 
                            image_dim, 
                            amount_of_class,
-                           model_name = 'resnet18',
+                           model_name = 'resnet50',
                            weights = None,
                            unfreeze = True)
 
@@ -200,7 +206,7 @@ if training_configuration.learning_type == 'supervised':
     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    # criterion = torch.nn.MSELoss()
+    criterion = torch.nn.MSELoss()
 
 ranking_criterion = set_rank_loss(loss_name = 'KLDivLoss', margin = 1, num_labels = 1)
 
@@ -237,7 +243,48 @@ train_results_df = main(model, student, optimizer, criterion,
                         scheduler = scheduler)
 
 
-a=5 
+
+# import torch
+# import torch.nn as nn
+
+# y_true = torch.Tensor([[1, 2, 3],[3,2,1]]) # true tensor
+# y_pred = torch.Tensor([[0.2, 0.5, 0.1],[-0.1,0.2,0.3]]) # predicted tensor
+# y_pred.requires_grad = True
+# # Apply softmax activation to both tensors
+# temperature = 30
+# temperature, dummy = y_pred.max(1)
+# temperature2, dummy = y_true.max(1)
+
+
+# # Apply softmax activation to both tensors
+# true_probs = nn.functional.softmax(y_true, dim=0)
+
+
+
+# pred_probs_ordered = nn.functional.softmax(torch.div(y_pred.T, temperature).T, dim=0)
+# y_true_probs_ordered = nn.functional.softmax(torch.div(y_true.T, temperature2).T, dim=0)
+
+# # Compute the KL divergence between the true and predicted probabilities
+# criterion = nn.KLDivLoss(reduction='batchmean')
+# loss = criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
+
+# print(loss) # this should output the same loss value as for [3,2,1]
+
+
+
+# output = torch.Tensor([300,200,100]) # predicted output
+# target = torch.Tensor([1.0,2.0,3.0]) # true label
+
+# criterion = nn.SoftMarginLoss()
+# criterion = nn.HingeEmbeddingLoss()
+# criterion = nn.MultiLabelSoftMarginLoss()
+# criterion = nn.MultiLabelMarginLoss()
+
+# loss = criterion(output, target) # compute the loss
+
+
+
+# a=5 
 # import torch.nn.functional as F
 # kl_loss = nn.KLDivLoss(reduction="batchmean")
 # target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
@@ -310,7 +357,11 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {va
 model.load_state_dict(torch.load(model_path))
 model_path = os.path.join(data_folder,  'model2.pth')
 
- 
+ssl_model =  SSLMODEL(model, 
+                      num_classes=amount_of_class, 
+                      image_dim=(3,image_dim, image_dim),
+                      freeze_all = False,
+                      model_name = 'resnet18')
 student= None
 
 summary(ssl_model, (3,image_dim, image_dim))

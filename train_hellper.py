@@ -151,6 +151,7 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
         ranking_criterion = nn.HingeEmbeddingLoss()
     elif loss_name == 'KLDivLoss':
         ranking_criterion = nn.KLDivLoss(reduction="batchmean")
+        
         # target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
         # pred =  torch.tensor([[2,1,5,3,4], [2,4,3,4,1], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
         # pred = F.log_softmax(pred, dim=1)
@@ -252,7 +253,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
        assert False, 'needed to add optimizer'
     # optimizer settings 
     if optimizer_name == 'adam':
-      optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+      optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'lion':
       optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     
@@ -306,23 +307,45 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         ranking_loss = ranking_criterion(target_normelized, pred_normelized, target)
     elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
         
-        pred_norm = LA.norm(pred, 2)
-        target_norm = LA.norm(target, 2)
-        ((pred.argsort(1)-target)==0).sum()/target.numel()
+        
+        # criterion = torch.nn.L1Loss(reduce =False)
+        # criterion = torch.nn.MSELoss(reduce =False)
+        # ranking_loss = criterion(pred, target)
+        # ranking_loss = torch.multiply(ranking_loss, (target/target.max())**9)
+        # ranking_loss  = (ranking_loss.sum()/target.shape[0])
+
+        # (target.argsort(1)-pred.argsort(1)==0).sum()
+        
+        temperature_target, dummy = target.max(1)
+        temperature_pred, dummy = pred.max(1)
+        
+        pred_probs_ordered = nn.functional.softmax(torch.div(pred.T, 1).T, dim=1)
+        y_true_probs_ordered = nn.functional.softmax(torch.div(target.T, 1).T, dim=1)
+
+        # Compute the KL divergence between the true and predicted probabilities
+        
+        ranking_loss = ranking_criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
+        
+        
+        
+        
+
+        # pred_norm = LA.norm(pred, 2)
+        # target_norm = LA.norm(target, 2)
+        # ((pred.argsort(1)-target)==0).sum()/target.numel()
         
         
 
         
-        max_pred = pred.max()
-        min_pred = pred.min()
-        max_target = target.max()
-        yy = (pred-min_pred)/(max_pred-min_pred)
-        pred_normelized = max_target*((pred-min_pred)/(max_pred-min_pred))
+        # max_pred = pred.max()
+        # min_pred = pred.min()
+        # max_target = target.max()
+        # # yy = (pred-min_pred)/(max_pred-min_pred)
+        # pred_normelized = max_target*((pred-min_pred)/(max_pred-min_pred))
         
         
-        
-        target_normelized = (target-target.mean())
-        pred_normelized = (pred_normelized-target.mean())
+        # target_normelized = (target-target.mean())
+        # pred_normelized = (pred_normelized-target.mean())
 
 
 
@@ -346,11 +369,11 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         # target_softmax= F.softmax(target, dim=1)
         
         
-        pred_log_softmax = F.log_softmax(pred_normelized, dim=1)
-        target_softmax = F.softmax(target_normelized, dim=1)
+        # pred_log_softmax = F.log_softmax(pred_normelized, dim=1)
+        # target_softmax = F.softmax(target_normelized, dim=1)
         
         
-        ranking_loss = ranking_criterion(pred_log_softmax, target_softmax)
+        # ranking_loss = ranking_criterion(pred_log_softmax, target_softmax)
     
     elif isinstance(ranking_criterion, torch.nn.HingeEmbeddingLoss) :
         # pred_argsort,target_argsort  = pred_argsort.to(torch.float), target_argsort.to(torch.float)
@@ -459,27 +482,50 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
     
 
-        ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
+        # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
         ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
-        ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
+        # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
         ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
-        rank_loss = ranking_loss_2_1+ ranking_loss_1_1 + ranking_loss_2_2 + ranking_loss_1_2
+        order_ratio = (target_prem1.argsort(1)-perm_pred_1_1.argsort(1)==0).sum()/(target_prem1.numel())+\
+                        (target_prem2.argsort(1)-perm_pred_1_2.argsort(1)==0).sum()/(target_prem2.numel())
+        # print(f'order ratio {order_ratio.item()}')
+
+
+        
+        rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
         rank_loss *= balance_factor 
-      
+        
+        
+        
+        representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =1)
+        representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =1)
+        representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =1)
+        representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =1)
+        
+        representation_pred_1_1_normelized = torch.div(representation_pred_1_1.T,representation_pred_1_1_norm).T
+        representation_pred_2_2_normelized = torch.div(representation_pred_2_2.T,representation_pred_2_2_norm).T
+        representation_pred_1_2_normelized = torch.div(representation_pred_1_2.T,representation_pred_1_2_norm).T
+        representation_pred_2_1_normelized = torch.div(representation_pred_2_1.T,representation_pred_2_1_norm).T
+
+        
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
         
+        # similiarities_loss = criterion(representation_pred_1_1_normelized, representation_pred_2_2_normelized)
         similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
-        criterion_loss1 = 2-2*similiarities_loss
-        # criterion_loss1 = similiarities_loss
+
+        # criterion_loss1 = 2-2*similiarities_loss
+        criterion_loss1 = similiarities_loss
 
         # criterion_loss1 = criterion_loss1.mean()
         
        
+        # similiarities_loss = criterion(representation_pred_1_2_normelized, representation_pred_2_1_normelized)
         similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
-        criterion_loss2 = 2-2*similiarities_loss
-        # criterion_loss2 = similiarities_loss
+
+        # criterion_loss2 = 2-2*similiarities_loss
+        criterion_loss2 = similiarities_loss
 
         # criterion_loss2 = criterion_loss2.mean()
 
@@ -488,7 +534,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         accuracy = criterion_loss.item()
         f1_score = rank_loss
         # f1_score = torch.Tensor([0])
-        criterion_loss += rank_loss
+        # criterion_loss += rank_loss
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= True
@@ -527,7 +573,7 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
         total_accuracy += accuracy*batch_size
         total_f1_score += f1_score*batch_size
         total_classification_loss += classification_loss*batch_size
-        
+    gc.collect()    
     total_accuracy =  np.round(total_accuracy/ data_loader.dataset.__len__(), 3)
     total_f1_score =  np.round(total_f1_score.item() /data_loader.dataset.__len__(), 3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
@@ -535,7 +581,9 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
     return total_accuracy, total_f1_score, total_classification_loss
 
 
-def train(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, data_loader, device, scheduler= None):
+def train(model, student, optimizer, classification_criterion,
+          ranking_criterion, accuracy_metric, data_loader, 
+          device, scheduler= None, epoch= 1, num_epochs=1):
     total_accuracy = 0.
     total_f1_score = 0
     total_classification_loss = 0
@@ -555,6 +603,12 @@ def train(model, student, optimizer, classification_criterion, ranking_criterion
             del data, target, perm_order , target_name
             gc.collect()
             if not student is  None:
+                beta = model.student_ema_updater.initial_beta
+                epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
+                total_amount_of_steps =  epoch_optimization_steps*num_epochs
+                current_steps = epoch*batch_size+idx
+                new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
+                model.student_ema_updater.beta = new_beta
                 update_moving_average(model.student_ema_updater, student, model)
 
             
@@ -565,7 +619,7 @@ def train(model, student, optimizer, classification_criterion, ranking_criterion
                                                 np.round(f1_score.item(),3), np.round(classification_loss.item(),3)))
             pbar.update()
            
-          
+    gc.collect()     
     total_accuracy =  np.round(total_accuracy /  data_loader.dataset.__len__(),3)
     total_f1_score =  np.round(total_f1_score.item() /  data_loader.dataset.__len__(),3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
@@ -590,7 +644,10 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     max_patience = 9
     patience = 0
     for epoch in range(num_epochs):
-        train_accuracy, train_f1_score, train_classification_loss = train(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, train_loader, device, scheduler=scheduler )
+        train_accuracy, train_f1_score, train_classification_loss = \
+            train(model, student, optimizer, classification_criterion, 
+                  ranking_criterion, accuracy_metric, train_loader, device,
+                  scheduler=scheduler, epoch = epoch, num_epochs=num_epochs )
         val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, val_loader, device)
         
         
