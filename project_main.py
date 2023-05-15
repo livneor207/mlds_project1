@@ -140,10 +140,10 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                     learning_type='self_supervised', batch_size= 16, 
+                                     learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 256, balance_factor = 1,
+                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
                                      amount_of_patch = 9, moving_average_decay = 0.996,
                                      weight_decay = 1e-4, optimizer_name = 'lion')
 
@@ -182,7 +182,7 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {va
 #               model_name = 'resnet18',
 #               weights=None,
 #               unfreeze=True)
-# model.load_state_dict(torch.load(model_path))
+# model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
 
 
@@ -190,16 +190,47 @@ model = CNN(training_configuration,
               num_classes = amount_of_class,
               image_dim = (3,image_dim, image_dim),
               freeze_all=False, 
-              model_name = 'resnet50',
+              model_name = 'resnet18',
               weights='IMAGENET1K_V1',
               unfreeze=False)
+
+
+
+
+# from sklearn.manifold import TSNE
+
+# image, label, perm_order, class_name = generate_input_generation_examples(train_loader, debug = False)
+# image1 = image[:,0:3,:,:]
+# image2 = image[:,3::,:,:]
+
+# embbeding, perm_order_pred  = model(image2)
+
+# y_label = label.argmax(1)
+# y_label= y_label.detach().numpy()
+# # set model 
+# TSNE_model = TSNE(n_components=2, learning_rate='auto',
+#                     init='random', perplexity=10, n_iter= 1000)
+
+# # train model
+# projection = TSNE_model.fit_transform(embbeding.detach().numpy())
+
+
+
+
+# plt.figure()
+# plt.title('TNSE-2D')
+# plt.scatter(projection[:, 0], projection[:, 1], c=y_label, s=30, cmap='Set1')
+# plt.grid()
+# plt.show()
+
+
 
 
 student = generate_student(model, 
                            training_configuration, 
                            image_dim, 
                            amount_of_class,
-                           model_name = 'resnet50',
+                           model_name = 'resnet18',
                            weights = None,
                            unfreeze = True)
 

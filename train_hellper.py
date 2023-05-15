@@ -423,8 +423,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
         prems_size  =  perm_order.shape[1]
-        target_prem1 = perm_order[:,0:prems_size//2]
-        target_prem2 = perm_order[:,prems_size//2::]
+        
+        target_prem1 = perm_order[:,0,:]
+        target_prem2 = perm_order[:,1,:]
+
+        
+        
+        # target_prem1 = perm_order[:,0:prems_size//2]
+        # target_prem2 = perm_order[:,prems_size//2::]
         
         # if optimizer is  None:
         #   with torch.no_grad():
@@ -537,9 +543,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
-        
-        criterion_loss *= balance_factor 
-
+        if balance_factor != 0:
+            criterion_loss *= balance_factor 
+        else:
+            rank_loss = 0
         accuracy = criterion_loss.item()
         f1_score = rank_loss
         # f1_score = torch.Tensor([0])
