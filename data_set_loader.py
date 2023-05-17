@@ -114,15 +114,15 @@ def gen_matrix_order(n):
      matrix_order = grid
      # print(matrix_order)
      return matrix_order
-# def getPositionEncoding(seq_len, d, n=10000):
-#      P = np.zeros((seq_len, d))
-#      for k in range(seq_len):
-#          for i in np.arange(int(d/2)):
-#              denominator = np.power(n, 2*i/d)
-#              P[k, 2*i] = np.sin(k/denominator)
-#              P[k, 2*i+1] = np.cos(k/denominator)
-#          torch.Tensor(P[k])
-#      return P
+def getPositionEncoding(seq_len, d, n=10000):
+      P = np.zeros((seq_len, d))
+      for k in range(seq_len):
+          for i in np.arange(int(d/2)):
+              denominator = np.power(n, 2*i/d)
+              P[k, 2*i] = np.sin(k/denominator)
+              P[k, 2*i+1] = np.cos(k/denominator)
+          torch.Tensor(P[k])
+      return P
  
     
 
@@ -191,6 +191,7 @@ class MyDataset(Dataset):
           denominator = np.power(n, 2*i/d)
           P[0, 2*i] = np.sin(k/denominator)
           P[0, 2*i+1] = np.cos(k/denominator)
+       
        return P
    
     
@@ -233,7 +234,7 @@ class MyDataset(Dataset):
 
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
-          border_size = 2
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -346,7 +347,8 @@ class MyDataset(Dataset):
 
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
-                           learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True):
+                           learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True,
+                           pin_memory=False):
     
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
@@ -357,9 +359,15 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     
     all_permutation_option = list(permutations(range(0, amount_of_patch)))
-
-    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=100)
+    # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
+# 
+    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=len(all_permutation_option))
     # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
+    
+    # np.linalg.norm(position_embeding[0] - position_embeding[100],1)
+    # all_permutation_option[0]
+    # all_permutation_option[20000]
+
     # permutation_dictionary[tuple(perm_order)]
     
     
@@ -426,10 +434,10 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                        train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, all_permutation_option=all_permutation_option)
 
        
-    train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
-    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
+    val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=pin_memory)
     # if not tb_writer is None and 0:
     #     add_data_embedings(val_loader, tb_writer, n=300)
 

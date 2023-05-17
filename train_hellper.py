@@ -120,7 +120,7 @@ def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
 
     return rank_metric
 
-def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
+def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1, beta=1):
     """
     example
     target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
@@ -159,6 +159,10 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1):
         # output = kl_loss(pred, target)
     elif loss_name == 'MSE':
          ranking_criterion = torch.nn.MSELoss()
+    elif loss_name == 'L1Loss':
+         ranking_criterion = torch.nn.L1Loss()
+    elif loss_name == 'SmoothL1Loss':
+          ranking_criterion = torch.nn.SmoothL1Loss(beta=beta)
     else:
         assert False, "no acceptable loss choosen" 
     return ranking_criterion
@@ -180,10 +184,10 @@ def convert_2_float_and_require_grad(tensor):
     return tensor
 
 
-def set_similiarities_loss(classification_loss_name = 'CosineSimilarity'):
+def set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1):
     loss_name = classification_loss_name 
     
-    loss_bank = ['CosineSimilarity', 'MSE']
+    loss_bank = ['CosineSimilarity', 'MSE', 'L1Loss', 'SmoothL1Loss']
     if not loss_name in loss_bank:
         assert False, 'loss is not defined'
     
@@ -191,7 +195,10 @@ def set_similiarities_loss(classification_loss_name = 'CosineSimilarity'):
        criterion = nn.CosineSimilarity(dim=1, eps=1e-6)
     elif loss_name == 'MSE':
         criterion = torch.nn.MSELoss()
-
+    elif loss_name == 'L1Loss':
+         criterion = torch.nn.L1Loss()
+    elif loss_name == 'SmoothL1Loss':
+          criterion = torch.nn.SmoothL1Loss(beta=beta)
     return criterion
 
 
@@ -311,6 +318,10 @@ def calculate_rank_loss(ranking_criterion, target, pred):
 
         ranking_loss = ranking_criterion(target_normelized, pred_normelized, target)
     elif isinstance(ranking_criterion, torch.nn.MSELoss):
+            ranking_loss = ranking_criterion(pred, target)
+    elif isinstance(ranking_criterion, torch.nn.L1Loss):
+            ranking_loss = ranking_criterion(pred, target)
+    elif isinstance(ranking_criterion, torch.nn.SmoothL1Loss):
             ranking_loss = ranking_criterion(pred, target)
     elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
         
@@ -511,15 +522,15 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         
         
-        representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =1)
-        representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =1)
-        representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =1)
-        representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =1)
+        representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =0)
+        representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =0)
+        representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =0)
+        representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =0)
         
-        representation_pred_1_1_normelized = torch.div(representation_pred_1_1.T,representation_pred_1_1_norm).T
-        representation_pred_2_2_normelized = torch.div(representation_pred_2_2.T,representation_pred_2_2_norm).T
-        representation_pred_1_2_normelized = torch.div(representation_pred_1_2.T,representation_pred_1_2_norm).T
-        representation_pred_2_1_normelized = torch.div(representation_pred_2_1.T,representation_pred_2_1_norm).T
+        representation_pred_1_1_normelized = torch.div(representation_pred_1_1,representation_pred_1_1_norm)
+        representation_pred_2_2_normelized = torch.div(representation_pred_2_2,representation_pred_2_2_norm)
+        representation_pred_1_2_normelized = torch.div(representation_pred_1_2,representation_pred_1_2_norm)
+        representation_pred_2_1_normelized = torch.div(representation_pred_2_1,representation_pred_2_1_norm)
 
         
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
@@ -546,7 +557,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         if balance_factor != 0:
             criterion_loss *= balance_factor 
         else:
-            rank_loss = 0
+            rank_loss *= balance_factor
         accuracy = criterion_loss.item()
         f1_score = rank_loss
         # f1_score = torch.Tensor([0])
@@ -622,7 +633,7 @@ def train(model, student, optimizer, classification_criterion,
             if not student is  None:
                 beta = model.student_ema_updater.initial_beta
                 epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
-                total_amount_of_steps =  epoch_optimization_steps*num_epochs
+                total_amount_of_steps =  epoch_optimization_steps*num_epochs*2
                 current_steps = epoch*batch_size+idx
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta

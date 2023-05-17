@@ -86,17 +86,27 @@ def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
          else:
             param[1].requires_grad = False
 
-def freeze_resnet_layers(model):        
+def freeze_resnet_layers(model, model_name = 'resnet50'):        
     """
     freeze by defult all layer
     otherwise manully freeze layers 
     """
+    if int(model_name.split('resnet')[1])>40:
+        last_layer_name = 'layer4.2'
+    else:
+        last_layer_name = 'layer4.1'
     
+    if int(model_name.split('resnet')[1])>40:
+        last_layer_name2 = 'layer2.2'
+    else:
+        last_layer_name2 = 'layer2.1'
+        
+        
     for param in model.named_parameters():
          debug= True
          if debug:
              print(param[0])
-         if param[0].find('layer4.2') !=-1 or param[0].find('layer4.1') !=-1:
+         if param[0].find(last_layer_name) !=-1 :
 
          # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
          # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
@@ -139,7 +149,7 @@ def freeze_backbone_layers(model, model_bank, model_name = 'resnet34', freeze_al
     elif freeze_all:
         freeze_all_layers(model)
     elif model_name.find('resnet') != -1:
-        freeze_resnet_layers(model)
+        freeze_resnet_layers(model, model_name)
     elif model_name.find('efficientnet') != -1:
         freeze_efficientnet_layers(model, model_name)
              
@@ -222,7 +232,8 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
 def generate_student(teacher, training_configuration, image_dim, 
                      amount_of_class, model_name = 'efficientnet',
                      amount_of_patch = 1, freeze_all = False,
-                     weights = 'IMAGENET1K_V1', unfreeze = True):
+                     weights = 'IMAGENET1K_V1', unfreeze = True,
+                     copy_weights = True):
     
     amount_of_patch = training_configuration.amount_of_patch
     
@@ -235,8 +246,8 @@ def generate_student(teacher, training_configuration, image_dim,
                         freeze_all = freeze_all,
                         model_name = model_name,
                         weights=weights, unfreeze = unfreeze)  
-        
-        # student.load_state_dict(teacher.state_dict())
+        if copy_weights:
+            student.backbone.load_state_dict(teacher.backbone.state_dict())
         
         
         last_layer_name = get_model_layers_names(student.backbone)[-1]
@@ -322,15 +333,16 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 
     
     REPRESENTATION_HEAD = torch.nn.Sequential(  
-                                                nn.Dropout(p=0.3),
+                                                nn.Flatten(),
+                                                nn.Dropout(p=0),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0.25),
+                                                nn.Dropout(p=0),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0.25),            
+                                                nn.Dropout(p=0),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
@@ -360,8 +372,8 @@ def update_representation_head(backbone, image_dim, num_classes, \
     #                                 nn.Dropout(p=0),
     #                                 nn.Linear(prem_hidden2,amount_of_patch))
     
-    
-    PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0.3),
+    prem_hidden = 512
+    PERM_HEAD = torch.nn.Sequential(
                                     # nn.Linear(prem_hidden, prem_hidden2),
                                     # nn.BatchNorm1d(prem_hidden2),
                                     # nn.ReLU(inplace=True),
@@ -371,15 +383,27 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.Flatten(),
+                                    nn.Dropout(p=0),
                                     nn.BatchNorm1d(prem_hidden),
                                     nn.ReLU(inplace=True),
-                                    # nn.Dropout(p=0.25),
-                                    nn.Linear(prem_hidden,amount_of_patch))
+                                    nn.Linear(prem_hidden, prem_hidden//2),
+                                    nn.BatchNorm1d(prem_hidden//2),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden//4),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden//4,amount_of_patch))
     
     # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
-    
+    # m = nn.AdaptiveAvgPool2d((1, 1))
+    # input = torch.randn(1, 64, 8, 9)
+    # m(input).shape
     
     if model_name.find('resnet') != -1:
         # set classification head 
@@ -466,10 +490,13 @@ def forward_using_loop(model, data):
     layer_input = data
     for layer_idx , layer  in enumerate(model.backbone.children()):
         model_layers_names = get_model_layers_names(layer)
-        print(len(model_layers_names))
+        # print(len(model_layers_names))
+        # print(model_layers_names)
+        # print(layer_idx)
+
         if len(model_layers_names) == 0:
                 layer_output  = layer(layer_input)
-                if layer_idx == 0 :
+                if layer_idx == 7 :
                     gemotric_output = layer_output
                 layer_input = layer_output
         else:
@@ -477,7 +504,7 @@ def forward_using_loop(model, data):
             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
     
                 layer_output  = sub_layer(layer_input)
-                if layer_idx == 0 and sub_layer_idx == 7:
+                if layer_idx == 7 and sub_layer_idx == 1:
                     gemotric_output = layer_output
                 layer_input = layer_output
     return layer_output, gemotric_output
@@ -564,12 +591,12 @@ class CNN(nn.Module):
         else:
             # projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            # projection_output, geometric_output = forward_using_loop(self, images)
+            projection_output, geometric_output = forward_using_loop(self, images)
             
             
-            projection_output = self.backbone(images)
+            # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
-            perm_pred = self.PERM_HEAD(projection_output)
+            perm_pred = self.PERM_HEAD(geometric_output)
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
             
             
