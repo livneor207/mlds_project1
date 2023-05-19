@@ -156,10 +156,14 @@ class MyDataset(Dataset):
     self.max_debug_image_allowed = max_debug_image_allowed
     self.train = train
     self.learning_type = learning_type
+    amount_of_sampels = data_df.shape[0]
     if index_list is None:
         index_list= np.arange(0, data_df.shape[0])
     self.index_list = index_list
     self.pill_transform = transforms.ToPILImage()
+    self.perm_order_list = [random.sample(range(amount_of_patch), amount_of_patch) for _ in range(amount_of_sampels)]
+    self.perm_order_list2 = [random.sample(range(amount_of_patch), amount_of_patch) for _ in range(amount_of_sampels)]
+
     if data is None:
         read_image = True
     else:
@@ -211,9 +215,14 @@ class MyDataset(Dataset):
 
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
       patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
-      perm_order  = random.sample(range(amount_of_patch), amount_of_patch)
-      
-      
+      if self.train:
+           perm_order  = random.sample(range(amount_of_patch), amount_of_patch)
+      else:
+          if self.image_idx == 1:
+              perm_order = self.perm_order_list[self.idx]
+          else:
+              perm_order = self.perm_order_list2[self.idx]
+
       
       new_image = torch.zeros_like(transform_image)
       row = 0
@@ -280,6 +289,7 @@ class MyDataset(Dataset):
     # get image
     
     data_df_row = self.data_df.iloc[self.index_list[idx]]
+    self.idx = idx
     label_file_name = data_df_row['class_index']
     if self.read_image:
         image_path = data_df_row['image_path']
@@ -307,9 +317,10 @@ class MyDataset(Dataset):
     else:
         desire_amount_of_images = 2
     t1 = time.time()
+    self.image_idx = 1
     new_image, perm_order = self.get_perm_image(image)
     total =  t1 - time.time()
-
+    self.image_idx += 1
     if desire_amount_of_images > 1:
         # transform_image =  self.transform(image)
 
@@ -360,7 +371,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     all_permutation_option = list(permutations(range(0, amount_of_patch)))
     # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
-# 
+    # 
     # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=len(all_permutation_option))
     # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
     
@@ -436,8 +447,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
     val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=pin_memory)
+    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=False)
+    debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=False)
     # if not tb_writer is None and 0:
     #     add_data_embedings(val_loader, tb_writer, n=300)
 

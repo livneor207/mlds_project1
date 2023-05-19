@@ -372,7 +372,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     #                                 nn.Dropout(p=0),
     #                                 nn.Linear(prem_hidden2,amount_of_patch))
     
-    prem_hidden = 512
+    # prem_hidden = 512
     PERM_HEAD = torch.nn.Sequential(
                                     # nn.Linear(prem_hidden, prem_hidden2),
                                     # nn.BatchNorm1d(prem_hidden2),
@@ -386,8 +386,6 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
-                                    nn.BatchNorm1d(prem_hidden),
-                                    nn.ReLU(inplace=True),
                                     nn.Linear(prem_hidden, prem_hidden//2),
                                     nn.BatchNorm1d(prem_hidden//2),
                                     nn.ReLU(inplace=True),
@@ -597,9 +595,13 @@ class CNN(nn.Module):
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
             perm_pred = self.PERM_HEAD(geometric_output)
+            # perm_pred = self.PERM_HEAD(projection_output)
+
+            
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            
-            
+            # del projection_output
+            del projection_output, geometric_output
+
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
             return representation_pred, perm_pred

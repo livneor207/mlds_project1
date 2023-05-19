@@ -95,7 +95,7 @@ tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_proje
 # seed
 seed =  48
 val_split = 0.1
-image_dim = 256
+image_dim = 224
 
 seed_everything(seed)
 
@@ -110,7 +110,10 @@ model_path = os.path.join(data_folder,  'model3.pth')
 
 
 task_name  = 'OxfordIIITPet'
-if task_name == 'CIFAR10':
+
+task_name  = 'cat_dogs'
+
+if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
     test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False, current_folder = current_folder)
 elif task_name == 'OxfordIIITPet':
@@ -139,7 +142,7 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # set train configurations
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
-training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-5,
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-4,
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
@@ -153,7 +156,7 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 500
+amount_for_debug = 100
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -285,8 +288,6 @@ train_results_df = main(model, student, optimizer, criterion,
                         max_opt = training_configuration.max_opt, 
                         model_path = model_path, 
                         scheduler = scheduler)
-
-
 
 # import torch
 # import torch.nn as nn

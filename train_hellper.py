@@ -426,11 +426,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
             if debug_grad:
                 print_grad(model)
             optimizer.step()
-        
+        del classification_pred, data, labels_target
+
     else:
         learning_type = 'self_supervised'
-        data2 = data[:,3::,:,:]
-        data1 = data[:,0:3,:,:]
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
         prems_size  =  perm_order.shape[1]
@@ -471,21 +470,29 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
           with torch.no_grad():
             representation_pred_1_1, perm_pred_1_1 = model(data1)
             torch.cuda.empty_cache()
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
-            torch.cuda.empty_cache()
             representation_pred_2_1, perm_pred_2_1 = student(data1)
             torch.cuda.empty_cache()
+            del data1
             representation_pred_2_2, perm_pred_2_2 = student(data2)
             torch.cuda.empty_cache()
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            torch.cuda.empty_cache()
+            del data2
+            
         else:
             representation_pred_1_1, perm_pred_1_1 = model(data1)
             torch.cuda.empty_cache()
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
-            torch.cuda.empty_cache()
             representation_pred_2_1, perm_pred_2_1 = student(data1)
             torch.cuda.empty_cache()
+            del data1
+            
+            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            torch.cuda.empty_cache()
+            
             representation_pred_2_2, perm_pred_2_2 = student(data2)
             torch.cuda.empty_cache()
+            del data2
+        del data
         """
         # representation_pred_1_1 = representation_pred_1_1.cpu()
         # representation_pred_1_2 = representation_pred_1_2.cpu()
@@ -511,10 +518,12 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
         ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
+        
         order_ratio = (target_prem1.argsort(1)-perm_pred_1_1.argsort(1)==0).sum()/(target_prem1.numel())+\
                         (target_prem2.argsort(1)-perm_pred_1_2.argsort(1)==0).sum()/(target_prem2.numel())
         # print(f'order ratio {order_ratio.item()}')
 
+        del target_prem2,target_prem1,perm_pred_1_2,perm_pred_1_1
 
         
         rank_loss = ranking_loss_1_1 + ranking_loss_1_2
@@ -522,15 +531,15 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         
         
-        representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =0)
-        representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =0)
-        representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =0)
-        representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =0)
+        # representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =0)
+        # representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =0)
+        # representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =0)
+        # representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =0)
         
-        representation_pred_1_1_normelized = torch.div(representation_pred_1_1,representation_pred_1_1_norm)
-        representation_pred_2_2_normelized = torch.div(representation_pred_2_2,representation_pred_2_2_norm)
-        representation_pred_1_2_normelized = torch.div(representation_pred_1_2,representation_pred_1_2_norm)
-        representation_pred_2_1_normelized = torch.div(representation_pred_2_1,representation_pred_2_1_norm)
+        # representation_pred_1_1_normelized = torch.div(representation_pred_1_1,representation_pred_1_1_norm)
+        # representation_pred_2_2_normelized = torch.div(representation_pred_2_2,representation_pred_2_2_norm)
+        # representation_pred_1_2_normelized = torch.div(representation_pred_1_2,representation_pred_1_2_norm)
+        # representation_pred_2_1_normelized = torch.div(representation_pred_2_1,representation_pred_2_1_norm)
 
         
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
@@ -567,7 +576,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
             criterion_loss.backward()
             debug_grad= True
             if debug_grad:
-                print_grad(student)
+                print_grad(model)
             
                      
             optimizer.step()
@@ -576,6 +585,8 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         _, labels_target = None, None
         
         # accuracy = 0
+        del representation_pred_1_2,representation_pred_2_1,representation_pred_1_1,representation_pred_2_2
+
         
     
                 
