@@ -19,7 +19,7 @@ import torchvision
 import time 
 import itertools
 from itertools import permutations
-
+import math
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
     amount_of_class = train_statistic_df.shape[0] 
@@ -126,7 +126,14 @@ def getPositionEncoding(seq_len, d, n=10000):
  
     
 
- 
+def calculate_permutation_position(permutation):
+    n = len(permutation)
+    position = 0
+    for i, num in enumerate(permutation):
+        count = sum(num > p for p in permutation[i+1:])
+        position += count * math.factorial(n-1-i)
+    return position 
+
 class MyDataset(Dataset):
 
   def __init__(self, data_df,  
@@ -189,7 +196,11 @@ class MyDataset(Dataset):
     
  
   def getPositionEncoding(self, perm_order, d, n=10000):
-       k = self.all_permutation_option.index(tuple(perm_order))
+       # k = self.all_permutation_option.index(tuple(perm_order))
+       k = calculate_permutation_position(tuple(perm_order))
+     
+       
+       
        P = np.zeros((1, d))
        for i in np.arange(int(d/2)):
           denominator = np.power(n, 2*i/d)
@@ -369,7 +380,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     
     
-    all_permutation_option = list(permutations(range(0, amount_of_patch)))
+    # all_permutation_option = list(permutations(range(0, amount_of_patch)))
+    all_permutation_option = [] 
     # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
     # 
     # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=len(all_permutation_option))

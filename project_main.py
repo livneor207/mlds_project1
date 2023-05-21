@@ -61,6 +61,55 @@ plt.close('all')
 
 """
 
+import itertools
+
+
+
+# def calculate_permutation_position(all_permutations, permutation):
+    
+#     position = 1
+#     for p in all_permutations:
+#         if p == permutation:
+#             return position
+#         position += 1
+
+
+# # generate all premutation
+# all_permutations = itertools.permutations(range(0, 16), 16)
+
+
+# # Example usage
+# given_permutation = (15,14, 2, 3, 4,5,6,7,8,9,10,11,12,13,0,1)
+# position = calculate_permutation_position(given_permutation)
+# print("Position of the given permutation:", position)
+
+
+
+# import math
+
+# def calculate_permutation_position(permutation):
+#     n = len(permutation)
+#     position = 0
+#     for i, num in enumerate(permutation):
+#         count = sum(num > p for p in permutation[i+1:])
+#         position += count * math.factorial(n-1-i)
+#     return position + 1
+
+# # Example usage
+# given_permutation = (3, 8, 2, 14)  # Permutation of size 4
+# given_permutation = (0,1, 2, 3, 4,5,6,7,8,9,10,11,12,13,14,15)
+
+# position = calculate_permutation_position(given_permutation)
+# print("Position of the given permutation within permutations of size 16:", position)
+
+
+
+
+
+
+
+
+
 
 
 # from torchmetrics.classification import MulticlassHammingDistance
@@ -147,7 +196,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-                                     amount_of_patch = 4, moving_average_decay = 0.995,
+                                     amount_of_patch = 16, moving_average_decay = 0.995,
                                      weight_decay = 1e-6, optimizer_name = 'lion')
 
 device = training_configuration.device
