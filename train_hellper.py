@@ -518,11 +518,13 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
         ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
+        # mm = torch.nn.MSELoss(reduce=False)
+        
         
         order_ratio = (target_prem1.argsort(1)-perm_pred_1_1.argsort(1)==0).sum()/(target_prem1.numel())+\
                         (target_prem2.argsort(1)-perm_pred_1_2.argsort(1)==0).sum()/(target_prem2.numel())
         # print(f'order ratio {order_ratio.item()}')
-
+        # yy = mm(target_prem1[0:1], target_prem1[4:5]).detach().numpy().sum(1)/perm_pred_1_2.shape[1]
         del target_prem2,target_prem1,perm_pred_1_2,perm_pred_1_1
 
         

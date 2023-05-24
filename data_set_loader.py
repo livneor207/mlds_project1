@@ -199,7 +199,7 @@ class MyDataset(Dataset):
        # k = self.all_permutation_option.index(tuple(perm_order))
        k = calculate_permutation_position(tuple(perm_order))
      
-       
+       n =  math.factorial(d)
        
        P = np.zeros((1, d))
        for i in np.arange(int(d/2)):
@@ -267,6 +267,7 @@ class MyDataset(Dataset):
           
           
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
+     
       perm_order = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
       
       return new_image, perm_order

@@ -161,6 +161,8 @@ model_path = os.path.join(data_folder,  'model3.pth')
 task_name  = 'OxfordIIITPet'
 
 task_name  = 'cat_dogs'
+task_name  = 'CIFAR10'
+task_name  = 'OxfordIIITPet'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
@@ -196,7 +198,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-                                     amount_of_patch = 16, moving_average_decay = 0.995,
+                                     amount_of_patch = 9, moving_average_decay = 0.995,
                                      weight_decay = 1e-6, optimizer_name = 'lion')
 
 device = training_configuration.device
@@ -205,24 +207,24 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 100
-test_df = test_df[0:amount_for_debug]
-train_df = train_df[0:amount_for_debug]
-if train_data is not None:
-    train_data = train_data[0:amount_for_debug]
-    test_data = test_data[0:amount_for_debug]
+# amount_for_debug = 100
+# test_df = test_df[0:amount_for_debug]
+# train_df = train_df[0:amount_for_debug]
+# if train_data is not None:
+#     train_data = train_data[0:amount_for_debug]
+#     test_data = test_data[0:amount_for_debug]
 
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
                            val_split=val_split,  
-                           debug_batch_size = 16, 
+                           debug_batch_size = 8, 
                            random_state = seed,
                            tb_writer = tb_writer,
                            train_data=train_data,
                            test_data=test_data,
                            image_size = image_dim,
-                           rand_choise = False)
+                           rand_choise = True)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
@@ -406,7 +408,7 @@ training_configuration.get_device_type()
 
 
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-                                      learning_type='self_supervised', batch_size= 16, 
+                                      learning_type='self_supervised', batch_size= 16,  
                                       scheduler_name = 'None', max_opt = True,
                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
                                       max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
