@@ -199,7 +199,7 @@ class MyDataset(Dataset):
        # k = self.all_permutation_option.index(tuple(perm_order))
        k = calculate_permutation_position(tuple(perm_order))
      
-       # n =  math.factorial(d)
+       # amount_of_perm=  math.factorial(d)
        
        P = np.zeros((1, d))
        for i in np.arange(int(d/2)):
@@ -385,20 +385,49 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     all_permutation_option = [] 
     # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
     # 
-    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=24)
+    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=24, n=10e3)
     
-    # from scipy.spatial.distance import pdist, squareform
 
     # Create a sample NumPy array
+   
+    # def position_encoding(max_length, d_model):
+    #     positions = np.arange(max_length)[:, np.newaxis]
+    #     indices = np.arange(d_model)[np.newaxis, :]
+    #     angles = positions / np.power(10000, 2 * (indices // 2) / d_model)
+    #     sin_values = np.sin(angles[:, 0::2])
+    #     cos_values = np.cos(angles[:, 1::2])
+    #     position_encodings = np.concatenate([sin_values, cos_values], axis=-1)
+    #     return position_encodings
 
-    # Calculate pairwise distances between rows
+    # position_embeding = position_encoding(24, 24)
+    # position_embeding =  position_embeding[:,0:4]
+    # # Calculate pairwise KLD between rows
+    # from scipy.special import kl_div
+    # softmax_array = np.exp(position_embeding) / np.exp(position_embeding).sum(axis=1, keepdims=True)
+
+    # klds = np.zeros((softmax_array.shape[0], softmax_array.shape[0]))
+    
+    # for i in range(softmax_array.shape[0]-1):
+    #     kld = kl_div(softmax_array[i+1:], softmax_array[i]).sum(axis=1)
+    #     klds[i, i+1:] = kld
+    #     klds[i+1:, i] = kld
+    
+    # # Print the adjacency matrix
+    # print(klds)
+    
+    
+    # from scipy.spatial.distance import pdist, squareform,cdist
+
+    # # Calculate pairwise distances between rows
     # distances = pdist(position_embeding)
     
-    # Convert the condensed distance matrix to a square matrix
+    # #Convert the condensed distance matrix to a square matrix
     # adjacency_matrix = squareform(distances)
     
-
     
+    # distances = cdist(position_embeding, position_embeding, metric='cityblock')
+
+
     
     # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
     

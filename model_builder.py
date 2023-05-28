@@ -334,15 +334,15 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     REPRESENTATION_HEAD = torch.nn.Sequential(  
                                                 nn.Flatten(),
-                                                nn.Dropout(p=0),
+                                                nn.Dropout(p=0.25),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0),
+                                                nn.Dropout(p=0.25),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0),            
+                                                nn.Dropout(p=.25),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
@@ -385,15 +385,15 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.Linear(prem_hidden2, prem_hidden2),
                                     nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
-                                    nn.Dropout(p=0),
+                                    nn.Dropout(p=0.25),
                                     nn.Linear(prem_hidden, prem_hidden//2),
                                     nn.BatchNorm1d(prem_hidden//2),
                                     nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
+                                    nn.Dropout(p=0.25),
                                     nn.Linear(prem_hidden//2, prem_hidden//4),
                                     nn.BatchNorm1d(prem_hidden//4),
                                     nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
+                                    nn.Dropout(p=0.25),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
     # freeze_all_layers(PERM_HEAD)

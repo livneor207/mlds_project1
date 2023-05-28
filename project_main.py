@@ -259,8 +259,11 @@ model = CNN(training_configuration,
 # image1 = image[:,0:3,:,:]
 # image2 = image[:,3::,:,:]
 
-# embbeding, perm_order_pred  = model(image2)
+# embbeding1, perm_order_pred1  = model(image1)
+# embbeding2, perm_order_pred2  = model(image2)
 
+
+# perms_t = perm_order[:,0,:]
 # y_label = label.argmax(1)
 # y_label= y_label.detach().numpy()
 # # set model 
@@ -305,9 +308,9 @@ f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = 
 if training_configuration.learning_type == 'supervised':
     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
 else:    
-    criterion=  set_similiarities_loss(classification_loss_name = 'SmoothL1Loss', beta = 1)
+    criterion=  set_similiarities_loss(classification_loss_name = 'SmoothL1Loss', beta = 0.01)
 
-ranking_criterion = set_rank_loss(loss_name = 'SmoothL1Loss', margin = 1, num_labels = 1, beta = 1)
+ranking_criterion = set_rank_loss(loss_name = 'SmoothL1Loss', margin = 1, num_labels = 1, beta = 0.01)
 
 # show example for data after transformations    
 # generate data generation example
