@@ -199,7 +199,7 @@ class MyDataset(Dataset):
        # k = self.all_permutation_option.index(tuple(perm_order))
        k = calculate_permutation_position(tuple(perm_order))
      
-       n =  math.factorial(d)
+       # n =  math.factorial(d)
        
        P = np.zeros((1, d))
        for i in np.arange(int(d/2)):
@@ -385,7 +385,21 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     all_permutation_option = [] 
     # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
     # 
-    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=len(all_permutation_option))
+    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=amount_of_patch, n=24)
+    
+    # from scipy.spatial.distance import pdist, squareform
+
+    # Create a sample NumPy array
+
+    # Calculate pairwise distances between rows
+    # distances = pdist(position_embeding)
+    
+    # Convert the condensed distance matrix to a square matrix
+    # adjacency_matrix = squareform(distances)
+    
+
+    
+    
     # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
     
     # np.linalg.norm(position_embeding[0] - position_embeding[100],1)
