@@ -383,10 +383,29 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     # all_permutation_option = list(permutations(range(0, amount_of_patch)))
     all_permutation_option = [] 
-    # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
-    # 
-    # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=24, n=10e3)
     
+    # def cosine_schedule(k=0, d=4):
+      
+    #   amount_of_perm=  math.factorial(d)
+    #   all_perm_array = np.zeros((amount_of_perm,d))
+
+    #   for k in range(amount_of_perm):
+    #       empty_array = np.zeros((1,d))
+    #       for i in range(d):
+    #           nominator =  (i/d)+k
+    #           denominator = 1+k
+    #           fraction = nominator/denominator
+    #           fraction *= (np.pi/2)
+    #           val = math.cos(fraction) ** (0.5)
+    #           empty_array[0, i] = val
+    #       all_perm_array[k, :] = empty_array
+          
+      
+    #   return np.clip(output, clip_min, 1.)
+    # # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
+    # # 
+    # # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=24, n=10e3)
+    # position_embeding = all_perm_array
 
     # Create a sample NumPy array
    
@@ -398,6 +417,16 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     #     cos_values = np.cos(angles[:, 1::2])
     #     position_encodings = np.concatenate([sin_values, cos_values], axis=-1)
     #     return position_encodings
+    
+    # def cosine_schedule(t, start=0, end=1, tau=1, clip_min=1e-9):
+    #   # A gamma function based on cosine function.
+    #   v_start = math.cos(start * math.pi / 2) ** (2 * tau)
+    #   v_end = math.cos(end * math.pi / 2) ** (2 * tau)
+    #   output = math.cos((t * (end - start) + start) * math.pi / 2) ** (2 * tau)
+    #   output = (v_end - output) / (v_end - v_start)
+    #   return np.clip(output, clip_min, 1.)
+    
+    
 
     # position_embeding = position_encoding(24, 24)
     # position_embeding =  position_embeding[:,0:4]
@@ -418,10 +447,10 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     # from scipy.spatial.distance import pdist, squareform,cdist
 
-    # # Calculate pairwise distances between rows
+    # # # Calculate pairwise distances between rows
     # distances = pdist(position_embeding)
     
-    # #Convert the condensed distance matrix to a square matrix
+    # # #Convert the condensed distance matrix to a square matrix
     # adjacency_matrix = squareform(distances)
     
     

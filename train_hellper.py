@@ -163,6 +163,8 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1, 
          ranking_criterion = torch.nn.L1Loss()
     elif loss_name == 'SmoothL1Loss':
           ranking_criterion = torch.nn.SmoothL1Loss(beta=beta)
+    elif loss_name == 'CosineSimilarity':
+        ranking_criterion = nn.CosineSimilarity(dim=1, eps=1e-6)
     else:
         assert False, "no acceptable loss choosen" 
     return ranking_criterion
@@ -323,6 +325,8 @@ def calculate_rank_loss(ranking_criterion, target, pred):
             ranking_loss = ranking_criterion(pred, target)
     elif isinstance(ranking_criterion, torch.nn.SmoothL1Loss):
             ranking_loss = ranking_criterion(pred, target)
+    elif isinstance(ranking_criterion, torch.nn.CosineSimilarity):
+            ranking_loss = torch.mean(2-2*ranking_criterion(pred, target))
     elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
         
         
@@ -547,7 +551,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
         
         # similiarities_loss = criterion(representation_pred_1_1_normelized, representation_pred_2_2_normelized)
-        similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
+        if isinstance(ranking_criterion, torch.nn.CosineSimilarity):
+            similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
+        else:
+            similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
 
         # criterion_loss1 = 2-2*similiarities_loss
         criterion_loss1 = similiarities_loss
@@ -556,7 +563,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
        
         # similiarities_loss = criterion(representation_pred_1_2_normelized, representation_pred_2_1_normelized)
-        similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
+        if isinstance(ranking_criterion, torch.nn.CosineSimilarity):
+            similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_2, representation_pred_2_1))
+        else:
+            similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
 
         # criterion_loss2 = 2-2*similiarities_loss
         criterion_loss2 = similiarities_loss

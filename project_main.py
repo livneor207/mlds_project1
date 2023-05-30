@@ -308,9 +308,9 @@ f_score_accuracy_metric  = set_metric(training_configuration, amount_of_class = 
 if training_configuration.learning_type == 'supervised':
     criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
 else:    
-    criterion=  set_similiarities_loss(classification_loss_name = 'SmoothL1Loss', beta = 0.01)
+    criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1)
 
-ranking_criterion = set_rank_loss(loss_name = 'SmoothL1Loss', margin = 1, num_labels = 1, beta = 0.01)
+ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
 
 # show example for data after transformations    
 # generate data generation example

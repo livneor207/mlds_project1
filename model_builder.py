@@ -255,7 +255,7 @@ def generate_student(teacher, training_configuration, image_dim,
         project_layer_list = get_model_layers_names(projection_layer)
         amount_of_layers = project_layer_list.__len__()
 
-        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-4])
+        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-2])
         setattr(student.backbone, last_layer_name, new_projection_layer)
         
         
@@ -334,15 +334,15 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     REPRESENTATION_HEAD = torch.nn.Sequential(  
                                                 nn.Flatten(),
-                                                nn.Dropout(p=0.25),
+                                                nn.Dropout(p=0),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
                                                 nn.ReLU(inplace=True),
-                                                nn.Dropout(p=0.25),
+                                                nn.Dropout(p=0),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
-                                                nn.ReLU(inplace=True),
-                                                nn.Dropout(p=.25),            
+                                                # nn.ReLU(inplace=True),
+                                                # nn.Dropout(p=0),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
@@ -385,15 +385,15 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.Linear(prem_hidden2, prem_hidden2),
                                     nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
-                                    nn.Dropout(p=0.25),
+                                    nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
                                     nn.BatchNorm1d(prem_hidden//2),
                                     nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0.25),
+                                    nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//2, prem_hidden//4),
                                     nn.BatchNorm1d(prem_hidden//4),
                                     nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0.25),
+                                    nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
     # freeze_all_layers(PERM_HEAD)
