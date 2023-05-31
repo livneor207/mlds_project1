@@ -14,6 +14,7 @@ import torch.nn as nn
 import pandas as pd 
 from torch import linalg as LA
 from model_builder import *
+from data_set_loader import *
 
 # def update_moving_average(ema_updater, student_model, teacher_model):
 #     max_update_size = list(student_model.parameters()).__len__()-1
@@ -535,7 +536,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
         
-        
+            
         
         # representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =0)
         # representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =0)
@@ -551,7 +552,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
         
         # similiarities_loss = criterion(representation_pred_1_1_normelized, representation_pred_2_2_normelized)
-        if isinstance(ranking_criterion, torch.nn.CosineSimilarity):
+        if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
         else:
             similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
@@ -561,9 +562,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         # criterion_loss1 = criterion_loss1.mean()
         
-       
+        
         # similiarities_loss = criterion(representation_pred_1_2_normelized, representation_pred_2_1_normelized)
-        if isinstance(ranking_criterion, torch.nn.CosineSimilarity):
+        if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_2, representation_pred_2_1))
         else:
             similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
@@ -639,7 +640,11 @@ def train(model, student, optimizer, classification_criterion,
     total_f1_score = 0
     total_classification_loss = 0
     debug = False
-    message = 'accuracy {}, f1-score {}, classification loss {}'
+    if model.learning_type == 'supervised':
+        message = 'accuracy {}, f1-score {}, classification loss {}'
+    else:
+        message = 'embeedding loss {}, postion embedding loss {}, total loss {}'
+
     with tqdm(data_loader) as pbar:
         model.train()
         for idx, (data, target, perm_order , target_name)  in enumerate(pbar):
@@ -667,7 +672,8 @@ def train(model, student, optimizer, classification_criterion,
             total_f1_score += f1_score*batch_size
             total_classification_loss += classification_loss*batch_size
             pbar.set_description(message.format(np.round(accuracy,3), \
-                                                np.round(f1_score.item(),3), np.round(classification_loss.item(),3)))
+                                                np.round(f1_score.item(),3),\
+                                                np.round(classification_loss.item(),3)))
             pbar.update()
            
     gc.collect()     
@@ -686,8 +692,12 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     loss_validation_list = []
     
     results_list =  [] 
-    columns_list =  [ 'train_accuracy', 'train_f_score', 'train_classification_loss',
-                     'val_accuracy', 'val_f_score_loss', 'val_classification_loss'] 
+    if model.learning_type == 'supervised':
+        columns_list =  [ 'train_accuracy', 'train_f_score', 'train_classification_loss',
+                         'val_accuracy', 'val_f_score_loss', 'val_classification_loss'] 
+    else:
+        columns_list =  [ 'train_embedding loss', 'train_position_embedding_loss', 'train_total_loss',
+                         'val_embedding loss', 'val_position_embedding_loss', 'val_total_loss'] 
     if max_opt:
         best_model_score  = 0
     else:
@@ -713,11 +723,22 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
                scheduler.step()  
             
         # print current results
-        print(f'Epoch Summary {epoch}:\n'+\
-              f'1) Train: f1-score {train_f1_score}, '+ \
-                  f'classification_loss {train_classification_loss}, Accuracy {train_accuracy}\n' + \
-              f'2) Validation: f1-score loss {val_f1_score}, '+ \
-                  f'classification_loss {val_classification_loss}, val acc {val_accuracy}')
+        if model.learning_type == 'supervised':
+            print(7*''+f'Epoch Summary {epoch}:\n'+\
+                  f'1) Train: f1-score {train_f1_score}, '+ \
+                  f'classification_loss {train_classification_loss}, '+ \
+                  f'Accuracy {train_accuracy}\n' + \
+                  f'2) Validation: f1-score {val_f1_score}, '+ \
+                  f'classification_loss {val_classification_loss}, '+\
+                  f'val acc {val_accuracy}')
+        else:
+            print(7*''+f'Epoch Summary {epoch}:\n'+\
+                  f'1) Train: postion embedding loss {train_f1_score}, '+ \
+                  f'embeddding loss {train_accuracy}, ' + \
+                  f'total loss {train_classification_loss}\n'
+                  f'2) Validation: postion embedding loss {val_f1_score}, '+ \
+                  f'embedding loss {val_accuracy}, ' + \
+                  f'total loss {val_classification_loss}')
         
        
         results  = [train_accuracy, train_f1_score, train_classification_loss,
@@ -732,7 +753,11 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
             patience = 0
         patience += 1
         if patience>max_patience:
-          print(f'validation f1 scoredoes not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+          if model.learning_type == 'supervised':
+              print(f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+          else:
+              print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+
           break
         if not tb_writer is None: 
             # add scalar (loss/accuracy) to tensorboard
@@ -767,6 +792,10 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
 
     train_results_df =  pd.DataFrame(results_list, columns = columns_list)
     train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
+    csv_path =  change_file_ending(file_path, '.csv' )
+    train_results_df.to_csv(csv_path, header = False)
+
+    
     return train_results_df
 
 

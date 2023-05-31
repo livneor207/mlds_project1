@@ -164,6 +164,7 @@ task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
 task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
+task_name  = 'OxfordIIITPet'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
@@ -208,7 +209,7 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 100
+amount_for_debug = 500
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -246,7 +247,7 @@ model = CNN(training_configuration,
               num_classes = amount_of_class,
               image_dim = (3,image_dim, image_dim),
               freeze_all=False, 
-              model_name = 'resnet18',
+              model_name = 'resnet50',
               weights='IMAGENET1K_V1',
               unfreeze=False)
 
@@ -289,7 +290,7 @@ student = generate_student(model,
                            training_configuration, 
                            image_dim, 
                            amount_of_class,
-                           model_name = 'resnet18',
+                           model_name = 'resnet50',
                            weights = None,
                            unfreeze = True)
 
@@ -310,7 +311,7 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1)
 
-ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+ranking_criterion = set_rank_loss(loss_name = 'MSE', margin = 1, num_labels = 1, beta = 1)
 
 # show example for data after transformations    
 # generate data generation example
@@ -479,7 +480,7 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
     criterion = torch.nn.MSELoss()
-ranking_criterion = set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1)
+ranking_criterion = set_rank_loss(loss_name = 'MSE', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example

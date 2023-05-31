@@ -36,6 +36,16 @@ def data_statistics(train_df):
     train_statistic_df = pd.merge(temp_df, counts_df , how = 'right', on = ['class_name'] )
     return train_statistic_df, alpha
 
+def change_file_ending(file_path, new_file_extension ):
+    # Remove the old file extension
+    file_name = os.path.splitext(file_path)[0]
+    
+    
+    # Add the new file extension to the file name
+    new_file_path = file_name + new_file_extension
+    
+    return new_file_path
+
 
 def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, current_folder = ''):
     if task_name == 'cat_dogs':
@@ -64,11 +74,13 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
        
         data = data_set.data
     elif task_name == 'OxfordIIITPet':
-        data_set = torchvision.datasets.OxfordIIITPet(root=current_folder, split  = train, download=True)
         
+        data_folder =  os.path.join(current_folder, 'Pets')
+
+        data_set = torchvision.datasets.OxfordIIITPet(root=data_folder, split  = train, download=True)
         
         data_class_df =  pd.DataFrame(data_set.class_to_idx.items(), columns = ['class_name', 'class_index'])
-        folder_path  = os.path.join(current_folder, 'oxford-iiit-pet', 'images')
+        folder_path  = os.path.join(data_folder, 'oxford-iiit-pet', 'images')
         # get all files names 
         images_path_list = get_all_images_from_specific_folder(folder_path)
         
