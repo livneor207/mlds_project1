@@ -744,6 +744,13 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         results  = [train_accuracy, train_f1_score, train_classification_loss,
                     val_accuracy, val_f1_score, val_classification_loss]
         results_list.append(results)
+        
+        train_results_df =  pd.DataFrame(results_list, columns = columns_list)
+        train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
+        csv_path =  change_file_ending(model_path, '.csv' )
+        train_results_df.to_csv(csv_path)
+        
+        
         if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
             best_model_wts = copy.deepcopy(model.state_dict())
             if model_path!= '':
@@ -792,8 +799,8 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
 
     train_results_df =  pd.DataFrame(results_list, columns = columns_list)
     train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-    csv_path =  change_file_ending(file_path, '.csv' )
-    train_results_df.to_csv(csv_path, header = False)
+    csv_path =  change_file_ending(model_path, '.csv' )
+    train_results_df.to_csv(csv_path)
 
     
     return train_results_df

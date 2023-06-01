@@ -469,6 +469,7 @@ class SSLMODEL(nn.Module):
             #           print(param[0])
         
         update_classifier_head(ssl_model.backbone, image_dim, num_classes, model_name = model_name )
+        self.learning_type = 'supervised'
         self.ssl_model = ssl_model
         moving_average_decay = 0.99
         use_momentum = True
@@ -601,7 +602,7 @@ class CNN(nn.Module):
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
             # del projection_output
             del projection_output, geometric_output
-
+# 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
             return representation_pred, perm_pred

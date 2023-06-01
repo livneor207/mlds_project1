@@ -163,7 +163,8 @@ class MyDataset(Dataset):
                taske_name = 'perm' , 
                learning_type = 'supervised',
                data=None,
-               all_permutation_option= None):
+               all_permutation_option= None,
+               orig_pe = True):
     
     self.all_permutation_option = all_permutation_option
     self.taske_name = taske_name
@@ -175,6 +176,7 @@ class MyDataset(Dataset):
     self.max_debug_image_allowed = max_debug_image_allowed
     self.train = train
     self.learning_type = learning_type
+    self.orig_pe = orig_pe
     amount_of_sampels = data_df.shape[0]
     if index_list is None:
         index_list= np.arange(0, data_df.shape[0])
@@ -217,8 +219,10 @@ class MyDataset(Dataset):
        for i in np.arange(int(d/2)):
           denominator = np.power(n, 2*i/d)
           P[0, 2*i] = np.sin(k/denominator)
-          P[0, 2*i+1] = np.cos(k/denominator)
-       
+          if self.orig_pe:
+              P[0, 2*i+1] = np.cos(k/denominator)
+          else:
+              P[0, 2*i+1] = np.sin(k/denominator)
        return P
    
     
@@ -383,7 +387,7 @@ class MyDataset(Dataset):
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
                            learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True,
-                           pin_memory=False):
+                           pin_memory=False, orig_pe = True):
     
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
@@ -407,7 +411,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     #           nominator =  (i/d)+k
     #           denominator = 1+k
     #           fraction = nominator/denominator
-    #           fraction *= (np.pi/2)
+    #           # fraction *= (np.pi/2)
     #           val = math.cos(fraction) ** (0.5)
     #           empty_array[0, i] = val
     #       all_perm_array[k, :] = empty_array
@@ -430,13 +434,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     #     position_encodings = np.concatenate([sin_values, cos_values], axis=-1)
     #     return position_encodings
     
-    # def cosine_schedule(t, start=0, end=1, tau=1, clip_min=1e-9):
-    #   # A gamma function based on cosine function.
-    #   v_start = math.cos(start * math.pi / 2) ** (2 * tau)
-    #   v_end = math.cos(end * math.pi / 2) ** (2 * tau)
-    #   output = math.cos((t * (end - start) + start) * math.pi / 2) ** (2 * tau)
-    #   output = (v_end - output) / (v_end - v_start)
-    #   return np.clip(output, clip_min, 1.)
+   
     
     
 
@@ -459,10 +457,10 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     # from scipy.spatial.distance import pdist, squareform,cdist
 
-    # # # Calculate pairwise distances between rows
+    # # # # Calculate pairwise distances between rows
     # distances = pdist(position_embeding)
     
-    # # #Convert the condensed distance matrix to a square matrix
+    # # # #Convert the condensed distance matrix to a square matrix
     # adjacency_matrix = squareform(distances)
     
     
@@ -535,11 +533,14 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
 
     
     X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 
-                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data, all_permutation_option=all_permutation_option)
+                        train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data,
+                        all_permutation_option=all_permutation_option, orig_pe = orig_pe)
     X_val = MyDataset(all_train_df,class_df, data_transforms, test_transforms ,index_list = val_index, amount_of_patch=amount_of_patch, 
-                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data, all_permutation_option=all_permutation_option)
+                      train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data, 
+                      all_permutation_option=all_permutation_option, orig_pe = orig_pe)
     X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = None, amount_of_patch=amount_of_patch,
-                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, all_permutation_option=all_permutation_option)
+                       train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, 
+                       all_permutation_option=all_permutation_option, orig_pe = orig_pe)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
