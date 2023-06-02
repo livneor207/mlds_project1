@@ -164,7 +164,8 @@ task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
 task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
-task_name  = 'OxfordIIITPet'
+task_name  = 'cat_dogs'
+task_name  = 'CIFAR10'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
@@ -200,7 +201,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 50, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-                                     amount_of_patch = 9, moving_average_decay = 0.995,
+                                     amount_of_patch = 4, moving_average_decay = 0.995,
                                      weight_decay = 1e-6, optimizer_name = 'lion')
 
 device = training_configuration.device
@@ -209,7 +210,7 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 500
+amount_for_debug = 200
 test_df = test_df[0:amount_for_debug]
 train_df = train_df[0:amount_for_debug]
 if train_data is not None:
@@ -227,7 +228,7 @@ train_loader, val_loader, test_loader, debug_loader = \
                            test_data=test_data,
                            image_size = image_dim,
                            rand_choise = True,
-                           orig_pe = False)
+                           orig_pe = True)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
@@ -312,7 +313,7 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1)
 
-ranking_criterion = set_rank_loss(loss_name = 'MSE', margin = 1, num_labels = 1, beta = 1)
+ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
 
 # show example for data after transformations    
 # generate data generation example

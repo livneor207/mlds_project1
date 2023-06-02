@@ -270,7 +270,7 @@ class MyDataset(Dataset):
 
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
-          border_size = 1
+          border_size = 0
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -486,7 +486,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         p = 0.5
     else:
         p = 1
-    center_crop_size = int(0.75*image_size)
+    center_crop_size = int(0.9*image_size)
 
     resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR)
