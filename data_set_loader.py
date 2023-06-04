@@ -20,6 +20,42 @@ import time
 import itertools
 from itertools import permutations
 import math
+
+
+def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 1000):
+    """
+     1. distances
+        ‘canberra’, ‘chebyshev’, ‘cityblock’, ‘correlation’, ‘cosine’, ‘dice’, 
+        ‘euclidean’, ‘hamming’, ‘jaccard’, ‘jensenshannon’, ‘kulczynski1’, ‘mahalanobis’,
+        ‘matching’, ‘minkowski’, ‘rogerstanimoto’, ‘russellrao’, ‘seuclidean’, 
+        ‘sokalmichener’, ‘sokalsneath’, ‘sqeuclidean’, ‘yule’.
+    2. amount of perm to generate - 
+    """
+    permutations = np.array(list(itertools.permutations(range(amount_of_perm))))
+    # random.shuffle(permutations)
+    current_perm_index = random.randint(0, permutations.shape[0])
+    single_perm = np.expand_dims(permutations[current_perm_index, :], axis = 0 )
+    permutations = np.delete(permutations, current_perm_index, axis=0)
+    max_distance_permutations =  np.zeros((max_allowed_perm, permutations.shape[1]))
+    max_distance_permutations[0,:] = single_perm
+    i = 1
+    while i<max_allowed_perm:
+        if i>max_allowed_perm or permutations.shape[0] == 0:
+            break
+        # Compute Hamming distances
+        distances = cdist(permutations, single_perm, metric='hamming')
+       
+        current_perm_index = random.choice(np.where(distances == np.max(distances))[0])
+        single_perm = np.expand_dims(permutations[current_perm_index, :], axis = 0 )
+
+        permutations = np.delete(permutations, current_perm_index, axis=0)
+        max_distance_permutations[i,:] = single_perm
+
+        i+=1
+    max_distance_permutations = max_distance_permutations[0:i, :]
+    return max_distance_permutations
+
+
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
     amount_of_class = train_statistic_df.shape[0] 
@@ -387,7 +423,7 @@ class MyDataset(Dataset):
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
                            means = [0.485, 0.456, 0.406], stds=[0.229, 0.224, 0.225], image_size = 224, tb_writer = None, taske_name = 'perm',
                            learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True,
-                           pin_memory=False, orig_pe = True):
+                           pin_memory=False, orig_pe = True, train_split = 1):
     
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
@@ -527,6 +563,13 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
     except:
         train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+
+    if train_split!=1:
+        try:
+            train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
+        except:
+            train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
+
 
 
     # train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)

@@ -38,6 +38,7 @@ import collections
 import time
 import copy
 import sys
+import itertools
 import os
 from sklearn.metrics import f1_score
 from torchmetrics import F1Score
@@ -52,7 +53,7 @@ from train_hellper import *
 from model_builder import *
 import glob
 plt.close('all')
-
+    
 
 """
 # TODO! remove features.7.4.block.3
@@ -61,77 +62,6 @@ plt.close('all')
 
 """
 
-import itertools
-
-
-
-# def calculate_permutation_position(all_permutations, permutation):
-    
-#     position = 1
-#     for p in all_permutations:
-#         if p == permutation:
-#             return position
-#         position += 1
-
-
-# # generate all premutation
-# all_permutations = itertools.permutations(range(0, 16), 16)
-
-
-# # Example usage
-# given_permutation = (15,14, 2, 3, 4,5,6,7,8,9,10,11,12,13,0,1)
-# position = calculate_permutation_position(given_permutation)
-# print("Position of the given permutation:", position)
-
-
-
-# import math
-
-# def calculate_permutation_position(permutation):
-#     n = len(permutation)
-#     position = 0
-#     for i, num in enumerate(permutation):
-#         count = sum(num > p for p in permutation[i+1:])
-#         position += count * math.factorial(n-1-i)
-#     return position + 1
-
-# # Example usage
-# given_permutation = (3, 8, 2, 14)  # Permutation of size 4
-# given_permutation = (0,1, 2, 3, 4,5,6,7,8,9,10,11,12,13,14,15)
-
-# position = calculate_permutation_position(given_permutation)
-# print("Position of the given permutation within permutations of size 16:", position)
-
-
-
-
-
-
-
-
-
-
-
-# from torchmetrics.classification import MulticlassHammingDistance
-# input2_argsort.requires_grad = True
-# input1_argsort.requires_grad = False 
-
-# metric = MulticlassHammingDistance(num_classes=5, task = '')
-
-# loss = metric(input1_argsort , input2_argsort )
-# loss.backward()
-
-# def getPositionEncoding(seq_len, d, n=10000):
-#     P = np.zeros((seq_len, d))
-#     for k in range(seq_len):
-#         for i in np.arange(int(d/2)):
-#             denominator = np.power(n, 2*i/d)
-#             P[k, 2*i] = np.sin(k/denominator)
-#             P[k, 2*i+1] = np.cos(k/denominator)
-#     return P
- 
-# P = getPositionEncoding(seq_len=200, d=9, n=100)
-# print(P)
 
 
 
@@ -210,12 +140,12 @@ device = training_configuration.device
 """
 slice for debuging
 """
-amount_for_debug = 200
-test_df = test_df[0:amount_for_debug]
-train_df = train_df[0:amount_for_debug]
-if train_data is not None:
-    train_data = train_data[0:amount_for_debug]
-    test_data = test_data[0:amount_for_debug]
+# amount_for_debug = 200
+# test_df = test_df[0:amount_for_debug]
+# train_df = train_df[0:amount_for_debug]
+# if train_data is not None:
+#     train_data = train_data[0:amount_for_debug]
+#     test_data = test_data[0:amount_for_debug]
 
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
@@ -228,7 +158,8 @@ train_loader, val_loader, test_loader, debug_loader = \
                            test_data=test_data,
                            image_size = image_dim,
                            rand_choise = True,
-                           orig_pe = True)
+                           orig_pe = True,
+                           train_split = 0.25)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
