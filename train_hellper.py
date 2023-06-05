@@ -54,6 +54,7 @@ class TrainingConfiguration:
     amount_of_patch: float = 25
     moving_average_decay: float = 0.01
     weight_decay: float = 1e-3
+    balance_factor2 = 1
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -63,7 +64,7 @@ class TrainingConfiguration:
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      amount_of_patch = 25, moving_average_decay = 0.01,
+                      balance_factor2 = 1, amount_of_patch = 25, moving_average_decay = 0.01,
                       weight_decay = 1e-3, optimizer_name = 'lion'):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
@@ -82,6 +83,7 @@ class TrainingConfiguration:
         self.moving_average_decay = moving_average_decay
         self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
+        self.balance_factor2 = balance_factor2
 
         
         
@@ -407,8 +409,12 @@ def calculate_rank_loss(ranking_criterion, target, pred):
         ranking_loss = ranking_criterion(projection1_normelized, projection2_normelized)
 
     return ranking_loss
-def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_metric, perm_order = None, optimizer=None):
-    
+def step(model, student, data, labels, criterion, ranking_criterion,  
+         accuracy_metric, perm_creterion = None, 
+         perm_order = None, perm_label = None,  
+         optimizer=None):
+    perm_classification_loss = torch.Tensor([0])
+    f1_perm_label_score = 0
     if data.shape[1]<=3:
         learning_type = 'supervised'
         m = torch.nn.Softmax(dim=1)
@@ -441,81 +447,40 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         target_prem1 = perm_order[:,0,:]
         target_prem2 = perm_order[:,1,:]
-
         
         
-        # target_prem1 = perm_order[:,0:prems_size//2]
-        # target_prem2 = perm_order[:,prems_size//2::]
-        
-        # if optimizer is  None:
-        #   with torch.no_grad():
-        #     representation_pred_1_1 = model(data1)
-        #     representation_pred_1_2 = model(data2)
-        #     representation_pred_2_1 = student(data1)
-        #     representation_pred_2_2 = student(data2)
-        # else:
-        #     representation_pred_1_1 = model(data1)
-        #     torch.cuda.empty_cache()
-
-        #     representation_pred_1_2 = model(data2)
-        #     torch.cuda.empty_cache()
-
-        #     representation_pred_2_1 = student(data1)
-        #     torch.cuda.empty_cache()
-
-        #     representation_pred_2_2 = student(data2)
-        #     torch.cuda.empty_cache()
-
-            
-            
+        target_prem_label = perm_label[:,0,:]
+        target_prem_label2 = perm_label[:,1,:]
         
         
-        
+      
         if optimizer is  None:
           with torch.no_grad():
-            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
             torch.cuda.empty_cache()
-            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
             torch.cuda.empty_cache()
             del data1
-            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
             torch.cuda.empty_cache()
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
             torch.cuda.empty_cache()
             del data2
             
         else:
-            representation_pred_1_1, perm_pred_1_1 = model(data1)
+            representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
             torch.cuda.empty_cache()
-            representation_pred_2_1, perm_pred_2_1 = student(data1)
+            representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
             torch.cuda.empty_cache()
             del data1
-            
-            representation_pred_1_2, perm_pred_1_2 = model(data2)
+            representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
             torch.cuda.empty_cache()
-            
-            representation_pred_2_2, perm_pred_2_2 = student(data2)
+            representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
             torch.cuda.empty_cache()
             del data2
         del data
-        """
-        # representation_pred_1_1 = representation_pred_1_1.cpu()
-        # representation_pred_1_2 = representation_pred_1_2.cpu()
-        # representation_pred_2_1 = representation_pred_2_1.cpu()
-        # representation_pred_2_2 = representation_pred_2_2.cpu()
         
-        # perm_pred_1_1 = perm_pred_1_1.cpu()
-        # perm_pred_1_2 = perm_pred_1_2.cpu()
-        # perm_pred_2_1 = perm_pred_2_1.cpu()
-        # perm_pred_2_2 = perm_pred_2_2.cpu()
-        
-        # projection1_norm = LA.norm(projection1, 2)
-        # projection2_norm = LA.norm(projection2, 2)
-        # projection1_normelized = projection1/projection1_norm
-        # projection2_normelized = projection2/projection2_norm
-        """
-        
-        
+      
     
 
         # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
@@ -523,7 +488,22 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
         ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
         
-        # mm = torch.nn.MSELoss(reduce=False)
+        m = torch.nn.Softmax(dim=1)
+        perm_classification_loss1 = perm_creterion(m(perm_label_pred_1_1), target_prem_label.argmax(1))
+        perm_classification_loss2 = perm_creterion(m(perm_label_pred_1_2), target_prem_label2.argmax(1))
+        
+        
+        perm_classification_loss = perm_classification_loss2 + perm_classification_loss1
+        _, perm_label_pred_1_1 = torch.max(perm_label_pred_1_1.data, 1) # for getting predictions class
+        _, perm_label_pred_1_2 = torch.max(perm_label_pred_1_2.data, 1) # for getting predictions class
+        _, target_prem_label = torch.max(target_prem_label.data, 1) # for getting predictions class
+        _, target_prem_label2 = torch.max(target_prem_label2.data, 1) # for getting predictions class
+        
+    
+        f1_perm_label_score1 = (perm_label_pred_1_1 == target_prem_label).sum().item()/target_prem_label.shape[0] # get accuracy val
+        f1_perm_label_score2 = (perm_label_pred_1_2 == target_prem_label2).sum().item()/target_prem_label.shape[0] # get accuracy val
+
+        f1_perm_label_score = (f1_perm_label_score1 + f1_perm_label_score2)/2
         
         
         order_ratio = (target_prem1.argsort(1)-perm_pred_1_1.argsort(1)==0).sum()/(target_prem1.numel())+\
@@ -535,22 +515,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         
         rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
-        
-            
-        
-        # representation_pred_1_1_norm = LA.norm(representation_pred_1_1, 2, dim =0)
-        # representation_pred_2_2_norm = LA.norm(representation_pred_2_2, 2, dim =0)
-        # representation_pred_1_2_norm = LA.norm(representation_pred_1_2, 2, dim =0)
-        # representation_pred_2_1_norm = LA.norm(representation_pred_2_1, 2, dim =0)
-        
-        # representation_pred_1_1_normelized = torch.div(representation_pred_1_1,representation_pred_1_1_norm)
-        # representation_pred_2_2_normelized = torch.div(representation_pred_2_2,representation_pred_2_2_norm)
-        # representation_pred_1_2_normelized = torch.div(representation_pred_1_2,representation_pred_1_2_norm)
-        # representation_pred_2_1_normelized = torch.div(representation_pred_2_1,representation_pred_2_1_norm)
+        balance_factor2 = model.balance_factor2
 
-        
-        # criterion(torch.Tensor([[-0.5,0.5]]), torch.Tensor([[1,0.5]]))
-        
+            
         # similiarities_loss = criterion(representation_pred_1_1_normelized, representation_pred_2_2_normelized)
         if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
@@ -576,15 +543,16 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
 
         criterion_loss = criterion_loss1 + criterion_loss2
         criterion_loss = criterion_loss.mean()
-        if balance_factor != 0:
-            criterion_loss *= balance_factor 
-        else:
-            rank_loss *= balance_factor
+    
+        rank_loss *= balance_factor
+        perm_classification_loss *= balance_factor2
+
+        
         accuracy = criterion_loss.item()
         f1_score = rank_loss
-        # f1_score = torch.Tensor([0])
         
         criterion_loss += rank_loss
+        criterion_loss += perm_classification_loss
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= False
@@ -601,53 +569,67 @@ def step(model, student, data, labels, criterion, ranking_criterion,  accuracy_m
         del representation_pred_1_2,representation_pred_2_1,representation_pred_1_1,representation_pred_2_2
 
         
-    
-                
-    return criterion_loss, accuracy, f1_score
+
+    return criterion_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss
 
 
-def eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, data_loader, device):
+def eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric,perm_creterion, data_loader, device):
     total_accuracy = 0.
     total_f1_score = 0.
     total_classification_loss = 0.
+    total_f1_perm_score = 0.
+    total_perm_classification_loss = 0.
+    
     debug = False
     model.eval()
-    for idx, (data, target, perm_order, target_name) in enumerate(data_loader):
+    for idx, (data, target, perm_order, target_name, perm_label) in enumerate(data_loader):
         batch_size = target.shape[0]
         torch.cuda.empty_cache()
         gc.collect()
         if idx>1 and debug:
             break
-        classification_loss, accuracy, f1_score =  \
-            step(model, student,  data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device) )
+        classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss =  \
+            step(model, student,  data.to(device), target.to(device), classification_criterion.to(device),
+                 ranking_criterion.to(device), accuracy_metric.to(device), perm_creterion.to(device), 
+                 perm_order.to(device), perm_label.to(device))
         del data, target, perm_order , target_name
         gc.collect()
+        
+        total_f1_perm_score += f1_perm_label_score*batch_size
+        total_perm_classification_loss += perm_classification_loss*batch_size
         total_accuracy += accuracy*batch_size
         total_f1_score += f1_score*batch_size
         total_classification_loss += classification_loss*batch_size
     gc.collect()    
+    
     total_accuracy =  np.round(total_accuracy/ data_loader.dataset.__len__(), 3)
     total_f1_score =  np.round(total_f1_score.item() /data_loader.dataset.__len__(), 3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
+    total_perm_classification_loss =  np.round(total_perm_classification_loss.item() / data_loader.dataset.__len__(),3)
+    total_f1_perm_score =  np.round(total_f1_perm_score / data_loader.dataset.__len__(),3)
 
-    return total_accuracy, total_f1_score, total_classification_loss
+    return total_accuracy, total_f1_score, total_classification_loss, total_perm_classification_loss, total_f1_perm_score
 
 
 def train(model, student, optimizer, classification_criterion,
-          ranking_criterion, accuracy_metric, data_loader, 
+          ranking_criterion, accuracy_metric, perm_creterion,  data_loader, 
           device, scheduler= None, epoch= 1, num_epochs=1):
     total_accuracy = 0.
     total_f1_score = 0
     total_classification_loss = 0
+    total_f1_perm_score = 0
+    total_perm_classification_loss = 0
+
+    
     debug = False
     if model.learning_type == 'supervised':
         message = 'accuracy {}, f1-score {}, classification loss {}'
     else:
-        message = 'embeedding loss {}, postion embedding loss {}, total loss {}'
+        message = 'embeedding loss {}, postion embedding loss {}, total loss {}, classification perm loss {}, perm accuracy {}'
 
     with tqdm(data_loader) as pbar:
         model.train()
-        for idx, (data, target, perm_order , target_name)  in enumerate(pbar):
+        for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
             batch_size = target.shape[0]
 
             
@@ -655,7 +637,11 @@ def train(model, student, optimizer, classification_criterion,
             if idx >1 and debug:
                 break
             optimizer.zero_grad()
-            classification_loss, accuracy, f1_score  = step(model,student, data.to(device), target.to(device), classification_criterion.to(device), ranking_criterion.to(device), accuracy_metric.to(device), perm_order.to(device), optimizer)
+            classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss \
+                = step(model,student, data.to(device), target.to(device), 
+                        classification_criterion.to(device), ranking_criterion.to(device), 
+                        accuracy_metric.to(device), perm_creterion.to(device), 
+                        perm_order.to(device), perm_label.to(device),  optimizer)
             del data, target, perm_order , target_name
             gc.collect()
             if not student is  None:
@@ -668,22 +654,28 @@ def train(model, student, optimizer, classification_criterion,
                 update_moving_average(model.student_ema_updater, student, model)
 
             
+
+            total_f1_perm_score += f1_perm_label_score*batch_size
+            total_perm_classification_loss += perm_classification_loss*batch_size
             total_accuracy += accuracy*batch_size
             total_f1_score += f1_score*batch_size
             total_classification_loss += classification_loss*batch_size
             pbar.set_description(message.format(np.round(accuracy,3), \
                                                 np.round(f1_score.item(),3),\
-                                                np.round(classification_loss.item(),3)))
+                                                np.round(classification_loss.item(),3),
+                                                np.round(perm_classification_loss.item(),3),
+                                                np.round(f1_perm_label_score,3)))
             pbar.update()
            
     gc.collect()     
     total_accuracy =  np.round(total_accuracy /  data_loader.dataset.__len__(),3)
     total_f1_score =  np.round(total_f1_score.item() /  data_loader.dataset.__len__(),3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
-
-    return total_accuracy, total_f1_score, total_classification_loss
+    total_perm_classification_loss =  np.round(total_perm_classification_loss.item() / data_loader.dataset.__len__(),3)
+    total_f1_perm_score =  np.round(total_f1_perm_score / data_loader.dataset.__len__(),3)
+    return total_accuracy, total_f1_score, total_classification_loss, total_perm_classification_loss, total_f1_perm_score
             
-def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, 
+def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, perm_creterion,
          train_loader, val_loader, num_epochs, device, tb_writer = None, 
          scheduler = None, model_path = '', max_opt = True):
     accuracy_train_list = []
@@ -705,11 +697,20 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     max_patience = 9
     patience = 0
     for epoch in range(num_epochs):
-        train_accuracy, train_f1_score, train_classification_loss = \
+        # train
+        train_accuracy, train_f1_score, train_classification_loss, \
+        train_perm_classification_loss, train_f1_perm_score = \
             train(model, student, optimizer, classification_criterion, 
-                  ranking_criterion, accuracy_metric, train_loader, device,
+                  ranking_criterion, accuracy_metric, perm_creterion, train_loader, device,
                   scheduler=scheduler, epoch = epoch, num_epochs=num_epochs )
-        val_accuracy, val_f1_score, val_classification_loss = eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric, val_loader, device)
+        
+        
+        # validation 
+        val_accuracy, val_f1_score, \
+        val_classification_loss, val_perm_classification_loss, \
+        val_f1_perm_score = eval_model(model, student, classification_criterion,
+                                         ranking_criterion, accuracy_metric, perm_creterion,
+                                         val_loader, device)
         
         
         if max_opt:
@@ -735,10 +736,14 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
             print(7*''+f'Epoch Summary {epoch}:\n'+\
                   f'1) Train: postion embedding loss {train_f1_score}, '+ \
                   f'embeddding loss {train_accuracy}, ' + \
-                  f'total loss {train_classification_loss}\n'
+                  f'total loss {train_classification_loss}'+ \
+                  f'perm accuracy {train_f1_perm_score} '+\
+                  f'perm classification loss {train_perm_classification_loss}\n'
                   f'2) Validation: postion embedding loss {val_f1_score}, '+ \
                   f'embedding loss {val_accuracy}, ' + \
-                  f'total loss {val_classification_loss}')
+                  f'total loss {val_classification_loss}, '+ \
+                  f'perm accuracy {val_f1_perm_score}, '+\
+                  f'perm classification loss {val_perm_classification_loss}\n')
         
        
         results  = [train_accuracy, train_f1_score, train_classification_loss,

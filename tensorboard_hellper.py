@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 
 def generate_input_generation_examples(loader, debug = True):
     loader.dataset.debug = debug
-    images , label, prem_order, label_name = next(iter(loader))
+    images , label, prem_order, label_name, perm_label = next(iter(loader))
     label_name = np.array(list(label_name))
-    return images , label, prem_order, label_name
+    return images , label, prem_order, label_name, perm_label
 
 
 def add_model_weights_as_histogram(model, tb_writer, epoch):

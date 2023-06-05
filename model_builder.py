@@ -396,6 +396,28 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
+    PERM_LABEL_HEAD = torch.nn.Sequential(
+                                    # nn.Linear(prem_hidden, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.Flatten(),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden, prem_hidden//2),
+                                    nn.BatchNorm1d(prem_hidden//2),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden//4),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden//4,24))
     # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
@@ -409,7 +431,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     elif model_name.find('efficientnet') != -1:
         # set classification head 
         backbone.classifier = BODY
-    return PERM_HEAD, REPRESENTATION_HEAD
+    return PERM_HEAD, REPRESENTATION_HEAD, PERM_LABEL_HEAD
         
 class EMA():
     def __init__(self, beta):
@@ -523,6 +545,8 @@ class CNN(nn.Module):
         amount_of_patch = training_configuration.amount_of_patch
         hidden_size=training_configuration.hidden_size
         balance_factor=training_configuration.balance_factor
+        balance_factor2=training_configuration.balance_factor2
+
         moving_average_decay=training_configuration.moving_average_decay
 
         
@@ -560,9 +584,9 @@ class CNN(nn.Module):
     
         if learning_type== 'supervised':
             update_classifier_head(backbone, image_dim, num_classes, model_name = model_name)
-            PERM_HEAD, REPRESENTATION_HEAD = None, None
+            PERM_HEAD = REPRESENTATION_HEAD = PERM_LABEL_HEAD = None
         else:
-            PERM_HEAD, REPRESENTATION_HEAD = update_representation_head(backbone, image_dim, num_classes,
+            PERM_HEAD, REPRESENTATION_HEAD, PERM_LABEL_HEAD = update_representation_head(backbone, image_dim, num_classes,
                                                                         model_name = model_name,
                                                                         amount_of_patch = amount_of_patch,
                                                                         hidden_size=hidden_size)
@@ -575,6 +599,7 @@ class CNN(nn.Module):
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
+        self.PERM_LABEL_HEAD = PERM_LABEL_HEAD
         
         moving_average_decay = moving_average_decay
         use_momentum = True
@@ -583,6 +608,8 @@ class CNN(nn.Module):
         self.student_ema_updater = EMA(moving_average_decay)
         self.learning_type = learning_type
         self.balance_factor = balance_factor
+        self.balance_factor2 = balance_factor2
+
     def forward(self, images):
         if self.learning_type== 'supervised':
             classification_pred = self.backbone(images)
@@ -596,6 +623,11 @@ class CNN(nn.Module):
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
             perm_pred = self.PERM_HEAD(geometric_output)
+            
+            perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+
+
+
             # perm_pred = self.PERM_HEAD(projection_output)
 
             
@@ -605,7 +637,7 @@ class CNN(nn.Module):
 # 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
-            return representation_pred, perm_pred
+            return representation_pred, perm_pred, perm_label_pred
 
     
 def freeze_ssl_layers(model):        

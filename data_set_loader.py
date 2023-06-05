@@ -248,8 +248,11 @@ class MyDataset(Dataset):
   def getPositionEncoding(self, perm_order, d, n=10000):
        # k = self.all_permutation_option.index(tuple(perm_order))
        k = calculate_permutation_position(tuple(perm_order))
-     
-       # amount_of_perm=  math.factorial(d)
+       
+       
+       amount_of_perm=  math.factorial(d)
+       perm_label =  np.zeros((1,amount_of_perm))
+       perm_label[0,k]  = 1
        
        P = np.zeros((1, d))
        for i in np.arange(int(d/2)):
@@ -259,7 +262,7 @@ class MyDataset(Dataset):
               P[0, 2*i+1] = np.cos(k/denominator)
           else:
               P[0, 2*i+1] = np.sin(k/denominator)
-       return P
+       return P, perm_label
    
     
   def permutatation_aug(self, image):
@@ -306,7 +309,7 @@ class MyDataset(Dataset):
 
           
           patch_image = patch_array[0][i_perm_row, i_perm_col]
-          border_size = 0
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -320,21 +323,24 @@ class MyDataset(Dataset):
           
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
      
-      perm_order = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
+      perm_order, perm_label = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
       
-      return new_image, perm_order
+      return new_image, perm_order, perm_label
   
   def get_perm_image(self, image):
       if self.taske_name == 'perm':
           
-          new_image, perm_order = self.permutatation_aug(image)
+          new_image, perm_order, perm_label = self.permutatation_aug(image)
       else:
           transform_image =  self.transform(image)
 
           perm_order = torch.empty(self.amount_of_patch)
           new_image = transform_image
+          perm_label = np.zeros((1,1))
       perm_order = torch.Tensor(perm_order)
-      return new_image, perm_order
+      perm_label = torch.Tensor(perm_label)
+
+      return new_image, perm_order, perm_label
   def generate_original_image_plot(self, image, axarr):
       np_image_0_1 =  np.array(image)
       np_image_0_1 = np_image_0_1.astype(np.uint8)
@@ -382,20 +388,21 @@ class MyDataset(Dataset):
         desire_amount_of_images = 2
     t1 = time.time()
     self.image_idx = 1
-    new_image, perm_order = self.get_perm_image(image)
+    new_image, perm_order,  perm_label = self.get_perm_image(image)
     total =  t1 - time.time()
     self.image_idx += 1
     if desire_amount_of_images > 1:
         # transform_image =  self.transform(image)
 
-        new_image2, prem_order2 = self.get_perm_image(image)
+        new_image2, prem_order2, perm_label2= self.get_perm_image(image)
         new_image = torch.concatenate([new_image, new_image2])
         perm_order = torch.concatenate([perm_order, prem_order2])
+        perm_label = torch.concatenate([perm_label, perm_label2])
 
         
     transform_image = new_image
     # set sample
-    sample = (transform_image, label, torch.Tensor(perm_order), label_name)
+    sample = (transform_image, label, torch.Tensor(perm_order), label_name, perm_label)
     
     if self.debug:
       
