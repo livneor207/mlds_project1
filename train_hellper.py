@@ -40,11 +40,12 @@ class TrainingConfiguration:
     perm: str = 'no_perm'
     num_workers: int = 0
     hidden_size: int = 512
-    balance_factor: float = 1
     amount_of_patch: float = 25
     moving_average_decay: float = 0.01
     weight_decay: float = 1e-3
-    balance_factor2 = 1
+    postion_embedding_balance_factor: float = 1
+    permutation_prediction_balance_factor: float = 1
+
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -53,9 +54,12 @@ class TrainingConfiguration:
                       learning_type = 'supervised', batch_size = 8,
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
-                      max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      balance_factor2 = 1, amount_of_patch = 25, moving_average_decay = 0.01,
+                      max_lr = 1e-2, hidden_size = 512,
+                      postion_embedding_balance_factor  = 1,
+                      permutation_prediction_balance_factor = 1, 
+                      amount_of_patch = 25, moving_average_decay = 0.01,
                       weight_decay = 1e-3, optimizer_name = 'lion'):
+        
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -68,12 +72,12 @@ class TrainingConfiguration:
         self.num_workers = num_workers
         self.max_lr = max_lr
         self.hidden_size = hidden_size
-        self.balance_factor = balance_factor
         self.amount_of_patch = amount_of_patch
         self.moving_average_decay = moving_average_decay
         self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
-        self.balance_factor2 = balance_factor2
+        self.permutation_prediction_balance_factor = permutation_prediction_balance_factor
+        self.postion_embedding_balance_factor = postion_embedding_balance_factor
 
         
         
@@ -304,8 +308,8 @@ def step(model, student, data, labels, criterion, postion_embedding_criterion,
 def ssl_step(criterion, data, f1_permutation_label_score, model, optimizer, perm_classification_loss, permutation_classfication_creterion,
              permutation_label, permutation_postion_embedding, postion_embedding_criterion, student):
     # get loss parameters
-    balance_factor = model.balance_factor
-    balance_factor2 = model.balance_factor2
+    postion_embedding_balance_factor = model.postion_embedding_balance_factor
+    permutation_prediction_balance_factor = model.permutation_prediction_balance_factor
 
     # parse datasets: images, position embedding, permutation label
     data1, data2, target_prem1, target_prem2, \
@@ -339,8 +343,8 @@ def ssl_step(criterion, data, f1_permutation_label_score, model, optimizer, perm
     criterion_loss = representation_embedding_loss(criterion, representation_pred_1_1, representation_pred_1_2,
                                                    representation_pred_2_1, representation_pred_2_2)
     # calculate full loss
-    criterion_loss, perm_classification_loss, rank_loss = calculate_complete_ssl_loss(balance_factor,
-                                                                                      balance_factor2,
+    criterion_loss, perm_classification_loss, rank_loss = calculate_complete_ssl_loss(postion_embedding_balance_factor,
+                                                                                      permutation_prediction_balance_factor,
                                                                                       criterion_loss,
                                                                                       perm_classification_loss,
                                                                                       rank_loss)
@@ -364,9 +368,9 @@ def backward_and_optimization_step(criterion_loss, model, optimizer):
         optimizer.step()
 
 
-def calculate_complete_ssl_loss(balance_factor, balance_factor2, criterion_loss, perm_classification_loss, rank_loss):
-    rank_loss *= balance_factor
-    perm_classification_loss *= balance_factor2
+def calculate_complete_ssl_loss(postion_embedding_balance_factor, permutation_prediction_balance_factor, criterion_loss, perm_classification_loss, rank_loss):
+    rank_loss *= postion_embedding_balance_factor
+    perm_classification_loss *= permutation_prediction_balance_factor
     criterion_loss += rank_loss
     criterion_loss += perm_classification_loss
     return criterion_loss, perm_classification_loss, rank_loss

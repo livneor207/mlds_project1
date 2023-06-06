@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 
 def generate_input_generation_examples(loader, debug = True):
     loader.dataset.debug = debug
-    images , label, prem_order, label_name, perm_label = next(iter(loader))
-    label_name = np.array(list(label_name))
-    return images , label, prem_order, label_name, perm_label
+    image_batch, target_batch, \
+    permutation_postion_embedding, \
+    target_name_batch, permutation_label = next(iter(loader))
+    target_name_batch = np.array(list(target_name_batch))
+    return image_batch , target_batch, permutation_postion_embedding, target_name_batch, permutation_label
 
 
 def add_model_weights_as_histogram(model, tb_writer, epoch):

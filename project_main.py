@@ -63,8 +63,6 @@ plt.close('all')
 """
 
 
-
-
 """
 dash board tensorboard 
 tensorboard --logdir logdir_folder_path --port default
@@ -73,7 +71,7 @@ tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_proje
 
 # seed
 seed =  48
-val_split = 0.001
+val_split = 0.01
 image_dim = 224
 
 seed_everything(seed)
@@ -96,18 +94,18 @@ task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
 task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
+task_name  = 'OxfordIIITPet'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
-    train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
-    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False, current_folder = current_folder)
+    train_df, train_data = parse_train_data(task_name  =task_name, folder_path =train_folder_path,
+                                            train=True, current_folder= current_folder)
+    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path,
+                                          train=False, current_folder = current_folder)
 elif task_name == 'OxfordIIITPet':
-    train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train='trainval', current_folder= current_folder)
-    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train='test', current_folder = current_folder)
-# parse train data
-
-# 'trainval'
-# 'test'
-
+    train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path,
+                                           train='trainval', current_folder= current_folder)
+    test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path,
+                                          train='test', current_folder = current_folder)
 
 # log to tensorboard, tensorboard summary writer
 tb_writer = SummaryWriter(
@@ -130,8 +128,8 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 100, perm= 'perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-                                     balance_factor2 = 1, amount_of_patch = 4, 
+                                     max_lr = 5e-3, hidden_size = 512, postion_embedding_balance_factor = 1,
+                                     permutation_prediction_balance_factor = 1, amount_of_patch = 4, 
                                      moving_average_decay = 0.995,weight_decay = 1e-6, 
                                      optimizer_name = 'lion')
 
@@ -142,12 +140,6 @@ device = training_configuration.device
 """
 slice for debuging
 """
-# amount_for_debug = 200
-# test_df = test_df[0:amount_for_debug]
-# train_df = train_df[0:amount_for_debug]
-# if train_data is not None:
-#     train_data = train_data[0:amount_for_debug]
-#     test_data = test_data[0:amount_for_debug]
 
 train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
@@ -168,8 +160,6 @@ print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \
       val length = {val_loader.dataset.data_df.shape[0]},  \
       test length = {test_loader.dataset.data_df.shape[0]}')
 
-
-
 model = CNN(training_configuration, 
               num_classes = amount_of_class,
               image_dim = (3,image_dim, image_dim),
@@ -178,37 +168,6 @@ model = CNN(training_configuration,
               weights='IMAGENET1K_V1',
               unfreeze=False)
 
-
-
-
-# from sklearn.manifold import TSNE
-
-# image, label, perm_order, class_name = generate_input_generation_examples(train_loader, debug = False)
-# image1 = image[:,0:3,:,:]
-# image2 = image[:,3::,:,:]
-
-# embbeding1, perm_order_pred1  = model(image1)
-# embbeding2, perm_order_pred2  = model(image2)
-
-
-# perms_t = perm_order[:,0,:]
-# y_label = label.argmax(1)
-# y_label= y_label.detach().numpy()
-# # set model 
-# TSNE_model = TSNE(n_components=2, learning_rate='auto',
-#                     init='random', perplexity=10, n_iter= 1000)
-
-# # train model
-# projection = TSNE_model.fit_transform(embbeding.detach().numpy())
-
-
-
-
-# plt.figure()
-# plt.title('TNSE-2D')
-# plt.scatter(projection[:, 0], projection[:, 1], c=y_label, s=30, cmap='Set1')
-# plt.grid()
-# plt.show()
 
 
 student = generate_student(model, 
@@ -236,15 +195,15 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1)
 
-ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
-perm_creterion = nn.CrossEntropyLoss()
+postion_embedding_criterion = set_postion_embedding_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+permutation_classfication_creterion = nn.CrossEntropyLoss()
 
 # show example for data after transformations    
 # generate data generation example
-image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
+image, label, permutation_postion_embedding, class_name, permutation_label = generate_input_generation_examples(debug_loader)
 
-train_results_df = main(model, student, optimizer, criterion,
-                        ranking_criterion, accuracy_metric , perm_creterion,
+train_results_df = training_loop(model, student, optimizer, criterion,
+                        postion_embedding_criterion, accuracy_metric , permutation_classfication_creterion,
                         train_loader, val_loader,
                         num_epochs=training_configuration.epochs_count,
                         device=device, 
@@ -252,56 +211,6 @@ train_results_df = main(model, student, optimizer, criterion,
                         max_opt = training_configuration.max_opt, 
                         model_path = model_path, 
                         scheduler = scheduler)
-
-# import torch
-# import torch.nn as nn
-
-# y_true = torch.Tensor([[1, 2, 3],[3,2,1]]) # true tensor
-# y_pred = torch.Tensor([[0.2, 0.5, 0.1],[-0.1,0.2,0.3]]) # predicted tensor
-# y_pred.requires_grad = True
-# # Apply softmax activation to both tensors
-# temperature = 30
-# temperature, dummy = y_pred.max(1)
-# temperature2, dummy = y_true.max(1)
-
-
-# # Apply softmax activation to both tensors
-# true_probs = nn.functional.softmax(y_true, dim=0)
-
-
-
-# pred_probs_ordered = nn.functional.softmax(torch.div(y_pred.T, temperature).T, dim=0)
-# y_true_probs_ordered = nn.functional.softmax(torch.div(y_true.T, temperature2).T, dim=0)
-
-# # Compute the KL divergence between the true and predicted probabilities
-# criterion = nn.KLDivLoss(reduction='batchmean')
-# loss = criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
-
-# print(loss) # this should output the same loss value as for [3,2,1]
-
-
-
-# output = torch.Tensor([300,200,100]) # predicted output
-# target = torch.Tensor([1.0,2.0,3.0]) # true label
-
-# criterion = nn.SoftMarginLoss()
-# criterion = nn.HingeEmbeddingLoss()
-# criterion = nn.MultiLabelSoftMarginLoss()
-# criterion = nn.MultiLabelMarginLoss()
-
-# loss = criterion(output, target) # compute the loss
-
-
-
-# a=5 
-# import torch.nn.functional as F
-# kl_loss = nn.KLDivLoss(reduction="batchmean")
-# target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-# pred =  torch.tensor([[2,1,5,3,4], [2,4,3,4,1], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-# pred = F.log_softmax(pred, dim=1)
-# target = F.softmax(target, dim=1)
-# output = kl_loss(pred, target)
-
 
 ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ######### zero shot learning ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -324,7 +233,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                       learning_type='self_supervised', batch_size= 16,  
                                       scheduler_name = 'None', max_opt = True,
                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
+                                      max_lr = 5e-3, hidden_size = 512, postion_embedding_balance_factor = 1,
                                       amount_of_patch = 9, moving_average_decay = 0.996,
                                       weight_decay=1e-2, optimizer_name = 'adam')
 
@@ -388,14 +297,14 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
     criterion = torch.nn.MSELoss()
-ranking_criterion = set_rank_loss(loss_name = 'MSE', margin = 1, num_labels = 1)
+postion_embedding_criterion = set_postion_embedding_loss(loss_name = 'MSE', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example
-image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
+image, label, permutation_postion_embedding, class_name = generate_input_generation_examples(debug_loader)
 
 
-train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , 
+train_results_df = training_loop(ssl_model, student, optimizer, criterion, postion_embedding_criterion, accuracy_metric ,
                         train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
                         tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, scheduler = scheduler)
 
@@ -425,7 +334,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                       learning_type='supervised', batch_size= 16, 
                                       scheduler_name = 'None', max_opt = True,
                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
-                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
+                                      max_lr = 5e-3, hidden_size = 512, postion_embedding_balance_factor = 1,
                                       amount_of_patch = 9, moving_average_decay = 0.996,
                                       optimizer_name = 'adam')
 
@@ -481,14 +390,14 @@ if training_configuration.learning_type == 'supervised':
 else:    
     criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
 
-ranking_criterion = set_rank_loss(loss_name = 'MarginRankingLoss', margin = 1, num_labels = 1)
+postion_embedding_criterion = set_postion_embedding_loss(loss_name = 'MarginRankingLoss', margin = 1, num_labels = 1)
 
 # show example for data after transformations    
 # generate data generation example
-image, label, perm_order, class_name = generate_input_generation_examples(debug_loader)
+image, label, permutation_postion_embedding, class_name = generate_input_generation_examples(debug_loader)
 
-train_results_df = main(model, student, optimizer, criterion,
-                        ranking_criterion, accuracy_metric , 
+train_results_df = training_loop(model, student, optimizer, criterion,
+                        postion_embedding_criterion, accuracy_metric , 
                         train_loader, val_loader,
                         num_epochs=training_configuration.epochs_count,
                         device=device, 
