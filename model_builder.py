@@ -75,7 +75,7 @@ def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
         last_layer = 'features.7'
 
     for param in model.named_parameters():
-         debug= True
+         debug= False
          if debug:
              print(param[0])
          # TODO! remove features.7.4.block.3
@@ -103,7 +103,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
         
         
     for param in model.named_parameters():
-         debug= True
+         debug= False
          if debug:
              print(param[0])
          if param[0].find(last_layer_name) !=-1 :
@@ -460,6 +460,7 @@ class SSLMODEL(nn.Module):
         ssl_model.learning_type = 'supervised'
         del ssl_model.PERM_HEAD
         del ssl_model.REPRESENTATION_HEAD
+        del ssl_model.PERM_LABEL_HEAD
         model_bank = ['resnet18','resnet34', 'resnet50', 
                       'resnet152', 'efficientnet_v2_m', 
                       'efficientnet_v2_s', 'efficientnet_v2_l']
