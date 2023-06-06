@@ -545,8 +545,8 @@ class CNN(nn.Module):
         learning_type=training_configuration.learning_type
         amount_of_patch = training_configuration.amount_of_patch
         hidden_size=training_configuration.hidden_size
-        balance_factor=training_configuration.balance_factor
-        balance_factor2=training_configuration.balance_factor2
+        postion_embedding_balance_factor=training_configuration.postion_embedding_balance_factor
+        permutation_prediction_balance_factor=training_configuration.permutation_prediction_balance_factor
 
         moving_average_decay=training_configuration.moving_average_decay
 
@@ -608,8 +608,8 @@ class CNN(nn.Module):
         self.target_encoder = None
         self.student_ema_updater = EMA(moving_average_decay)
         self.learning_type = learning_type
-        self.balance_factor = balance_factor
-        self.balance_factor2 = balance_factor2
+        self.postion_embedding_balance_factor = postion_embedding_balance_factor
+        self.permutation_prediction_balance_factor = permutation_prediction_balance_factor
 
     def forward(self, images):
         if self.learning_type== 'supervised':
