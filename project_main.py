@@ -94,7 +94,7 @@ task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
 task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
-task_name  = 'OxfordIIITPet'
+task_name  = 'cat_dogs'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data = parse_train_data(task_name  =task_name, folder_path =train_folder_path,
@@ -130,7 +130,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      epochs_count = 100, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, postion_embedding_balance_factor = 1,
                                      permutation_prediction_balance_factor = 1, amount_of_patch = 4, 
-                                     moving_average_decay = 0.995,weight_decay = 1e-6, 
+                                     moving_average_decay = 0.99, weight_decay = 1e-6, 
                                      optimizer_name = 'lion')
 
 
@@ -153,7 +153,7 @@ train_loader, val_loader, test_loader, debug_loader = \
                            image_size = image_dim,
                            rand_choise = False,
                            orig_pe = True,
-                           train_split = 0.005)
+                           train_split = 0.01)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \

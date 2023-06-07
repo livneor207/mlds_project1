@@ -106,7 +106,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
          debug= False
          if debug:
              print(param[0])
-         if param[0].find(last_layer_name) !=-1 :
+         if param[0].find(last_layer_name) !=-1 or  param[0].find('bn') !=-1:
 
          # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
          # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
@@ -383,7 +383,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
-                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -395,6 +395,28 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.ReLU(inplace=True),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
+    PERM_HEAD = torch.nn.Sequential(
+                                    # nn.Linear(prem_hidden, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.Flatten(),
+                                    nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden, prem_hidden//2),
+                                    # nn.BatchNorm1d(prem_hidden//2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden,amount_of_patch))
     
     PERM_LABEL_HEAD = torch.nn.Sequential(
                                     # nn.Linear(prem_hidden, prem_hidden2),
@@ -418,6 +440,31 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.ReLU(inplace=True),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,24))
+    
+    PERM_LABEL_HEAD = torch.nn.Sequential(
+                                    # nn.Linear(prem_hidden, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.Flatten(),
+                                    nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden, prem_hidden//2),
+                                    # nn.BatchNorm1d(prem_hidden//2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden,24))
+    
+    
     # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
@@ -616,29 +663,25 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            # projection_output = self.backbone(images)
+            projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            projection_output, geometric_output = forward_using_loop(self, images)
+            # projection_output, geometric_output = forward_using_loop(self, images)
             
             
             # projection_output = self.backbone(images)
-            # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
-            perm_pred = self.PERM_HEAD(geometric_output)
+            # postion_embedding_lpred = torch.rand(images.shape[0], 25, requires_grad=True)
+            postion_embedding_lpred = self.PERM_HEAD(projection_output)
             
-            perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
-
-
-
-            # perm_pred = self.PERM_HEAD(projection_output)
+            permutation_pred = self.PERM_LABEL_HEAD(projection_output)
 
             
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            # del projection_output
-            del projection_output, geometric_output
-# 
+            del projection_output
+            # del projection_output, geometric_output
+            # 
             # representation_pred = self.backbone(images)
-            # return representation_pred, perm_pred
-            return representation_pred, perm_pred, perm_label_pred
+            # return representation_pred, postion_embedding_lpred
+            return representation_pred, postion_embedding_lpred, permutation_pred
 
     
 def freeze_ssl_layers(model):        

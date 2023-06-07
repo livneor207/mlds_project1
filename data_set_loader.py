@@ -309,15 +309,32 @@ class MyDataset(Dataset):
 
           
           patch_image = patch_array[0][i_permutation_row, i_permutation_col]
-          border_size = 0
+          border_size = 2
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
           padd_val = 0
-          masked_patch[:,:,0:border_size]  = padd_val
-          masked_patch[:,:,col_size-border_size::]  =  padd_val
-          masked_patch[:,0:border_size,:]  = padd_val
-          masked_patch[:,row_size-border_size::,:]  = padd_val
+          
+          if row ==0 :
+             masked_patch[:,0:border_size*2,:]  = padd_val
+          else:
+              masked_patch[:,0:border_size,:]  = padd_val
+              
+          if col == 0:
+             # cols
+             masked_patch[:,:,0:border_size*2]  = padd_val
+          else:
+              masked_patch[:,:,0:border_size]  = padd_val
+          
+          if  col == amount_of_rows-1:  
+              masked_patch[:,:,col_size-border_size*2::]  =  padd_val
+          else:
+              masked_patch[:,:,col_size-border_size::]  =  padd_val
+              
+          if  row == amount_of_rows-1:  
+              masked_patch[:,row_size-border_size*2::,:]  = padd_val
+          else:
+              masked_patch[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           

@@ -325,7 +325,7 @@ def ssl_step(criterion, data, f1_permutation_label_score, model, optimizer, perm
     del data
     
     # calculate position embedding loss
-    rank_loss = ssl_postion_embedding_loss(position_embedding_pred_1_1, 
+    postion_embedding_loss = ssl_postion_embedding_loss(position_embedding_pred_1_1, 
                                            position_embedding_pred_1_2, 
                                            postion_embedding_criterion,
                                            target_prem1, target_prem2)
@@ -342,17 +342,20 @@ def ssl_step(criterion, data, f1_permutation_label_score, model, optimizer, perm
     # calculate representation loss
     criterion_loss = representation_embedding_loss(criterion, representation_pred_1_1, representation_pred_1_2,
                                                    representation_pred_2_1, representation_pred_2_2)
+    
+    
+    
+    
     # calculate full loss
-    criterion_loss, perm_classification_loss, rank_loss = calculate_complete_ssl_loss(postion_embedding_balance_factor,
-                                                                                      permutation_prediction_balance_factor,
-                                                                                      criterion_loss,
-                                                                                      perm_classification_loss,
-                                                                                      rank_loss)
+    criterion_loss, perm_classification_loss, postion_embedding_loss, accuracy, f1_score =  \
+        calculate_complete_ssl_loss(postion_embedding_balance_factor,
+        permutation_prediction_balance_factor,
+        criterion_loss,
+        perm_classification_loss,
+        postion_embedding_loss)
     # delete input (memory issues)
     del representation_pred_1_2, representation_pred_2_1, representation_pred_1_1, representation_pred_2_2
-    # update step for logg
-    accuracy = criterion_loss.item()
-    f1_score = rank_loss
+    
     # optimization step
     backward_and_optimization_step(criterion_loss, model, optimizer)
     return accuracy, criterion_loss, f1_permutation_label_score, f1_score, perm_classification_loss
@@ -368,12 +371,20 @@ def backward_and_optimization_step(criterion_loss, model, optimizer):
         optimizer.step()
 
 
-def calculate_complete_ssl_loss(postion_embedding_balance_factor, permutation_prediction_balance_factor, criterion_loss, perm_classification_loss, rank_loss):
-    rank_loss *= postion_embedding_balance_factor
+def calculate_complete_ssl_loss(postion_embedding_balance_factor,
+                                permutation_prediction_balance_factor,
+                                criterion_loss, perm_classification_loss, 
+                                postion_embedding_loss):
+    postion_embedding_loss *= postion_embedding_balance_factor
     perm_classification_loss *= permutation_prediction_balance_factor
-    criterion_loss += rank_loss
+    
+    # update step for logg
+    accuracy = criterion_loss.item()
+    f1_score = postion_embedding_loss
+    
+    criterion_loss += postion_embedding_loss
     criterion_loss += perm_classification_loss
-    return criterion_loss, perm_classification_loss, rank_loss
+    return criterion_loss, perm_classification_loss, postion_embedding_loss, accuracy, f1_score
 
 
 def representation_embedding_loss(criterion, representation_pred_1_1, representation_pred_1_2, representation_pred_2_1,
@@ -417,9 +428,9 @@ def ssl_permutation_classification_loss(perm_classification_loss, permutation_cl
 def ssl_postion_embedding_loss(position_embedding_pred_1_1, position_embedding_pred_1_2, postion_embedding_criterion, target_prem1, target_prem2):
     postion_embedding_loss_1_1 = calculate_postion_embedding_loss(postion_embedding_criterion, target_prem1, position_embedding_pred_1_1)
     postion_embedding_loss_1_2 = calculate_postion_embedding_loss(postion_embedding_criterion, target_prem2, position_embedding_pred_1_2)
-    rank_loss = postion_embedding_loss_1_1 + postion_embedding_loss_1_2
+    postion_embedding_loss = postion_embedding_loss_1_1 + postion_embedding_loss_1_2
 
-    return rank_loss
+    return postion_embedding_loss
 
 
 def forward_ssl_model(data1, data2, model, optimizer, student):
