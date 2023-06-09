@@ -79,7 +79,7 @@ def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
          if debug:
              print(param[0])
          # TODO! remove features.7.4.block.3
-         if (param[0].find('features.8') !=-1 or param[0].find('bn') !=-1) :
+         if (param[0].find('features.8') !=-1 or (param[0].find('bn') !=-1)) :
 
          # if (param[0].find('features.8') !=-1   or param[0].find('features.7.4.block.3') !=-1  or param[0].find('bn') !=-1) :
             param[1].requires_grad = True
@@ -106,10 +106,13 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
          debug= False
          if debug:
              print(param[0])
-         if param[0].find(last_layer_name) !=-1 or  param[0].find('bn') !=-1:
+         # if param[0].find(last_layer_name) !=-1 or  (param[0].find('bn') !=-1 and param[0].find('layer4') != -1):
+         if param[0].find(last_layer_name) !=-1 :
+
 
          # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
-         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
+          # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
+            # print(param[0])
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False

@@ -311,7 +311,7 @@ def ssl_step(criterion, data, f1_permutation_label_score, model, optimizer, perm
     postion_embedding_balance_factor = model.postion_embedding_balance_factor
     permutation_prediction_balance_factor = model.permutation_prediction_balance_factor
 
-    # parse datasets: images, position embedding, permutation label
+    # parse datasets: images, posit    on embedding, permutation label
     data1, data2, target_prem1, target_prem2, \
         target_prem_label, target_prem_label2 = parse_ssl_data(data, permutation_label, permutation_postion_embedding)
 
