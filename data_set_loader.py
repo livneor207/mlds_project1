@@ -33,9 +33,9 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
     """
     permutations = np.array(list(itertools.permutations(range(amount_of_perm))))
     # random.shuffle(permutations)
-    current_permutation_index = random.randint(0, permutations.shape[0])
-    single_perm = np.expand_dims(permutations[current_permutation_index, :], axis = 0 )
-    permutations = np.delete(permutations, current_permutation_index, axis=0)
+    current_perm_index = random.randint(0, permutations.shape[0])
+    single_perm = np.expand_dims(permutations[current_perm_index, :], axis = 0 )
+    permutations = np.delete(permutations, current_perm_index, axis=0)
     max_distance_permutations =  np.zeros((max_allowed_perm, permutations.shape[1]))
     max_distance_permutations[0,:] = single_perm
     i = 1
@@ -45,10 +45,10 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
         # Compute Hamming distances
         distances = cdist(permutations, single_perm, metric='hamming')
        
-        current_permutation_index = random.choice(np.where(distances == np.max(distances))[0])
-        single_perm = np.expand_dims(permutations[current_permutation_index, :], axis = 0 )
+        current_perm_index = random.choice(np.where(distances == np.max(distances))[0])
+        single_perm = np.expand_dims(permutations[current_perm_index, :], axis = 0 )
 
-        permutations = np.delete(permutations, current_permutation_index, axis=0)
+        permutations = np.delete(permutations, current_perm_index, axis=0)
         max_distance_permutations[i,:] = single_perm
 
         i+=1
@@ -294,8 +294,8 @@ class MyDataset(Dataset):
       row = 0
       col = 0
       for index, i_perm in enumerate(perm_order):
-          i_permutation_row = i_perm//amount_of_rows
-          i_permutation_col = i_perm%amount_of_rows
+          i_perm_row = i_perm//amount_of_rows
+          i_perm_col = i_perm%amount_of_rows
           
           row = index//amount_of_rows
           col = index%amount_of_rows
@@ -305,36 +305,19 @@ class MyDataset(Dataset):
           from_col = col*patch_col_size
           to_col =  (col+1)*patch_col_size
           
-          # perm_order[index] = matrix_order[i_permutation_row, i_permutation_col]
+          # perm_order[index] = matrix_order[i_perm_row, i_perm_col]
 
           
-          patch_image = patch_array[0][i_permutation_row, i_permutation_col]
-          border_size = 2
+          patch_image = patch_array[0][i_perm_row, i_perm_col]
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
           padd_val = 0
-          
-          if row ==0 :
-             masked_patch[:,0:border_size*2,:]  = padd_val
-          else:
-              masked_patch[:,0:border_size,:]  = padd_val
-              
-          if col == 0:
-             # cols
-             masked_patch[:,:,0:border_size*2]  = padd_val
-          else:
-              masked_patch[:,:,0:border_size]  = padd_val
-          
-          if  col == amount_of_rows-1:  
-              masked_patch[:,:,col_size-border_size*2::]  =  padd_val
-          else:
-              masked_patch[:,:,col_size-border_size::]  =  padd_val
-              
-          if  row == amount_of_rows-1:  
-              masked_patch[:,row_size-border_size*2::,:]  = padd_val
-          else:
-              masked_patch[:,row_size-border_size::,:]  = padd_val
+          masked_patch[:,:,0:border_size]  = padd_val
+          masked_patch[:,:,col_size-border_size::]  =  padd_val
+          masked_patch[:,0:border_size,:]  = padd_val
+          masked_patch[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           
@@ -344,7 +327,7 @@ class MyDataset(Dataset):
       
       return new_image, perm_order, perm_label
   
-  def get_permutation_image(self, image):
+  def get_perm_image(self, image):
       if self.taske_name == 'perm':
           
           new_image, perm_order, perm_label = self.permutatation_aug(image)
@@ -405,13 +388,13 @@ class MyDataset(Dataset):
         desire_amount_of_images = 2
     t1 = time.time()
     self.image_idx = 1
-    new_image, perm_order,  perm_label = self.get_permutation_image(image)
+    new_image, perm_order,  perm_label = self.get_perm_image(image)
     total =  t1 - time.time()
     self.image_idx += 1
     if desire_amount_of_images > 1:
         # transform_image =  self.transform(image)
 
-        new_image2, prem_order2, perm_label2= self.get_permutation_image(image)
+        new_image2, prem_order2, perm_label2= self.get_perm_image(image)
         new_image = torch.concatenate([new_image, new_image2])
         perm_order = torch.concatenate([perm_order, prem_order2])
         perm_label = torch.concatenate([perm_label, perm_label2])
@@ -463,7 +446,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # def cosine_schedule(k=0, d=4):
       
     #   amount_of_perm=  math.factorial(d)
-    #   all_permutation_array = np.zeros((amount_of_perm,d))
+    #   all_perm_array = np.zeros((amount_of_perm,d))
 
     #   for k in range(amount_of_perm):
     #       empty_array = np.zeros((1,d))
@@ -474,14 +457,14 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     #           # fraction *= (np.pi/2)
     #           val = math.cos(fraction) ** (0.5)
     #           empty_array[0, i] = val
-    #       all_permutation_array[k, :] = empty_array
+    #       all_perm_array[k, :] = empty_array
           
       
     #   return np.clip(output, clip_min, 1.)
     # # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
     # # 
     # # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=24, n=10e3)
-    # position_embeding = all_permutation_array
+    # position_embeding = all_perm_array
 
     # Create a sample NumPy array
    
