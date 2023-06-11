@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 
 def generate_input_generation_examples(loader, debug = True):
     loader.dataset.debug = debug
-    images , label, prem_order, label_name, perm_label = next(iter(loader))
-    label_name = np.array(list(label_name))
-    return images , label, prem_order, label_name, perm_label
+    image_batch, target_batch, \
+    permutation_postion_embedding, \
+    target_name_batch, permutation_label = next(iter(loader))
+    target_name_batch = np.array(list(target_name_batch))
+    return image_batch , target_batch, permutation_postion_embedding, target_name_batch, permutation_label
 
 
 def add_model_weights_as_histogram(model, tb_writer, epoch):
@@ -31,7 +33,11 @@ def get_random_inputs_labels(data_set, n=100):
     target_labels_names = torch.Tensor([])
 
     while images.shape[0] < n:
-        image_batch, target_batch, target_name_batch = generate_input_generation_examples(data_set, debug = False)
+        image_batch, target_batch, \
+        permutation_postion_embedding, \
+        target_name_batch, permutation_label = \
+            generate_input_generation_examples(data_set, debug = False)
+
         if images.shape[0] + image_batch.shape[0] < n:
             pass
         else:
@@ -80,8 +86,7 @@ def get_target_and_prob(model, dataloader, device):
     
     pred_prob = []
     targets = []
-    
-    for _, (data, target, perm_order, target_name) in enumerate(dataloader):
+    for _, (data, target, permutation_postion_embedding, target_name, permutation_label) in enumerate(dataloader):
         
         _, prob = prediction(model, device, data, max_prob=False)
         
@@ -160,7 +165,7 @@ def add_wrong_prediction_to_tensorboard(model, dataloader, device, tb_writer,
     pred_prob = []
     right_label = []
     
-    for _, (data, target, perm_order, target_name) in enumerate(dataloader):
+    for _, (data, target, permutation_postion_embedding, target_name, permutation_label) in enumerate(dataloader):
         
         target = target.argmax(1)
         images = data.numpy()
