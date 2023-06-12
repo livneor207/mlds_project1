@@ -75,7 +75,7 @@ def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
         last_layer = 'features.7'
 
     for param in model.named_parameters():
-         debug= True
+         debug= False
          if debug:
              print(param[0])
          # TODO! remove features.7.4.block.3
@@ -103,7 +103,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
         
         
     for param in model.named_parameters():
-         debug= True
+         debug= False
          if debug:
              print(param[0])
          if param[0].find(last_layer_name) !=-1 :
@@ -456,10 +456,11 @@ class SSLMODEL(nn.Module):
       
         super(SSLMODEL, self).__init__()
         
-        ssl_model = copy.deepcopy(model)
+        ssl_model = copy.deepcopy(model.backbone)
         ssl_model.learning_type = 'supervised'
-        del ssl_model.PERM_HEAD
-        del ssl_model.REPRESENTATION_HEAD
+        # del ssl_model.PERM_HEAD
+        # del ssl_model.REPRESENTATION_HEAD
+        # del ssl_model.PERM_LABEL_HEAD
         model_bank = ['resnet18','resnet34', 'resnet50', 
                       'resnet152', 'efficientnet_v2_m', 
                       'efficientnet_v2_s', 'efficientnet_v2_l']
@@ -490,7 +491,7 @@ class SSLMODEL(nn.Module):
             #       if debug:
             #           print(param[0])
         
-        update_classifier_head(ssl_model.backbone, image_dim, num_classes, model_name = model_name )
+        update_classifier_head(ssl_model, image_dim, num_classes, model_name = model_name )
         self.learning_type = 'supervised'
         self.ssl_model = ssl_model
         moving_average_decay = 0.99
@@ -653,7 +654,7 @@ def freeze_ssl_layers(model):
              print(param[0])
          if 0 :
          # if (param[0].find(model_layers_names[-1]) !=-1  or  param[0].find('bn') !=-1) or param[0].find('features.7') !=-1:
-             print(param[0])
+             # print(param[0])
              param[1].requires_grad = True
          else:
              param[1].requires_grad = False 
