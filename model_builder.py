@@ -109,7 +109,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
          if param[0].find(last_layer_name) !=-1 :
 
          # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
-         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
+         # if param[0].find('layer4') !=-1 :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -286,7 +286,7 @@ def generate_student(teacher, training_configuration, image_dim,
 
 def update_representation_head(backbone, image_dim, num_classes, \
                                model_name = 'efficientnet', \
-                               amount_of_patch = 25, hidden_size=512):
+                               amount_of_patch = 25, hidden_size=512,max_allowed_permutation = 1000):
     # get shape after backbone 
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
@@ -395,6 +395,53 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.ReLU(inplace=True),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
+    PERM_HEAD = torch.nn.Sequential(
+                                    # nn.Linear(prem_hidden, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    # nn.BatchNorm1d(prem_hidden2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden2, prem_hidden2),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.Flatten(),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden, prem_hidden//2),
+                                    # nn.BatchNorm1d(prem_hidden//2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden),
+                                    nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden ,amount_of_patch))
+    
+    
+    
+    # PERM_LABEL_HEAD = torch.nn.Sequential(
+    #                                 # nn.Linear(prem_hidden, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 nn.AdaptiveAvgPool2d((1, 1)),
+    #                                 nn.Flatten(),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden, prem_hidden//2),
+    #                                 nn.BatchNorm1d(prem_hidden//2),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden//2, prem_hidden//4),
+    #                                 nn.BatchNorm1d(prem_hidden//4),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden//4,max_allowed_permutation))
     
     PERM_LABEL_HEAD = torch.nn.Sequential(
                                     # nn.Linear(prem_hidden, prem_hidden2),
@@ -408,16 +455,18 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.Linear(prem_hidden2, prem_hidden2),
                                     nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden, prem_hidden//2),
-                                    nn.BatchNorm1d(prem_hidden//2),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden, prem_hidden//2),
+                                    # nn.BatchNorm1d(prem_hidden//2),
+                                    # nn.ReLU(inplace=True),
+                                    # nn.Dropout(p=0),
+                                    # nn.Linear(prem_hidden//2, prem_hidden//4),
+                                    nn.BatchNorm1d(prem_hidden),
                                     nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden//2, prem_hidden//4),
-                                    nn.BatchNorm1d(prem_hidden//4),
-                                    nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden//4,24))
+                                    # nn.Dropout(p=0),
+                                    nn.Linear(prem_hidden,max_allowed_permutation))
+    
+    
     # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
@@ -546,7 +595,7 @@ class CNN(nn.Module):
         hidden_size=training_configuration.hidden_size
         balance_factor=training_configuration.balance_factor
         balance_factor2=training_configuration.balance_factor2
-
+        max_allowed_permutation = training_configuration.max_allowed_permutation
         moving_average_decay=training_configuration.moving_average_decay
 
         
@@ -589,7 +638,7 @@ class CNN(nn.Module):
             PERM_HEAD, REPRESENTATION_HEAD, PERM_LABEL_HEAD = update_representation_head(backbone, image_dim, num_classes,
                                                                         model_name = model_name,
                                                                         amount_of_patch = amount_of_patch,
-                                                                        hidden_size=hidden_size)
+                                                                        hidden_size=hidden_size, max_allowed_permutation = max_allowed_permutation)
             # PERM_HEAD, REPRESENTATION_HEAD = None, None
         
         # for param in PERM_HEAD.named_parameters():

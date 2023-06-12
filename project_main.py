@@ -63,13 +63,16 @@ plt.close('all')
 """
 
 
-
-
 """
 dash board tensorboard 
 tensorboard --logdir logdir_folder_path --port default
 tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_project\opencv-pytorch-dl-course-classification\expirement1" --port default
 """
+
+# Initialize the indices for generating permutations
+# indices = np.arange(16)
+    
+
 
 # seed
 seed =  48
@@ -96,6 +99,7 @@ task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
 task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
+task_name  = 'cat_dogs'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)

@@ -21,39 +21,94 @@ import itertools
 from itertools import permutations
 import math
 
+import numpy as np
+import random
 
-def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 1000):
+import numpy as np
+import random
+import itertools
+from scipy.spatial.distance import pdist, squareform,cdist
+# def generate_max_hamming_permutations(amount_of_perm=4, max_allowed_perm=1000):
+#     permutations = np.zeros((max_allowed_perm, amount_of_perm + 1), dtype=np.int32)
+#     current_permutation = np.arange(amount_of_perm)
+
+#     permutations[0, :-1] = current_permutation
+#     i = 1
+
+#     while i < max_allowed_perm and amount_of_perm > 1:
+#         distances = np.count_nonzero(permutations[:i, :-1] != current_permutation, axis=1)
+#         max_distance_index = np.argmax(distances)
+
+#         available_indices = np.concatenate((current_permutation[:max_distance_index],
+#                                              current_permutation[max_distance_index+1:]))
+#         amount_of_perm -= 1
+
+#         current_permutation = np.random.permutation(available_indices)
+#         permutations[i, :-1] = current_permutation
+#         i += 1
+
+#     return permutations[:i, :-1]
+
+
+def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 1000, amount_of_perm_to_generate = 100):
     """
-     1. distances
+      1. distances
         ‘canberra’, ‘chebyshev’, ‘cityblock’, ‘correlation’, ‘cosine’, ‘dice’, 
         ‘euclidean’, ‘hamming’, ‘jaccard’, ‘jensenshannon’, ‘kulczynski1’, ‘mahalanobis’,
         ‘matching’, ‘minkowski’, ‘rogerstanimoto’, ‘russellrao’, ‘seuclidean’, 
         ‘sokalmichener’, ‘sokalsneath’, ‘sqeuclidean’, ‘yule’.
     2. amount of perm to generate - 
     """
-    permutations = np.array(list(itertools.permutations(range(amount_of_perm))))
+    # all_permutation_option = list(permutations(range(0, amount_of_perm)))
+    # permutations = np.array(list(itertools.permutations(range(amount_of_perm))))
     # random.shuffle(permutations)
-    current_permutation_index = random.randint(0, permutations.shape[0])
-    single_perm = np.expand_dims(permutations[current_permutation_index, :], axis = 0 )
-    permutations = np.delete(permutations, current_permutation_index, axis=0)
-    max_distance_permutations =  np.zeros((max_allowed_perm, permutations.shape[1]))
-    max_distance_permutations[0,:] = single_perm
-    i = 1
-    while i<max_allowed_perm:
-        if i>max_allowed_perm or permutations.shape[0] == 0:
-            break
-        # Compute Hamming distances
-        distances = cdist(permutations, single_perm, metric='hamming')
-       
-        current_permutation_index = random.choice(np.where(distances == np.max(distances))[0])
-        single_perm = np.expand_dims(permutations[current_permutation_index, :], axis = 0 )
+    
+    
+    amount_of_permutation =  math.factorial(amount_of_perm)
+    if max_allowed_perm> amount_of_permutation:
+        max_distance_permutations = np.array(list(permutations(range(0, amount_of_perm))))
+        np.random.shuffle(max_distance_permutations)
 
-        permutations = np.delete(permutations, current_permutation_index, axis=0)
-        max_distance_permutations[i,:] = single_perm
-
-        i+=1
-    max_distance_permutations = max_distance_permutations[0:i, :]
-    return max_distance_permutations
+    else:
+        # amount_of_perm_to_generate = 10
+        # Generate the first permutation
+        
+        # generate first fermutation
+        single_perm = np.arange(amount_of_perm)
+        
+    
+        # current_permutation_index = random.randint(0, permutations.shape[0])
+        single_perm = np.expand_dims(single_perm, axis = 0 )
+        # permutations = np.delete(permutations, current_permutation_index, axis=0)
+        max_distance_permutations =  np.zeros((max_allowed_perm, amount_of_perm))
+        max_distance_permutations[0,:] = single_perm
+    
+        i = 1
+        while i<max_allowed_perm:
+            if i>max_allowed_perm :
+                break
+            
+            # generate n permutation
+            sample_permutations = np.array([np.random.permutation(single_perm[0,:]) for _ in range(amount_of_perm_to_generate)])
+            
+            # Compute Hamming distances
+            distances = cdist(sample_permutations,single_perm, metric='hamming')
+           
+            current_permutation_index = random.choice(np.where(distances == np.max(distances))[0])
+            
+            single_perm = np.expand_dims(sample_permutations[current_permutation_index, :], axis = 0 )
+    
+            # permutations = np.delete(permutations, current_permutation_index, axis=0)
+            row_exists = np.any(np.all(max_distance_permutations == single_perm, axis=1))
+    
+            if not row_exists:
+               max_distance_permutations[i,:] = single_perm
+               i+=1
+            else:
+               a=5
+    
+        max_distance_permutations = max_distance_permutations[0:i, :]
+    return np.int32(max_distance_permutations)
 
 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
@@ -202,7 +257,7 @@ class MyDataset(Dataset):
                all_permutation_option= None,
                orig_pe = True):
     
-    self.all_permutation_option = all_permutation_option
+    self.all_permutation_option = all_permutation_option.tolist()
     self.taske_name = taske_name
     self.amount_of_patch = amount_of_patch
     self.means = means
@@ -218,8 +273,8 @@ class MyDataset(Dataset):
         index_list= np.arange(0, data_df.shape[0])
     self.index_list = index_list
     self.pill_transform = transforms.ToPILImage()
-    self.perm_order_list = [random.sample(range(amount_of_patch), amount_of_patch) for _ in range(amount_of_sampels)]
-    self.perm_order_list2 = [random.sample(range(amount_of_patch), amount_of_patch) for _ in range(amount_of_sampels)]
+    self.perm_order_list = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
+    self.perm_order_list2 = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
 
     if data is None:
         read_image = True
@@ -247,9 +302,8 @@ class MyDataset(Dataset):
  
   def getPositionEncoding(self, perm_order, d, n=10000):
        # k = self.all_permutation_option.index(tuple(perm_order))
-       k = calculate_permutation_position(tuple(perm_order))
-       
-       
+       # k = calculate_permutation_position(tuple(perm_order))
+       k = self.all_permutation_option.index(perm_order)
        amount_of_perm=  math.factorial(d)
        perm_label =  np.zeros((1,amount_of_perm))
        perm_label[0,k]  = 1
@@ -282,7 +336,7 @@ class MyDataset(Dataset):
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
       patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
       if self.train:
-           perm_order  = random.sample(range(amount_of_patch), amount_of_patch)
+           perm_order  = random.choice(self.all_permutation_option)
       else:
           if self.image_idx == 1:
               perm_order = self.perm_order_list[self.idx]
@@ -306,10 +360,9 @@ class MyDataset(Dataset):
           to_col =  (col+1)*patch_col_size
           
           # perm_order[index] = matrix_order[i_permutation_row, i_permutation_col]
-
-          
           patch_image = patch_array[0][i_permutation_row, i_permutation_col]
-          border_size = 2
+          
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
@@ -454,12 +507,13 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     taske_name = training_configuration.perm
     learning_type = training_configuration.learning_type
     num_workers = training_configuration.num_workers
-    
+    max_allowed_permutation = training_configuration.max_allowed_permutation
     
     
     # all_permutation_option = list(permutations(range(0, amount_of_patch)))
-    all_permutation_option = [] 
-    
+    # all_permutation_option = [] 
+    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+
     # def cosine_schedule(k=0, d=4):
       
     #   amount_of_perm=  math.factorial(d)

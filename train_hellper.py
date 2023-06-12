@@ -25,7 +25,23 @@ from data_set_loader import *
         
 #         # update student weights
 #         student_params.data = ema_updater.update_average(old_weight, up_weight)
-       
+
+
+
+def generate_summary_columns(model):
+    if model.learning_type == 'supervised':
+        columns_list = ['train_accuracy', 'train_f_score', 'train_classification_loss',
+                        'val_accuracy', 'val_f_score_loss', 'val_classification_loss']
+    else:
+        columns_list = ['train_embedding loss', 'train_position_embedding_loss',
+                        'train_total_loss', 'train_f1_permutation_score',
+                        'train_permutation_classification_loss', 'val_embedding loss',
+                        'val_position_embedding_loss', 'val_total_loss',
+                        'val_f1_permutation_score',
+                        'val_permutation_classification_loss']
+    return columns_list
+        
+        
 class TrainingConfiguration:
     '''
     Describes configuration of the training process
@@ -50,11 +66,12 @@ class TrainingConfiguration:
     perm: str = 'no_perm'
     num_workers: int = 0
     hidden_size: int = 512
-    balance_factor: float = 1
     amount_of_patch: float = 25
     moving_average_decay: float = 0.01
     weight_decay: float = 1e-3
-    balance_factor2 = 1
+    balance_factor: float = 1
+    balance_factor2: float = 1
+    max_allowed_permutation: int = 1000
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -65,7 +82,7 @@ class TrainingConfiguration:
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
                       balance_factor2 = 1, amount_of_patch = 25, moving_average_decay = 0.01,
-                      weight_decay = 1e-3, optimizer_name = 'lion'):
+                      weight_decay = 1e-3, optimizer_name = 'lion', max_allowed_permutation = 1000):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -84,6 +101,11 @@ class TrainingConfiguration:
         self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
         self.balance_factor2 = balance_factor2
+        self.amount_of_perm = math.factorial(self.amount_of_patch) 
+        if max_allowed_permutation <= self.amount_of_perm:
+            self.max_allowed_permutation = max_allowed_permutation
+        else:
+            self.max_allowed_permutation =  self.amount_of_perm
 
         
         
@@ -625,7 +647,7 @@ def train(model, student, optimizer, classification_criterion,
     if model.learning_type == 'supervised':
         message = 'accuracy {}, f1-score {}, classification loss {}'
     else:
-        message = 'embeedding loss {}, postion embedding loss {}, total loss {}, classification perm loss {}, perm accuracy {}'
+        message = 'embeedding loss {}, postion embedding loss {}, total loss {}, classification permutation loss {}, permutation prediction accuracy {}'
 
     with tqdm(data_loader) as pbar:
         model.train()
@@ -674,7 +696,118 @@ def train(model, student, optimizer, classification_criterion,
     total_perm_classification_loss =  np.round(total_perm_classification_loss.item() / data_loader.dataset.__len__(),3)
     total_f1_perm_score =  np.round(total_f1_perm_score / data_loader.dataset.__len__(),3)
     return total_accuracy, total_f1_score, total_classification_loss, total_perm_classification_loss, total_f1_perm_score
+
+def set_early_stoping_parameters():
+    max_patience = 9
+    patience = 0
+    return max_patience, patience
+
+
+def initilizied_best_result(max_opt):
+    if max_opt:
+        best_model_score = 0
+    else:
+        best_model_score = 1e5
+    return best_model_score
+
+def print_epoch_results(epoch, model, train_accuracy, train_classification_loss, train_f1_permutation_score,
+                        train_f1_score, train_permutation_classification_loss, val_accuracy, val_classification_loss,
+                        val_f1_permutation_score, val_f1_score, val_permutation_classification_loss):
+    if model.learning_type == 'supervised':
+        print(7 * '' + f'Epoch Summary {epoch}:\n' + \
+              f'1) Train: f1-score {train_f1_score}, ' + \
+              f'classification_loss {train_classification_loss}, ' + \
+              f'Accuracy {train_accuracy}\n' + \
+              f'2) Validation: f1-score {val_f1_score}, ' + \
+              f'classification_loss {val_classification_loss}, ' + \
+              f'val acc {val_accuracy}')
+
+
+
+    else:
+        print(7 * '' + f'Epoch Summary {epoch}:\n' + \
+              f'1) Train: postion embedding loss {train_f1_score}, ' + \
+              f'embeddding loss {train_accuracy}, ' + \
+              f'total loss {train_classification_loss}, ' + \
+              f'permutation prediction accuracy {train_f1_permutation_score},  ' + \
+              f'permutation classification loss {train_permutation_classification_loss}\n'
+              f'2) Validation: postion embedding loss {val_f1_score}, ' + \
+              f'embedding loss {val_accuracy}, ' + \
+              f'total loss {val_classification_loss}, ' + \
+              f'permutation prediction accuracy {val_f1_permutation_score}, ' + \
+              f'permutation classification loss {val_permutation_classification_loss}\n')
             
+def add_apoch_results(model, results_list, train_accuracy, train_classification_loss, train_f1_permutation_score,
+                      train_f1_score, train_permutation_classification_loss, val_accuracy, val_classification_loss,
+                      val_f1_permutation_score, val_f1_score, val_permutation_classification_loss):
+    if model.learning_type == 'supervised':
+        results = [train_accuracy, train_f1_score, train_classification_loss,
+                   val_accuracy, val_f1_score, val_classification_loss]
+    else:
+
+        results = [train_accuracy, train_f1_score,
+                   train_classification_loss, train_f1_permutation_score,
+                   train_permutation_classification_loss, val_accuracy,
+                   val_f1_score, val_classification_loss,
+                   val_f1_permutation_score, val_permutation_classification_loss]
+    results_list.append(results)
+    return results_list
+
+def declare_early_stopping_condition(max_patience, model):
+    if model.learning_type == 'supervised':
+        print(
+            f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+    else:
+        print(
+            f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+
+def save_training_summary_results(columns_list, model_path, results_list):
+    train_results_df = pd.DataFrame(results_list, columns=columns_list)
+    train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
+    csv_path = change_file_ending(model_path, '.csv')
+    train_results_df.to_csv(csv_path)
+    return train_results_df
+
+
+def optimization_improve_checker(best_model_score, current_val, max_opt, model, model_path, patience):
+    if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
+        best_model_wts = copy.deepcopy(model.state_dict())
+        if model_path != '':
+            torch.save(best_model_wts, model_path)
+
+        best_model_score = current_val
+        patience = 0
+    patience += 1
+    return best_model_wts, best_model_score, patience
+
+def write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
+                                val_accuracy, val_classification_loss, val_f1_score):
+    if not tb_writer is None:
+        # add scalar (loss/accuracy) to tensorboard
+        tb_writer.add_scalar('Loss/Loss', val_classification_loss, epoch)
+        tb_writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
+        tb_writer.add_scalar('F_score/Validation', val_f1_score, epoch)
+
+        # add scalars (loss/accuracy) to tensorboard
+        tb_writer.add_scalars('Loss/train-val', {'train': train_classification_loss,
+                                                 'validation': val_classification_loss}, epoch)
+        tb_writer.add_scalars('Accuracy/train-val', {'train': train_accuracy,
+                                                     'validation': val_accuracy}, epoch)
+
+        tb_writer.add_scalars('F_score/train-val', {'train': train_f1_score,
+                                                    'validation': val_f1_score}, epoch)
+        
+def write_final_results_to_tensorboard(device, epoch, model, tb_writer, train_loader, val_loader):
+    if not tb_writer is None and train_loader.dataset.learning_type == 'supervised':
+        # add pr curves to tensor board
+        add_pr_curves_to_tensorboard(model, val_loader,
+                                     device,
+                                     tb_writer, epoch, num_classes=train_loader.dataset.amount_of_class)
+
+        add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer,
+                                            1, tag='Wrong_Predections', max_images=50)
+        
+        
 def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, perm_creterion,
              train_loader, val_loader, num_epochs, device, tb_writer = None, 
          scheduler = None, model_path = '', max_opt = True):
@@ -684,18 +817,17 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     loss_validation_list = []
     
     results_list =  [] 
-    if model.learning_type == 'supervised':
-        columns_list =  [ 'train_accuracy', 'train_f_score', 'train_classification_loss',
-                         'val_accuracy', 'val_f_score_loss', 'val_classification_loss'] 
-    else:
-        columns_list =  [ 'train_embedding loss', 'train_position_embedding_loss', 'train_total_loss',
-                         'val_embedding loss', 'val_position_embedding_loss', 'val_total_loss'] 
-    if max_opt:
-        best_model_score  = 0
-    else:
-        best_model_score = 1e5
-    max_patience = 9
-    patience = 0
+    
+    # generate columns for optimization summary
+    columns_list = generate_summary_columns(model)
+    
+    # initialized best results
+    best_model_score = initilizied_best_result(max_opt)
+
+    # set early stopping parameters
+    max_patience, patience = set_early_stoping_parameters()
+    
+
     for epoch in range(num_epochs):
         # train
         train_accuracy, train_f1_score, train_classification_loss, \
@@ -723,91 +855,55 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
            else:
                scheduler.step()  
             
-        # print current results
-        if model.learning_type == 'supervised':
-            print(7*''+f'Epoch Summary {epoch}:\n'+\
-                  f'1) Train: f1-score {train_f1_score}, '+ \
-                  f'classification_loss {train_classification_loss}, '+ \
-                  f'Accuracy {train_accuracy}\n' + \
-                  f'2) Validation: f1-score {val_f1_score}, '+ \
-                  f'classification_loss {val_classification_loss}, '+\
-                  f'val acc {val_accuracy}')
-        else:
-            print(7*''+f'Epoch Summary {epoch}:\n'+\
-                  f'1) Train: postion embedding loss {train_f1_score}, '+ \
-                  f'embeddding loss {train_accuracy}, ' + \
-                  f'total loss {train_classification_loss}'+ \
-                  f'perm accuracy {train_f1_perm_score} '+\
-                  f'perm classification loss {train_perm_classification_loss}\n'
-                  f'2) Validation: postion embedding loss {val_f1_score}, '+ \
-                  f'embedding loss {val_accuracy}, ' + \
-                  f'total loss {val_classification_loss}, '+ \
-                  f'perm accuracy {val_f1_perm_score}, '+\
-                  f'perm classification loss {val_perm_classification_loss}\n')
-        
-       
-        results  = [train_accuracy, train_f1_score, train_classification_loss,
-                    val_accuracy, val_f1_score, val_classification_loss]
-        results_list.append(results)
-        
-        train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-        train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-        csv_path =  change_file_ending(model_path, '.csv' )
-        train_results_df.to_csv(csv_path)
+        # print epoch results
+        print_epoch_results(epoch, model,
+                            train_accuracy, train_classification_loss, train_f1_perm_score,
+                            train_f1_score, train_perm_classification_loss, val_accuracy,
+                            val_classification_loss, val_f1_perm_score, val_f1_score,
+                            val_perm_classification_loss)
         
         
-        if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
-            best_model_wts = copy.deepcopy(model.state_dict())
-            if model_path!= '':
-                torch.save(best_model_wts, model_path)
-
-            best_model_score = current_val
-            patience = 0
-        patience += 1
+                                
+        # add epoch result for summary
+        results_list = add_apoch_results(model, results_list, train_accuracy, train_classification_loss, train_f1_perm_score,
+                          train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
+                          val_f1_perm_score, val_f1_score, val_perm_classification_loss)
+        
+    
+        
+        # save model summary results
+        train_results_df = save_training_summary_results(columns_list, model_path, results_list)
+        
+        # check if model was improve in this epoch
+        best_model_wts, best_model_score, patience = optimization_improve_checker(best_model_score, current_val, max_opt, model,
+                                                                model_path, patience)
+        
+        # check if early stoping achieved
         if patience>max_patience:
-          if model.learning_type == 'supervised':
-              print(f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
-          else:
-              print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+            declare_early_stopping_condition(max_patience, model)
+            break
 
-          break
-        if not tb_writer is None: 
-            # add scalar (loss/accuracy) to tensorboard
-            tb_writer.add_scalar('Loss/Loss', val_classification_loss, epoch)
-            tb_writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
-            tb_writer.add_scalar('F_score/Validation', val_f1_score, epoch)
-
-            # add scalars (loss/accuracy) to tensorboard
-            tb_writer.add_scalars('Loss/train-val', {'train': train_classification_loss, 
-                                                     'validation': val_classification_loss}, epoch)
-            tb_writer.add_scalars('Accuracy/train-val', {'train': train_accuracy, 
-                                                         'validation': val_accuracy}, epoch)
-            
-            tb_writer.add_scalars('F_score/train-val', {'train': train_f1_score, 
-                                                         'validation': val_f1_score}, epoch)
-            
-            # adding model weights to tensorboard as histogram
-            # add_model_weights_as_histogram(model, tb_writer, epoch)
         
-       
-            
+        # write scalars to tensorboard
+        write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
+                                    val_accuracy, val_classification_loss, val_f1_score)
+        
+        
     # load best model
     model.load_state_dict(best_model_wts)
-    if not tb_writer is None and train_loader.dataset.learning_type == 'supervised':
-        # add pr curves to tensor board
-        add_pr_curves_to_tensorboard(model, val_loader, 
-                                     device, 
-                                     tb_writer, epoch, num_classes = train_loader.dataset.amount_of_class)
-      
-        add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer, 
-                                            1, tag='Wrong_Predections', max_images=50)
+    
+    
+    write_final_results_to_tensorboard(device, epoch, model, tb_writer, train_loader, val_loader)
 
-    train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-    train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-    csv_path =  change_file_ending(model_path, '.csv' )
-    train_results_df.to_csv(csv_path)
+
+    # save model summary results
+    train_results_df = save_training_summary_results(columns_list, model_path, results_list)
+
 
     
     return train_results_df
 
+
+        
+        
 
