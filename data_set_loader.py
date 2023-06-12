@@ -304,8 +304,10 @@ class MyDataset(Dataset):
        # k = self.all_permutation_option.index(tuple(perm_order))
        # k = calculate_permutation_position(tuple(perm_order))
        k = self.all_permutation_option.index(perm_order)
+        
        amount_of_perm=  math.factorial(d)
-       perm_label =  np.zeros((1,amount_of_perm))
+       perm_label =  np.zeros((1,self.all_permutation_option.__len__()))
+
        perm_label[0,k]  = 1
        
        P = np.zeros((1, d))
@@ -362,7 +364,7 @@ class MyDataset(Dataset):
           # perm_order[index] = matrix_order[i_permutation_row, i_permutation_col]
           patch_image = patch_array[0][i_permutation_row, i_permutation_col]
           
-          border_size = 1
+          border_size = 2
           row_size, col_size = patch_image.shape[1::]
           masked_patch = patch_image.copy()
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)

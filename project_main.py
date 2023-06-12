@@ -63,16 +63,13 @@ plt.close('all')
 """
 
 
+
+
 """
 dash board tensorboard 
 tensorboard --logdir logdir_folder_path --port default
 tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_project\opencv-pytorch-dl-course-classification\expirement1" --port default
 """
-
-# Initialize the indices for generating permutations
-# indices = np.arange(16)
-    
-
 
 # seed
 seed =  48
@@ -99,7 +96,6 @@ task_name  = 'OxfordIIITPet'
 task_name  = 'cat_dogs'
 task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
-task_name  = 'cat_dogs'
 
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
@@ -137,7 +133,7 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
                                      balance_factor2 = 1, amount_of_patch = 4, 
                                      moving_average_decay = 0.995,weight_decay = 1e-6, 
-                                     optimizer_name = 'lion')
+                                     optimizer_name = 'lion', max_allowed_permutation = 100)
 
 
 device = training_configuration.device
