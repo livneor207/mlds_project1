@@ -162,7 +162,7 @@ train_loader, val_loader, test_loader, debug_loader = \
                            image_size = image_dim,
                            rand_choise = False,
                            orig_pe = True,
-                           train_split = 0.005)
+                           train_split = 0.05)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \
@@ -244,16 +244,16 @@ perm_creterion = nn.CrossEntropyLoss()
 # generate data generation example
 image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
 
-# train_results_df = main(model, student, optimizer, criterion,
-#                         ranking_criterion, accuracy_metric , perm_creterion,
-#                         train_loader, val_loader,
-#                         num_epochs=training_configuration.epochs_count,
-#                         device=device, 
-#                         tb_writer=tb_writer, 
-#                         max_opt = training_configuration.max_opt, 
-#                         model_path = model_path, 
-#                         scheduler = scheduler)
-
+train_results_df = main(model, student, optimizer, criterion,
+                        ranking_criterion, accuracy_metric , perm_creterion,
+                        train_loader, val_loader,
+                        num_epochs=training_configuration.epochs_count,
+                        device=device, 
+                        tb_writer=tb_writer, 
+                        max_opt = training_configuration.max_opt, 
+                        model_path = model_path, 
+                        scheduler = scheduler)
+aa =4 
 # import torch
 # import torch.nn as nn
 
@@ -360,7 +360,7 @@ train_loader, val_loader, test_loader, debug_loader = \
                             image_size = image_dim,
                             rand_choise = False,
                             orig_pe = True,
-                            train_split = 0.005)
+                            train_split = 0.05)
 # print size of data-sets
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
@@ -465,7 +465,7 @@ model = CNN(training_configuration,
               image_dim = (3,image_dim, image_dim),
               freeze_all=False,
               weights='IMAGENET1K_V1',
-              model_name = 'resnet18'
+              model_name = 'resnet50'
               )
 
 student = None

@@ -93,7 +93,9 @@ class TrainingConfiguration:
             self.max_allowed_permutation = max_allowed_permutation
         else:
             self.max_allowed_permutation =  self.amount_of_perm
-
+        
+        all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+        self.all_permutation_option = all_permutation_option
         
         
 def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
@@ -559,12 +561,18 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
         accuracy = criterion_loss.item()
         f1_score = rank_loss
-        
+        # optimizer.zero_grad()
+        # criterion_loss.backward()
+        # print_grad(model)
+        # optimizer.zero_grad()
+        # rank_loss.backward()
+        # optimizer.zero_grad()
+        # perm_classification_loss.backward()
         criterion_loss += rank_loss
         criterion_loss += perm_classification_loss
         if optimizer is not None:
             criterion_loss.backward()
-            debug_grad= False
+            debug_grad= True
             if debug_grad:
                 print_grad(model)
             

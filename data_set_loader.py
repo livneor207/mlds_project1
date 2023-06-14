@@ -65,9 +65,9 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
     
     
     amount_of_permutation =  math.factorial(amount_of_perm)
-    if max_allowed_perm> amount_of_permutation:
+    if max_allowed_perm>= amount_of_permutation:
         max_distance_permutations = np.array(list(permutations(range(0, amount_of_perm))))
-        np.random.shuffle(max_distance_permutations)
+        # np.random.shuffle(max_distance_permutations)
 
     else:
         # amount_of_perm_to_generate = 10
@@ -108,8 +108,10 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
                a=5
     
         max_distance_permutations = max_distance_permutations[0:i, :]
-    return np.int32(max_distance_permutations)
+        sorted_indices = np.lexsort(max_distance_permutations.T[::-1])
+        max_distance_permutations = np.int32(max_distance_permutations[sorted_indices])
 
+    return max_distance_permutations
 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
     class_ratios = train_statistic_df['alpha'].to_numpy()
@@ -514,8 +516,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     # all_permutation_option = list(permutations(range(0, amount_of_patch)))
     # all_permutation_option = [] 
-    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
-
+    # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+    all_permutation_option = training_configuration.all_permutation_option
     # def cosine_schedule(k=0, d=4):
       
     #   amount_of_perm=  math.factorial(d)

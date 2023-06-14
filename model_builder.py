@@ -383,7 +383,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
-                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -406,7 +406,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
-                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -616,25 +616,25 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            # projection_output = self.backbone(images)
+            projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            projection_output, geometric_output = forward_using_loop(self, images)
+            # projection_output, geometric_output = forward_using_loop(self, images)
             
             
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
-            perm_pred = self.PERM_HEAD(geometric_output)
+            perm_pred = self.PERM_HEAD(projection_output.clone())
             
-            perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+            perm_label_pred = self.PERM_LABEL_HEAD(projection_output.clone())
 
 
 
             # perm_pred = self.PERM_HEAD(projection_output)
 
             
-            representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            # del projection_output
-            del projection_output, geometric_output
+            representation_pred = self.REPRESENTATION_HEAD(projection_output.clone())
+            del projection_output
+            # del projection_output, geometric_output
 # 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
