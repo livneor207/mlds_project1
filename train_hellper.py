@@ -568,8 +568,21 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         # rank_loss.backward()
         # optimizer.zero_grad()
         # perm_classification_loss.backward()
+        
+        sigma1 = torch.pow(model.sigma[0],2)
+        sigma2 =  torch.pow(model.sigma[1],2)
+        sigma3 =  torch.pow(model.sigma[2],2)
+        
+        criterion_loss = torch.div(criterion_loss,sigma1)
+        rank_loss = torch.div(rank_loss, sigma2)
+        perm_classification_loss = torch.div(perm_classification_loss, sigma3)
+        
+        constarint_loss = torch.log(model.sigma.prod())
+        
         criterion_loss += rank_loss
         criterion_loss += perm_classification_loss
+        criterion_loss += constarint_loss
+
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= True

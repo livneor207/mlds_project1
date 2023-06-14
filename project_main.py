@@ -127,14 +127,14 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # set train configurations
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
-training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-4,
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-2,
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 100, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
                                      balance_factor2 = 1, amount_of_patch = 4, 
                                      moving_average_decay = 0.995,weight_decay = 1e-6, 
-                                     optimizer_name = 'lion', max_allowed_permutation = 100)
+                                     optimizer_name = 'adam', max_allowed_permutation = 100)
 
 
 device = training_configuration.device

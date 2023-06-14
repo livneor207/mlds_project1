@@ -255,7 +255,7 @@ def generate_student(teacher, training_configuration, image_dim,
         project_layer_list = get_model_layers_names(projection_layer)
         amount_of_layers = project_layer_list.__len__()
 
-        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-2])
+        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-4])
         setattr(student.backbone, last_layer_name, new_projection_layer)
         
         
@@ -341,8 +341,8 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                                 nn.Dropout(p=0),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
-                                                # nn.ReLU(inplace=True),
-                                                # nn.Dropout(p=0),            
+                                                nn.ReLU(inplace=True),
+                                                nn.Dropout(p=0),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
@@ -383,7 +383,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
-                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -406,7 +406,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     # nn.ReLU(inplace=True),
                                     # nn.Dropout(p=0),
                                     # nn.Linear(prem_hidden2, prem_hidden2),
-                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -526,7 +526,7 @@ def forward_using_loop(model, data):
             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
     
                 layer_output  = sub_layer(layer_input)
-                if layer_idx == 7 and sub_layer_idx == 1:
+                if layer_idx == 7 and sub_layer_idx == 2:
                     gemotric_output = layer_output
                 layer_input = layer_output
     return layer_output, gemotric_output
@@ -596,7 +596,7 @@ class CNN(nn.Module):
         # for param in PERM_HEAD.named_parameters():
         #     print(param[1].requires_grad)
              
-        
+        self.sigma = nn.Parameter(torch.ones(3))
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
@@ -616,20 +616,17 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            projection_output = self.backbone(images)
+            # projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            # projection_output, geometric_output = forward_using_loop(self, images)
+            projection_output, geometric_output = forward_using_loop(self, images)
             
             
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
-            perm_pred = self.PERM_HEAD(projection_output.clone())
+            # perm_pred = self.PERM_HEAD(geometric_output.clone())
             
-            perm_label_pred = self.PERM_LABEL_HEAD(projection_output.clone())
-
-
-
-            # perm_pred = self.PERM_HEAD(projection_output)
+            perm_label_pred = self.PERM_LABEL_HEAD(geometric_output.clone())
+            perm_pred = self.PERM_HEAD(geometric_output.clone())
 
             
             representation_pred = self.REPRESENTATION_HEAD(projection_output.clone())
