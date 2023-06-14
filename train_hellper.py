@@ -585,7 +585,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
 
         if optimizer is not None:
             criterion_loss.backward()
-            debug_grad= True
+            debug_grad= False
             if debug_grad:
                 print_grad(model)
             
