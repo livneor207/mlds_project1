@@ -106,10 +106,10 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
          debug= False
          if debug:
              print(param[0])
-         if param[0].find(last_layer_name) !=-1 :
+         # if param[0].find(last_layer_name) !=-1 :
 
          # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
-         # if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
+         if param[0].find('layer4') !=-1 :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -396,6 +396,30 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
+    # PERM_HEAD = torch.nn.Sequential(
+    #                                 # nn.Linear(prem_hidden, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 nn.AdaptiveAvgPool2d((1, 1)),
+    #                                 nn.Flatten(),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden, prem_hidden//2),
+    #                                 nn.BatchNorm1d(prem_hidden),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden//2, prem_hidden//4),
+    #                                 # nn.BatchNorm1d(prem_hidden//4),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden, amount_of_patch))
+    
+    
     PERM_LABEL_HEAD = torch.nn.Sequential(
                                     # nn.Linear(prem_hidden, prem_hidden2),
                                     # nn.BatchNorm1d(prem_hidden2),
@@ -418,6 +442,31 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.ReLU(inplace=True),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,max_allowed_permutation))
+    
+    # PERM_LABEL_HEAD = torch.nn.Sequential(
+    #                                 # nn.Linear(prem_hidden, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 # nn.BatchNorm1d(prem_hidden2),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
+    #                                 nn.AdaptiveAvgPool2d((1, 1)),
+    #                                 nn.Flatten(),
+    #                                 # nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden, prem_hidden//2),
+    #                                 nn.BatchNorm1d(prem_hidden),
+    #                                 nn.ReLU(inplace=True),
+    #                                 nn.Dropout(p=0),
+    #                                 # nn.Linear(prem_hidden//2, prem_hidden//4),
+    #                                 # nn.BatchNorm1d(prem_hidden//4),
+    #                                 # nn.ReLU(inplace=True),
+    #                                 # nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden, max_allowed_permutation))
+    
+    
     # freeze_all_layers(PERM_HEAD)
     # nn.Tanh()
     
@@ -515,7 +564,8 @@ def forward_using_loop(model, data):
         # print(len(model_layers_names))
         # print(model_layers_names)
         # print(layer_idx)
-
+        if layer_idx == 7:
+            a=5
         if len(model_layers_names) == 0:
                 layer_output  = layer(layer_input)
                 if layer_idx == 7 :
@@ -526,7 +576,7 @@ def forward_using_loop(model, data):
             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
     
                 layer_output  = sub_layer(layer_input)
-                if layer_idx == 7 and sub_layer_idx == 2:
+                if layer_idx == 7 and sub_layer_idx == 0:
                     gemotric_output = layer_output
                 layer_input = layer_output
     return layer_output, gemotric_output

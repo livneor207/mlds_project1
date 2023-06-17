@@ -62,9 +62,6 @@ plt.close('all')
 
 """
 
-
-
-
 """
 dash board tensorboard 
 tensorboard --logdir logdir_folder_path --port default
@@ -108,8 +105,6 @@ elif task_name == 'OxfordIIITPet':
 
 # 'trainval'
 # 'test'
-
-
 # log to tensorboard, tensorboard summary writer
 tb_writer = SummaryWriter(
     log_dir = log_dir,
@@ -127,13 +122,13 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # set train configurations
 training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
-training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-2,
+training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 100, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
                                      balance_factor2 = 1, amount_of_patch = 4, 
-                                     moving_average_decay = 0.995,weight_decay = 1e-6, 
+                                     moving_average_decay = 0.995,weight_decay = 1e-3, 
                                      optimizer_name = 'adam', max_allowed_permutation = 100)
 
 
@@ -160,9 +155,9 @@ train_loader, val_loader, test_loader, debug_loader = \
                            train_data=train_data,
                            test_data=test_data,
                            image_size = image_dim,
-                           rand_choise = False,
+                           rand_choise = True,
                            orig_pe = True,
-                           train_split = 0.05)
+                           train_split = 0.01)
     
 # print size of data-sets
 print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \

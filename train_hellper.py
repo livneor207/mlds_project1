@@ -423,7 +423,7 @@ def calculate_rank_loss(ranking_criterion, target, pred):
 def step(model, student, data, labels, criterion, ranking_criterion,  
          accuracy_metric, perm_creterion = None, 
          perm_order = None, perm_label = None,  
-         optimizer=None):
+         optimizer=None, optimizer_sigma = None):
     perm_classification_loss = torch.Tensor([0])
     f1_perm_label_score = 0
     if data.shape[1]<=3:
@@ -592,6 +592,13 @@ def step(model, student, data, labels, criterion, ranking_criterion,
                      
             optimizer.step()
             
+            # if hasattr(model, 'sigma'):
+            #     optimizer_sigma.step()
+            # optimizer_sigma
+            model.sigma.data = torch.relu(model.sigma.data)
+
+            # model.sigma[model.sigma < 0].data = 0
+
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
         
@@ -641,7 +648,7 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
     return total_accuracy, total_f1_score, total_classification_loss, total_perm_classification_loss, total_f1_perm_score
 
 
-def train(model, student, optimizer, classification_criterion,
+def train(model, student, optimizer, optimizer_sigma, classification_criterion,
           ranking_criterion, accuracy_metric, perm_creterion,  data_loader, 
           device, scheduler= None, epoch= 1, num_epochs=1):
     total_accuracy = 0.
@@ -667,11 +674,13 @@ def train(model, student, optimizer, classification_criterion,
             if idx >1 and debug:
                 break
             optimizer.zero_grad()
+            if hasattr(model, 'sigma'):
+                optimizer_sigma.zero_grad()
             classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss \
                 = step(model,student, data.to(device), target.to(device), 
                         classification_criterion.to(device), ranking_criterion.to(device), 
                         accuracy_metric.to(device), perm_creterion.to(device), 
-                        perm_order.to(device), perm_label.to(device),  optimizer)
+                        perm_order.to(device), perm_label.to(device),  optimizer, optimizer_sigma)
             del data, target, perm_order , target_name
             gc.collect()
             if not student is  None:
@@ -719,12 +728,10 @@ def generate_summary_columns(model):
             
     return columns_list
 
-
 def set_early_stoping_parameters():
     max_patience = 9
     patience = 0
     return max_patience, patience
-
 
 def initilizied_best_result(max_opt):
     if max_opt:
@@ -783,13 +790,16 @@ def declare_early_stopping_condition(max_patience, model):
     else:
         print(
             f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
-
 def save_training_summary_results(columns_list, model_path, results_list):
     train_results_df = pd.DataFrame(results_list, columns=columns_list)
     train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
     csv_path = change_file_ending(model_path, '.csv')
     train_results_df.to_csv(csv_path)
     return train_results_df
+
+
+
+
 
 
 def optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
@@ -832,6 +842,22 @@ def write_final_results_to_tensorboard(device, epoch, model, tb_writer, train_lo
         add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer,
                                             1, tag='Wrong_Predections', max_images=50)
         
+
+def schedular_step(scheduler, val_classification_loss):
+    if not scheduler is None:
+        if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            scheduler.step(val_classification_loss)
+        else:
+            scheduler.step()
+            
+def update_ephoch_result(max_opt, val_classification_loss, val_f1_score):
+    if max_opt:
+        current_val = val_f1_score
+    else:
+        current_val = val_classification_loss
+    return current_val
+
+
         
 def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, perm_creterion,
              train_loader, val_loader, num_epochs, device, tb_writer = None, 
@@ -842,20 +868,32 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     loss_validation_list = []
     
     
+    if hasattr(model, 'sigma'):
+        optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-3)
+    else:
+        optimizer_sigma =   None
+    
+    
     columns_list = generate_summary_columns(model)
 
     results_list = []
-    if max_opt:
-        best_model_score  = 0
-    else:
-        best_model_score = 1e5
-    max_patience = 9
-    patience = 0
+    
+    best_model_score = initilizied_best_result(max_opt)
+    # if max_opt:
+    #     best_model_score  = 0
+    # else:
+    #     best_model_score = 1e5
+    
+    
+    max_patience, patience = set_early_stoping_parameters()
+    best_model_wts = None
+    # max_patience = 9
+    # patience = 0
     for epoch in range(num_epochs):
         # train
         train_accuracy, train_f1_score, train_classification_loss, \
         train_perm_classification_loss, train_f1_perm_score = \
-            train(model, student, optimizer, classification_criterion, 
+            train(model, student, optimizer, optimizer_sigma, classification_criterion, 
                   ranking_criterion, accuracy_metric, perm_creterion, train_loader, device,
                   scheduler=scheduler, epoch = epoch, num_epochs=num_epochs )
         
@@ -868,85 +906,117 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
                                          val_loader, device)
         
         
-        if max_opt:
-            current_val = val_f1_score
-        else:
-            current_val = val_classification_loss
-        if not scheduler is None:
-           if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                scheduler.step(val_classification_loss)
-           else:
-               scheduler.step()  
+        
+        current_val = update_ephoch_result(max_opt, val_classification_loss, val_f1_score)
+
+
+
+        # if max_opt:
+        #     current_val = val_f1_score
+        # else:
+        #     current_val = val_classification_loss
+        
+        
+        # update schedular
+        schedular_step(scheduler, val_classification_loss)
+        
+        
+        # if not scheduler is None:
+        #    if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+        #         scheduler.step(val_classification_loss)
+        #    else:
+        #        scheduler.step()  
             
         # print current results
-        if model.learning_type == 'supervised':
-            print(7*''+f'Epoch Summary {epoch}:\n'+\
-                  f'1) Train: f1-score {train_f1_score}, '+ \
-                  f'classification_loss {train_classification_loss}, '+ \
-                  f'Accuracy {train_accuracy}\n' + \
-                  f'2) Validation: f1-score {val_f1_score}, '+ \
-                  f'classification_loss {val_classification_loss}, '+\
-                  f'val acc {val_accuracy}')
-        else:
-            print(7*''+f'Epoch Summary {epoch}:\n'+\
-                  f'1) Train: postion embedding loss {train_f1_score}, '+ \
-                  f'embeddding loss {train_accuracy}, ' + \
-                  f'total loss {train_classification_loss}'+ \
-                  f'perm accuracy {train_f1_perm_score} '+\
-                  f'perm classification loss {train_perm_classification_loss}\n'
-                  f'2) Validation: postion embedding loss {val_f1_score}, '+ \
-                  f'embedding loss {val_accuracy}, ' + \
-                  f'total loss {val_classification_loss}, '+ \
-                  f'perm accuracy {val_f1_perm_score}, '+\
-                  f'perm classification loss {val_perm_classification_loss}\n')
+        print_epoch_results(epoch, model, train_accuracy, train_classification_loss, train_f1_perm_score,
+                                train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
+                                val_f1_perm_score, val_f1_score, val_perm_classification_loss)
+        # if model.learning_type == 'supervised':
+        #     print(7*''+f'Epoch Summary {epoch}:\n'+\
+        #           f'1) Train: f1-score {train_f1_score}, '+ \
+        #           f'classification_loss {train_classification_loss}, '+ \
+        #           f'Accuracy {train_accuracy}\n' + \
+        #           f'2) Validation: f1-score {val_f1_score}, '+ \
+        #           f'classification_loss {val_classification_loss}, '+\
+        #           f'val acc {val_accuracy}')
+        # else:
+        #     print(7*''+f'Epoch Summary {epoch}:\n'+\
+        #           f'1) Train: postion embedding loss {train_f1_score}, '+ \
+        #           f'embeddding loss {train_accuracy}, ' + \
+        #           f'total loss {train_classification_loss}'+ \
+        #           f'perm accuracy {train_f1_perm_score} '+\
+        #           f'perm classification loss {train_perm_classification_loss}\n'
+        #           f'2) Validation: postion embedding loss {val_f1_score}, '+ \
+        #           f'embedding loss {val_accuracy}, ' + \
+        #           f'total loss {val_classification_loss}, '+ \
+        #           f'perm accuracy {val_f1_perm_score}, '+\
+        #           f'perm classification loss {val_perm_classification_loss}\n')
         
-        if model.learning_type == 'supervised':
-            results = [train_accuracy, train_f1_score, train_classification_loss,
-                       val_accuracy, val_f1_score, val_classification_loss]
-        else:
+        
+        results_list = add_apoch_results(model, results_list, train_accuracy, train_classification_loss, train_f1_perm_score,
+                              train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
+                              val_f1_perm_score, val_f1_score, val_perm_classification_loss)
+        
+        
+        # if model.learning_type == 'supervised':
+        #     results = [train_accuracy, train_f1_score, train_classification_loss,
+        #                val_accuracy, val_f1_score, val_classification_loss]
+        # else:
 
-            results = [train_accuracy, train_f1_score, train_classification_loss, 
-                       train_perm_classification_loss, train_f1_perm_score,
-                       val_accuracy, val_f1_score,  val_classification_loss, 
-                       val_perm_classification_loss, val_f1_perm_score]
-        results_list.append(results)
+        #     results = [train_accuracy, train_f1_score, train_classification_loss, 
+        #                train_perm_classification_loss, train_f1_perm_score,
+        #                val_accuracy, val_f1_score,  val_classification_loss, 
+        #                val_perm_classification_loss, val_f1_perm_score]
+        # results_list.append(results)
         
-     
-        train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-        train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-        csv_path =  change_file_ending(model_path, '.csv' )
-        train_results_df.to_csv(csv_path)
-        
-        
-        if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
-            best_model_wts = copy.deepcopy(model.state_dict())
-            if model_path!= '':
-                torch.save(best_model_wts, model_path)
+        train_results_df = save_training_summary_results(columns_list, model_path, results_list)
 
-            best_model_score = current_val
-            patience = 0
-        patience += 1
+        # train_results_df =  pd.DataFrame(results_list, columns = columns_list)
+        # train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
+        # csv_path =  change_file_ending(model_path, '.csv' )
+        # train_results_df.to_csv(csv_path)
+        
+        best_model_wts, best_model_score, patience  = \
+             optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
+                                         model_path, patience)
+             
+        # if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
+        #     best_model_wts = copy.deepcopy(model.state_dict())
+        #     if model_path!= '':
+        #         torch.save(best_model_wts, model_path)
+
+        #     best_model_score = current_val
+        #     patience = 0
+        # patience += 1
+        
+        
+        
         if patience>max_patience:
-          if model.learning_type == 'supervised':
-              print(f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
-          else:
-              print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+          declare_early_stopping_condition(max_patience, model)
+          # if model.learning_type == 'supervised':
+          #     print(f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
+          # else:
+          #     print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
 
           break
+        
         if not tb_writer is None: 
             # add scalar (loss/accuracy) to tensorboard
-            tb_writer.add_scalar('Loss/Loss', val_classification_loss, epoch)
-            tb_writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
-            tb_writer.add_scalar('F_score/Validation', val_f1_score, epoch)
-
-            # add scalars (loss/accuracy) to tensorboard
-            tb_writer.add_scalars('Loss/train-val', {'train': train_classification_loss, 
-                                                     'validation': val_classification_loss}, epoch)
-            tb_writer.add_scalars('Accuracy/train-val', {'train': train_accuracy, 
-                                                         'validation': val_accuracy}, epoch)
+            write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
+                                            val_accuracy, val_classification_loss, val_f1_score)
             
-            tb_writer.add_scalars('F_score/train-val', {'train': train_f1_score, 
-                                                         'validation': val_f1_score}, epoch)
+            # tb_writer.add_scalar('Loss/Loss', val_classification_loss, epoch)
+            # tb_writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
+            # tb_writer.add_scalar('F_score/Validation', val_f1_score, epoch)
+
+            # # add scalars (loss/accuracy) to tensorboard
+            # tb_writer.add_scalars('Loss/train-val', {'train': train_classification_loss, 
+            #                                          'validation': val_classification_loss}, epoch)
+            # tb_writer.add_scalars('Accuracy/train-val', {'train': train_accuracy, 
+            #                                              'validation': val_accuracy}, epoch)
+            
+            # tb_writer.add_scalars('F_score/train-val', {'train': train_f1_score, 
+            #                                              'validation': val_f1_score}, epoch)
             
             # adding model weights to tensorboard as histogram
             # add_model_weights_as_histogram(model, tb_writer, epoch)
@@ -963,11 +1033,12 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
       
         add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer, 
                                             1, tag='Wrong_Predections', max_images=50)
-
-    train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-    train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-    csv_path =  change_file_ending(model_path, '.csv' )
-    train_results_df.to_csv(csv_path)
+    
+    train_results_df = save_training_summary_results(columns_list, model_path, results_list)
+    # train_results_df =  pd.DataFrame(results_list, columns = columns_list)
+    # train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
+    # csv_path =  change_file_ending(model_path, '.csv' )
+    # train_results_df.to_csv(csv_path)
 
     
     return train_results_df

@@ -304,7 +304,7 @@ class MyDataset(Dataset):
  
   def getPositionEncoding(self, perm_order, d, n=10000):
        # k = self.all_permutation_option.index(tuple(perm_order))
-       # k = calculate_permutation_position(tuple(perm_order))
+       k2 = calculate_permutation_position(tuple(perm_order))
        k = self.all_permutation_option.index(perm_order)
         
        amount_of_perm=  math.factorial(d)
@@ -313,13 +313,16 @@ class MyDataset(Dataset):
        perm_label[0,k]  = 1
        
        P = np.zeros((1, d))
-       for i in np.arange(int(d/2)):
-          denominator = np.power(n, 2*i/d)
-          P[0, 2*i] = np.sin(k/denominator)
-          if self.orig_pe:
-              P[0, 2*i+1] = np.cos(k/denominator)
-          else:
-              P[0, 2*i+1] = np.sin(k/denominator)
+       if not self.orig_pe:
+           P[0,:] = perm_order
+       else:
+           for i in np.arange(int(d/2)):
+              denominator = np.power(n, 2*i/d)
+              P[0, 2*i] = np.sin(k2/denominator)
+              if self.orig_pe:
+                  P[0, 2*i+1] = np.cos(k2/denominator)
+              else:
+                  P[0, 2*i+1] = np.sin(k2/denominator)
        return P, perm_label
    
     
@@ -518,21 +521,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # all_permutation_option = [] 
     # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
     all_permutation_option = training_configuration.all_permutation_option
-    # def cosine_schedule(k=0, d=4):
-      
-    #   amount_of_perm=  math.factorial(d)
-    #   all_permutation_array = np.zeros((amount_of_perm,d))
 
-    #   for k in range(amount_of_perm):
-    #       empty_array = np.zeros((1,d))
-    #       for i in range(d):
-    #           nominator =  (i/d)+k
-    #           denominator = 1+k
-    #           fraction = nominator/denominator
-    #           # fraction *= (np.pi/2)
-    #           val = math.cos(fraction) ** (0.5)
-    #           empty_array[0, i] = val
-    #       all_permutation_array[k, :] = empty_array
           
       
     #   return np.clip(output, clip_min, 1.)
