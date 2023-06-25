@@ -647,6 +647,7 @@ class CNN(nn.Module):
         #     print(param[1].requires_grad)
              
         self.sigma = nn.Parameter(torch.ones(3))
+        # self.sigma.data[1:3] = 0.5
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD

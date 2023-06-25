@@ -58,7 +58,7 @@ class TrainingConfiguration:
     weight_decay: float = 1e-3
     balance_factor: float = 1
     balance_factor2: float = 1
-    max_allowed_permutation: int = 1000
+    max_allowed_permutation: int = 100
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

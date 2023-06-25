@@ -304,9 +304,9 @@ class MyDataset(Dataset):
  
   def getPositionEncoding(self, perm_order, d, n=10000):
        # k = self.all_permutation_option.index(tuple(perm_order))
-       k2 = calculate_permutation_position(tuple(perm_order))
+       # k2 = calculate_permutation_position(tuple(perm_order))
        k = self.all_permutation_option.index(perm_order)
-        
+       k2 = k
        amount_of_perm=  math.factorial(d)
        perm_label =  np.zeros((1,self.all_permutation_option.__len__()))
 
@@ -337,11 +337,15 @@ class MyDataset(Dataset):
 
       amount_of_patch = self.amount_of_patch
       dim_size = transform_image.shape[0]
+      
       amount_of_rows = int(amount_of_patch**0.5)
+      is_devided =  dim_size%amount_of_rows != 0
+
       matrix_order = gen_matrix_order(amount_of_rows)
 
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
-      patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
+      # patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
+      # np_transform_image= transform_image.numpy()
       if self.train:
            perm_order  = random.choice(self.all_permutation_option)
       else:
@@ -367,38 +371,51 @@ class MyDataset(Dataset):
           to_col =  (col+1)*patch_col_size
           
           # perm_order[index] = matrix_order[i_permutation_row, i_permutation_col]
-          patch_image = patch_array[0][i_permutation_row, i_permutation_col]
+          try:
           
+              # patch_image = patch_array[0][i_permutation_row, i_permutation_col]
+              from_row_perm = i_permutation_row*patch_row_size
+              to_row_perm = (i_permutation_row+1)*patch_row_size
+              from_col_perm = i_permutation_col*patch_col_size
+              to_col_perm =  (i_permutation_col+1)*patch_col_size
+              patch_image = transform_image[:,from_row_perm:to_row_perm,from_col_perm:to_col_perm] 
+                            
+          except:
+              a=5 
           border_size = 2
           row_size, col_size = patch_image.shape[1::]
-          masked_patch = patch_image.copy()
+          # masked_patch = patch_image.copy()
+          # masked_patch = patch_image.clone()
+
           # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
           padd_val = 0
           
           if row ==0 :
-             masked_patch[:,0:border_size*2,:]  = padd_val
+             patch_image[:,0:border_size*2,:]  = padd_val
           else:
-              masked_patch[:,0:border_size,:]  = padd_val
+              patch_image[:,0:border_size,:]  = padd_val
               
           if col == 0:
              # cols
-             masked_patch[:,:,0:border_size*2]  = padd_val
+             patch_image[:,:,0:border_size*2]  = padd_val
           else:
-              masked_patch[:,:,0:border_size]  = padd_val
+              patch_image[:,:,0:border_size]  = padd_val
           
-          if  col == amount_of_rows-1:  
-              masked_patch[:,:,col_size-border_size*2::]  =  padd_val
+          if  col == amount_of_rows-1 and is_devided:  
+              patch_image[:,:,col_size-border_size*2::]  =  padd_val
           else:
-              masked_patch[:,:,col_size-border_size::]  =  padd_val
+              patch_image[:,:,col_size-border_size::]  =  padd_val
               
-          if  row == amount_of_rows-1:  
-              masked_patch[:,row_size-border_size*2::,:]  = padd_val
+          if  row == amount_of_rows-1 and is_devided:  
+              patch_image[:,row_size-border_size*2::,:]  = padd_val
           else:
-              masked_patch[:,row_size-border_size::,:]  = padd_val
+              patch_image[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           
-          new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
+          # new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
+          new_image[0:dim_size, from_row:to_row, from_col:to_col] = patch_image
+
      
       perm_order, perm_label = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
       
@@ -406,8 +423,11 @@ class MyDataset(Dataset):
   
   def get_permutation_image(self, image):
       if self.taske_name == 'perm':
-          
+          start1 = time.time()
           new_image, perm_order, perm_label = self.permutatation_aug(image)
+          count_time = time.time()-start1
+          # print(count_time)
+          a=5 
       else:
           transform_image =  self.transform(image)
 
@@ -590,7 +610,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         assert False, 'task not defined'
         
     if learning_type == 'supervised':
-        p = 0.5
+        p = 0.33
     else:
         p = 1
     center_crop_size = int(0.9*image_size)
@@ -598,30 +618,47 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR)
     if rand_choise:
-        rand_choise = transforms.RandomChoice( [
-                                  transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
-                                  transforms.RandomHorizontalFlip(p=p),
-                                  transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25),
-                                  transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))])
+        transformations = [
+            transforms.RandomApply(
+            [transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)], p=0.4),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomApply(
+                [transforms.GaussianBlur((3, 3), (1.0, 2.0))],
+                p = 0.25
+            ),
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.85, 1.0)),
+            transforms.RandomGrayscale(p=0.25)
+            ]
+            
+            
+        # transformations = [     transforms.RandomHorizontalFlip(p=p),
+        #                         transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25)]
+        #                         # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        #                         # transforms.RandomCrop(size=(center_crop_size, center_crop_size))]
+                            
+        if not taske_name == 'perm':
+            # transformations += [transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
+            #                     transforms.RandomHorizontalFlip(p=p)]
+            pass
+        rand_choise = transforms.RandomChoice(transformations)
     else:
         rand_choise = transforms.RandomChoice( [transforms.RandomHorizontalFlip(p=0)])
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([resize_transforms,
-                                                rand_choise,
+        data_transforms =   transforms.Compose([rand_choise,
                                                 resize_transforms,
+                                                # resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     elif taske_name == 'no_perm':
-        data_transforms =   transforms.Compose([resize_transforms,
-                                                
+        data_transforms =   transforms.Compose([
                                                 rand_choise,
-                                                # transforms.CenterCrop((center_crop_size,center_crop_size)),
                                                 resize_transforms,
+                                                # transforms.CenterCrop((center_crop_size,center_crop_size)),
+                                                # resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)])
     
     test_transforms =  transforms.Compose([ resize_transforms,
-                                            # transforms.CenterCrop((center_crop_size, center_crop_size)),
                                             transforms.ToTensor(),
                                             transforms.Normalize(means, stds)])
 

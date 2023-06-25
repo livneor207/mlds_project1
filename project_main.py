@@ -127,9 +127,9 @@ training_configuration.update_merics(loss_functions_name = 'ce', learning_rate =
                                      scheduler_name = 'None', max_opt = False,
                                      epochs_count = 100, perm= 'perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-                                     balance_factor2 = 1, amount_of_patch = 4, 
-                                     moving_average_decay = 0.995,weight_decay = 1e-3, 
-                                     optimizer_name = 'adam', max_allowed_permutation = 100)
+                                     balance_factor2 = 1, amount_of_patch = 9, 
+                                     moving_average_decay = 0.995,weight_decay = 0, 
+                                     optimizer_name = 'adam', max_allowed_permutation = 50)
 
 
 device = training_configuration.device
@@ -149,7 +149,7 @@ train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                            training_configuration, 
                            val_split=val_split,  
-                           debug_batch_size = 8, 
+                           debug_batch_size = 16, 
                            random_state = seed,
                            tb_writer = tb_writer,
                            train_data=train_data,
@@ -314,15 +314,13 @@ training_configuration =  TrainingConfiguration()
 training_configuration.get_device_type()
 
 
-
-
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-4,
                                       learning_type='self_supervised', batch_size= 16,  
                                       scheduler_name = 'None', max_opt = True,
                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
                                       max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
                                       amount_of_patch = 4, moving_average_decay = 0.996,
-                                      weight_decay=0, optimizer_name = 'lion')
+                                      weight_decay=0, optimizer_name = 'adam')
 
 
 device = training_configuration.device
@@ -347,7 +345,7 @@ train_loader, val_loader, test_loader, debug_loader = \
     initialize_dataloaders(train_df, test_df, 
                             training_configuration, 
                             val_split=val_split,  
-                            debug_batch_size = 8, 
+                            debug_batch_size = 32, 
                             random_state = seed,
                             tb_writer = tb_writer,
                             train_data=train_data,
