@@ -448,48 +448,62 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             if debug_grad:
                 print_grad(model)
             optimizer.step()
-        del classification_pred, data, labels_target
+        classification_pred = classification_pred.detach()
+        data = data.detach()
+        labels_target = labels_target.detach()
 
     else:
         learning_type = 'self_supervised'
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
+        data = data.detach()
         prems_size  =  perm_order.shape[1]
         
         target_prem1 = perm_order[:,0,:]
         target_prem2 = perm_order[:,1,:]
-        
+        perm_order = perm_order.detach()
         
         target_prem_label = perm_label[:,0,:]
         target_prem_label2 = perm_label[:,1,:]
-        
+        perm_label = perm_label.detach()
         
       
         if optimizer is  None:
-          with torch.no_grad():
+         with torch.no_grad():
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
+         with torch.no_grad():
             representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            torch.cuda.empty_cache()
-            del data1
+            # torch.cuda.empty_cache()
+         data1 = data1.detach()
+         with torch.no_grad():
             representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
+         with torch.no_grad():
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
-            torch.cuda.empty_cache()
-            del data2
+            # torch.cuda.empty_cache()
+         ddata2 = ata2.detach()
             
         else:
+            # t1 = time.time()
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-            torch.cuda.empty_cache()
-            representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            torch.cuda.empty_cache()
-            del data1
-            representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
-            torch.cuda.empty_cache()
+            # t2 = time.time()-t1 
+            # print('single forward time ' + str(t2))
+
+            # torch.cuda.empty_cache()
+            with torch.no_grad():
+                representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
+            # torch.cuda.empty_cache()
+            data1 = data1.detach()
+            with torch.no_grad():
+                representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
+            # torch.cuda.empty_cache()
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
-            torch.cuda.empty_cache()
-            del data2
-        del data
+            # torch.cuda.empty_cache()
+            data2 = data2.detach()
+            # t3 = time.time()-t1 
+            # print('forward time ' + str(t3))
+
         
       
     
@@ -521,8 +535,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,
                         (target_prem2.argsort(1)-perm_pred_1_2.argsort(1)==0).sum()/(target_prem2.numel())
         # print(f'order ratio {order_ratio.item()}')
         # yy = mm(target_prem1[0:1], target_prem1[4:5]).detach().numpy().sum(1)/perm_pred_1_2.shape[1]
-        del target_prem2,target_prem1,perm_pred_1_2,perm_pred_1_1
-
+        perm_label_pred_1_1 = perm_label_pred_1_1.detach()
+        perm_label_pred_1_2 = perm_label_pred_1_2.detach()
+        target_prem_label = target_prem_label.detach()
+        target_prem_label2 = target_prem_label2.detach()
+        target_prem2 = target_prem2.detach()
+        target_prem1 = target_prem1.detach()
+        perm_pred_1_2 = perm_pred_1_2.detach()
+        perm_pred_1_1 = perm_pred_1_1.detach()
         
         rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
@@ -603,7 +623,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         _, labels_target = None, None
         
         # accuracy = 0
-        del representation_pred_1_2,representation_pred_2_1,representation_pred_1_1,representation_pred_2_2
+        representation_pred_1_2 = representation_pred_1_2.detach()
+        representation_pred_2_1 = representation_pred_2_1.detach()
+        representation_pred_1_1 = representation_pred_1_1.detach()
+        representation_pred_2_2 = representation_pred_2_2.detach()
 
         
 
@@ -621,8 +644,8 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
     model.eval()
     for idx, (data, target, perm_order, target_name, perm_label) in enumerate(data_loader):
         batch_size = target.shape[0]
-        torch.cuda.empty_cache()
-        gc.collect()
+        # torch.cuda.empty_cache()
+        # gc.collect()
         if idx>1 and debug:
             break
         classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss =  \
@@ -630,14 +653,14 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
                  ranking_criterion.to(device), accuracy_metric.to(device), perm_creterion.to(device), 
                  perm_order.to(device), perm_label.to(device))
         del data, target, perm_order , target_name
-        gc.collect()
+        # gc.collect()
         
         total_f1_perm_score += f1_perm_label_score*batch_size
         total_perm_classification_loss += perm_classification_loss*batch_size
         total_accuracy += accuracy*batch_size
         total_f1_score += f1_score*batch_size
         total_classification_loss += classification_loss*batch_size
-    gc.collect()    
+    # gc.collect()    
     
     total_accuracy =  np.round(total_accuracy/ data_loader.dataset.__len__(), 3)
     total_f1_score =  np.round(total_f1_score.item() /data_loader.dataset.__len__(), 3)
@@ -682,7 +705,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
                         accuracy_metric.to(device), perm_creterion.to(device), 
                         perm_order.to(device), perm_label.to(device),  optimizer, optimizer_sigma)
             del data, target, perm_order , target_name
-            gc.collect()
+            # gc.collect()
             if not student is  None:
                 beta = model.student_ema_updater.initial_beta
                 epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
@@ -706,7 +729,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
                                                 np.round(f1_perm_label_score,3)))
             pbar.update()
            
-    gc.collect()     
+    # gc.collect()     
     total_accuracy =  np.round(total_accuracy /  data_loader.dataset.__len__(),3)
     total_f1_score =  np.round(total_f1_score.item() /  data_loader.dataset.__len__(),3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
@@ -1002,9 +1025,9 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
         if not tb_writer is None: 
             # add scalar (loss/accuracy) to tensorboard
-            write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
-                                            val_accuracy, val_classification_loss, val_f1_score)
-            
+            # write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
+            #                                 val_accuracy, val_classification_loss, val_f1_score)
+            pass
             # tb_writer.add_scalar('Loss/Loss', val_classification_loss, epoch)
             # tb_writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
             # tb_writer.add_scalar('F_score/Validation', val_f1_score, epoch)
@@ -1027,12 +1050,13 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     model.load_state_dict(best_model_wts)
     if not tb_writer is None and train_loader.dataset.learning_type == 'supervised':
         # add pr curves to tensor board
-        add_pr_curves_to_tensorboard(model, val_loader, 
-                                     device, 
-                                     tb_writer, epoch, num_classes = train_loader.dataset.amount_of_class)
+        # add_pr_curves_to_tensorboard(model, val_loader, 
+        #                              device, 
+        #                              tb_writer, epoch, num_classes = train_loader.dataset.amount_of_class)
       
-        add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer, 
-                                            1, tag='Wrong_Predections', max_images=50)
+        # add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer, 
+        #                                     1, tag='Wrong_Predections', max_images=50)
+        pass
     
     train_results_df = save_training_summary_results(columns_list, model_path, results_list)
     # train_results_df =  pd.DataFrame(results_list, columns = columns_list)

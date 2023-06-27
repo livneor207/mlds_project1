@@ -23,7 +23,7 @@ import math
 
 import numpy as np
 import random
-
+import gc 
 import numpy as np
 import random
 import itertools
@@ -460,8 +460,13 @@ class MyDataset(Dataset):
     label_file_name = data_df_row['class_index']
     if self.read_image:
         image_path = data_df_row['image_path']
-        image = Image.open(image_path).convert('RGB')
-        
+        try:
+            image = Image.open(image_path).convert('RGB')
+        except:
+            print('secound image read try')
+            gc.collect()
+            image = Image.open(image_path).convert('RGB')
+
     else:
         image = self.data[self.index_list[idx]]
         image = self.pill_transform(image)
@@ -620,14 +625,14 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     if rand_choise:
         transformations = [
             transforms.RandomApply(
-            [transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)], p=0.4),
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
             transforms.RandomHorizontalFlip(),
             transforms.RandomApply(
-                [transforms.GaussianBlur((3, 3), (1.0, 2.0))],
+                [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2.0))],
                 p = 0.25
             ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.85, 1.0)),
-            transforms.RandomGrayscale(p=0.25)
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.4, 1.0)),
+            transforms.RandomGrayscale(p=0.2)
             ]
             
             

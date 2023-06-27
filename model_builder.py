@@ -258,7 +258,7 @@ def generate_student(teacher, training_configuration, image_dim,
         new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-4])
         setattr(student.backbone, last_layer_name, new_projection_layer)
         
-        
+        student.student = True
         
         # last_layer_name = get_model_layers_names(student.backbone)[-1]
         # projection_layer = getattr(student.backbone, last_layer_name)
@@ -568,6 +568,7 @@ def forward_using_loop(model, data):
             a=5
         if len(model_layers_names) == 0:
                 layer_output  = layer(layer_input)
+                # del layer, layer_input
                 if layer_idx == 7 :
                     gemotric_output = layer_output
                 layer_input = layer_output
@@ -576,6 +577,7 @@ def forward_using_loop(model, data):
             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
     
                 layer_output  = sub_layer(layer_input)
+                # del sub_layer, layer_input
                 if layer_idx == 7 and sub_layer_idx == 0:
                     gemotric_output = layer_output
                 layer_input = layer_output
@@ -648,6 +650,7 @@ class CNN(nn.Module):
              
         self.sigma = nn.Parameter(torch.ones(3))
         # self.sigma.data[1:3] = 0.5
+        self.student = False
         self.backbone = backbone
         self.PERM_HEAD = PERM_HEAD
         self.REPRESENTATION_HEAD = REPRESENTATION_HEAD
@@ -675,14 +678,18 @@ class CNN(nn.Module):
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
             # perm_pred = self.PERM_HEAD(geometric_output.clone())
+            # perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+            # perm_pred = self.PERM_HEAD(geometric_output)
+            # representation_pred = self.REPRESENTATION_HEAD(projection_output)
             
-            perm_label_pred = self.PERM_LABEL_HEAD(geometric_output.clone())
-            perm_pred = self.PERM_HEAD(geometric_output.clone())
-
-            
-            representation_pred = self.REPRESENTATION_HEAD(projection_output.clone())
-            del projection_output
-            # del projection_output, geometric_output
+            if not self.student:
+                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+            else:
+                perm_label_pred = None
+            perm_pred = self.PERM_HEAD(geometric_output)
+            representation_pred = self.REPRESENTATION_HEAD(projection_output)
+            # del projection_output
+            del projection_output, geometric_output
 # 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
