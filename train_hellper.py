@@ -59,6 +59,7 @@ class TrainingConfiguration:
     balance_factor: float = 1
     balance_factor2: float = 1
     max_allowed_permutation: int = 100
+    use_auto_weight = False
     def get_device_type(self):
         # check for GPU\CPU
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -68,8 +69,9 @@ class TrainingConfiguration:
                       scheduler_name = 'OneCycleLR', max_opt = True,
                       epochs_count = 20, perm = 'no_perm', num_workers = 0,
                       max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
-                      balance_factor2 = 1, amount_of_patch = 25, moving_average_decay = 0.01,
-                      weight_decay = 1e-3, optimizer_name = 'lion', max_allowed_permutation = 1000):
+                      balance_factor2 = 1, amount_of_patch = 9, moving_average_decay = 0.996,
+                      weight_decay = 1e-5, optimizer_name = 'adam', max_allowed_permutation = 75,
+                      use_auto_weight = False):
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -89,11 +91,14 @@ class TrainingConfiguration:
         self.optimizer_name = optimizer_name
         self.balance_factor2 = balance_factor2
         self.amount_of_perm = math.factorial(self.amount_of_patch) 
+        self.use_auto_weight = use_auto_weight
+        
         if max_allowed_permutation <= self.amount_of_perm:
             self.max_allowed_permutation = max_allowed_permutation
         else:
             self.max_allowed_permutation =  self.amount_of_perm
-        
+        if perm != 'perm':
+            self.balance_factor2 = self.balance_factor = 0
         all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
         self.all_permutation_option = all_permutation_option
         
@@ -342,83 +347,9 @@ def calculate_rank_loss(ranking_criterion, target, pred):
     elif isinstance(ranking_criterion, torch.nn.CosineSimilarity):
             ranking_loss = torch.mean(2-2*ranking_criterion(pred, target))
     elif isinstance(ranking_criterion, torch.nn.KLDivLoss):
-        
-        
-        # criterion = torch.nn.L1Loss(reduce =False)
-        # criterion = torch.nn.MSELoss(reduce =False)
-        # ranking_loss = criterion(pred, target)
-        # ranking_loss = torch.multiply(ranking_loss, (target/target.max())**9)
-        # ranking_loss  = (ranking_loss.sum()/target.shape[0])
-        ranking_loss = ranking_criterion(pred,target)
-        # (target.argsort(1)-pred.argsort(1)==0).sum()
-        
-        # temperature_target, dummy = target.max(1)
-        # temperature_pred, dummy = pred.max(1)
-        
-        # pred_probs_ordered = nn.functional.softmax(torch.div(pred.T, 1).T, dim=1)
-        # y_true_probs_ordered = nn.functional.softmax(torch.div(target.T, 1).T, dim=1)
-
-        # # Compute the KL divergence between the true and predicted probabilities
-        
-        # ranking_loss = ranking_criterion(torch.log(pred_probs_ordered), y_true_probs_ordered)
-        
-        
-        
-        
-
-        # pred_norm = LA.norm(pred, 2)
-        # target_norm = LA.norm(target, 2)
-        # ((pred.argsort(1)-target)==0).sum()/target.numel()
-        
-        
-
-        
-        # max_pred = pred.max()
-        # min_pred = pred.min()
-        # max_target = target.max()
-        # # yy = (pred-min_pred)/(max_pred-min_pred)
-        # pred_normelized = max_target*((pred-min_pred)/(max_pred-min_pred))
-        
-        
-        # target_normelized = (target-target.mean())
-        # pred_normelized = (pred_normelized-target.mean())
-
-
-
-        #pred_normelized = (pred-pred.mean())
-
-        
-        # max_target = target_normelized.max()
-        # min_target = target_normelized.min()
-        
-        
-
-        
-        # pred_normelized = 2*(pred_normelized-min_target)/(max_target-min_target)
-        
-        
-        # target_normelized = target_normelized/target_norm
-        # pred_normelized = pred_normelized/pred_norm
-        
-        
-        # pred_log_softmax = F.log_softmax(pred, dim=1)
-        # target_softmax= F.softmax(target, dim=1)
-        
-        
-        # pred_log_softmax = F.log_softmax(pred_normelized, dim=1)
-        # target_softmax = F.softmax(target_normelized, dim=1)
-        
-        
-        # ranking_loss = ranking_criterion(pred_log_softmax, target_softmax)
-    
+            ranking_loss = ranking_criterion(pred,target)
     elif isinstance(ranking_criterion, torch.nn.HingeEmbeddingLoss) :
-        # pred_argsort,target_argsort  = pred_argsort.to(torch.float), target_argsort.to(torch.float)
-        # projection1_norm = LA.norm(pred_argsort, 2)
-        # projection2_norm = LA.norm(target_argsort, 2)
-        # projection1_normelized = pred_argsort/projection1_norm
-        # projection2_normelized = target_argsort/projection2_norm
         ranking_loss = ranking_criterion(projection1_normelized, projection2_normelized)
-
     return ranking_loss
 def step(model, student, data, labels, criterion, ranking_criterion,  
          accuracy_metric, perm_creterion = None, 
@@ -448,25 +379,26 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             if debug_grad:
                 print_grad(model)
             optimizer.step()
-        classification_pred = classification_pred.detach()
-        data = data.detach()
-        labels_target = labels_target.detach()
+        del classification_pred, data, labels_target
+        # classification_pred = classification_pred.detach()
+        # data = data.detach()
+        # labels_target = labels_target.detach()
 
     else:
         learning_type = 'self_supervised'
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
-        data = data.detach()
+        # data = data.detach()
         prems_size  =  perm_order.shape[1]
         
         target_prem1 = perm_order[:,0,:]
         target_prem2 = perm_order[:,1,:]
-        perm_order = perm_order.detach()
+        # perm_order = perm_order.detach()
         
         target_prem_label = perm_label[:,0,:]
         target_prem_label2 = perm_label[:,1,:]
-        perm_label = perm_label.detach()
-        
+        # perm_label = perm_label.detach()
+        del perm_label, perm_order, data
       
         if optimizer is  None:
          with torch.no_grad():
@@ -475,91 +407,88 @@ def step(model, student, data, labels, criterion, ranking_criterion,
          with torch.no_grad():
             representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
             # torch.cuda.empty_cache()
-         data1 = data1.detach()
+         # data1 = data1.detach()
          with torch.no_grad():
             representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
             # torch.cuda.empty_cache()
          with torch.no_grad():
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
             # torch.cuda.empty_cache()
-         ddata2 = ata2.detach()
+         # data2 = data2.detach()
             
         else:
-            # t1 = time.time()
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-            # t2 = time.time()-t1 
-            # print('single forward time ' + str(t2))
 
             # torch.cuda.empty_cache()
             with torch.no_grad():
                 representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            # torch.cuda.empty_cache()
-            data1 = data1.detach()
+            # data1 = data1.detach()
             with torch.no_grad():
                 representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
-            # torch.cuda.empty_cache()
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
-            # torch.cuda.empty_cache()
-            data2 = data2.detach()
-            # t3 = time.time()-t1 
-            # print('forward time ' + str(t3))
-
-        
-      
-    
+            # data2 = data2.detach()
+        del data1, data2
+        # gc.collect()
+        # torch.cuda.empty_cache()
 
         # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
-        ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
-        # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
-        ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
-        
-        m = torch.nn.Softmax(dim=1)
-        perm_classification_loss1 = perm_creterion(m(perm_label_pred_1_1), target_prem_label.argmax(1))
-        perm_classification_loss2 = perm_creterion(m(perm_label_pred_1_2), target_prem_label2.argmax(1))
-        
-        
-        perm_classification_loss = perm_classification_loss2 + perm_classification_loss1
-        _, perm_label_pred_1_1 = torch.max(perm_label_pred_1_1.data, 1) # for getting predictions class
-        _, perm_label_pred_1_2 = torch.max(perm_label_pred_1_2.data, 1) # for getting predictions class
-        _, target_prem_label = torch.max(target_prem_label.data, 1) # for getting predictions class
-        _, target_prem_label2 = torch.max(target_prem_label2.data, 1) # for getting predictions class
-        
-    
-        f1_perm_label_score1 = (perm_label_pred_1_1 == target_prem_label).sum().item()/target_prem_label.shape[0] # get accuracy val
-        f1_perm_label_score2 = (perm_label_pred_1_2 == target_prem_label2).sum().item()/target_prem_label.shape[0] # get accuracy val
-
-        f1_perm_label_score = (f1_perm_label_score1 + f1_perm_label_score2)/2
-        
-        
-        order_ratio = (target_prem1.argsort(1)-perm_pred_1_1.argsort(1)==0).sum()/(target_prem1.numel())+\
-                        (target_prem2.argsort(1)-perm_pred_1_2.argsort(1)==0).sum()/(target_prem2.numel())
-        # print(f'order ratio {order_ratio.item()}')
-        # yy = mm(target_prem1[0:1], target_prem1[4:5]).detach().numpy().sum(1)/perm_pred_1_2.shape[1]
-        perm_label_pred_1_1 = perm_label_pred_1_1.detach()
-        perm_label_pred_1_2 = perm_label_pred_1_2.detach()
-        target_prem_label = target_prem_label.detach()
-        target_prem_label2 = target_prem_label2.detach()
-        target_prem2 = target_prem2.detach()
-        target_prem1 = target_prem1.detach()
-        perm_pred_1_2 = perm_pred_1_2.detach()
-        perm_pred_1_1 = perm_pred_1_1.detach()
-        
-        rank_loss = ranking_loss_1_1 + ranking_loss_1_2
         balance_factor = model.balance_factor
         balance_factor2 = model.balance_factor2
-
+        device = model.device
+        if balance_factor != 0:
+            ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
+            # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
+            ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
             
-        # similiarities_loss = criterion(representation_pred_1_1_normelized, representation_pred_2_2_normelized)
+            rank_loss = ranking_loss_1_1 + ranking_loss_1_2
+
+
+        else:
+            rank_loss = torch.Tensor([0])
+            rank_loss = rank_loss.to(device)
+            
+        if balance_factor2 != 0:
+            m = torch.nn.Softmax(dim=1)
+            perm_classification_loss1 = perm_creterion(m(perm_label_pred_1_1), target_prem_label.argmax(1))
+            perm_classification_loss2 = perm_creterion(m(perm_label_pred_1_2), target_prem_label2.argmax(1))
+        
+        
+            perm_classification_loss = perm_classification_loss2 + perm_classification_loss1
+            _, perm_label_pred_1_1 = torch.max(perm_label_pred_1_1.data, 1) # for getting predictions class
+            _, perm_label_pred_1_2 = torch.max(perm_label_pred_1_2.data, 1) # for getting predictions class
+            _, target_prem_label = torch.max(target_prem_label.data, 1) # for getting predictions class
+            _, target_prem_label2 = torch.max(target_prem_label2.data, 1) # for getting predictions class
+        
+    
+            f1_perm_label_score1 = (perm_label_pred_1_1 == target_prem_label).sum().item()/target_prem_label.shape[0] # get accuracy val
+            f1_perm_label_score2 = (perm_label_pred_1_2 == target_prem_label2).sum().item()/target_prem_label.shape[0] # get accuracy val
+
+            f1_perm_label_score = (f1_perm_label_score1 + f1_perm_label_score2)/2
+        
+            del perm_label_pred_1_1, perm_label_pred_1_2, target_prem_label,target_prem_label2
+            del target_prem2, target_prem1, perm_pred_1_2,perm_pred_1_1
+
+            # perm_label_pred_1_1 = perm_label_pred_1_1.detach()
+            # perm_label_pred_1_2 = perm_label_pred_1_2.detach()
+            # target_prem_label = target_prem_label.detach()
+            # target_prem_label2 = target_prem_label2.detach()
+            # target_prem2 = target_prem2.detach()
+            # target_prem1 = target_prem1.detach()
+            # perm_pred_1_2 = perm_pred_1_2.detach()
+            # perm_pred_1_1 = perm_pred_1_1.detach()
+        else:
+            f1_perm_label_score = 0
+            perm_classification_loss = torch.Tensor([0])
+            perm_classification_loss = perm_classification_loss.to(device)
+        
+        
+
         if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
         else:
             similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
 
-        # criterion_loss1 = 2-2*similiarities_loss
         criterion_loss1 = similiarities_loss
-
-        # criterion_loss1 = criterion_loss1.mean()
-        
         
         # similiarities_loss = criterion(representation_pred_1_2_normelized, representation_pred_2_1_normelized)
         if isinstance(criterion, torch.nn.CosineSimilarity):
@@ -567,13 +496,10 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         else:
             similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
 
-        # criterion_loss2 = 2-2*similiarities_loss
         criterion_loss2 = similiarities_loss
 
-        # criterion_loss2 = criterion_loss2.mean()
 
         criterion_loss = criterion_loss1 + criterion_loss2
-        # criterion_loss = criterion_loss.mean()
     
         rank_loss *= balance_factor
         perm_classification_loss *= balance_factor2
@@ -581,27 +507,22 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
         accuracy = criterion_loss.item()
         f1_score = rank_loss
-        # optimizer.zero_grad()
-        # criterion_loss.backward()
-        # print_grad(model)
-        # optimizer.zero_grad()
-        # rank_loss.backward()
-        # optimizer.zero_grad()
-        # perm_classification_loss.backward()
-        
-        sigma1 = torch.pow(model.sigma[0],2)
-        sigma2 =  torch.pow(model.sigma[1],2)
-        sigma3 =  torch.pow(model.sigma[2],2)
-        
-        criterion_loss = torch.div(criterion_loss,sigma1)
-        rank_loss = torch.div(rank_loss, sigma2)
-        perm_classification_loss = torch.div(perm_classification_loss, sigma3)
-        
-        constarint_loss = torch.log(model.sigma.prod())
-        
-        criterion_loss += rank_loss
-        criterion_loss += perm_classification_loss
-        criterion_loss += constarint_loss
+                
+        criterion_loss = torch.add(criterion_loss, rank_loss)
+        criterion_loss = torch.add(criterion_loss, perm_classification_loss)
+
+        if model.use_auto_weight:    
+            sigma1 = torch.pow(model.sigma[0],2)
+            sigma2 =  torch.pow(model.sigma[1],2)
+            sigma3 =  torch.pow(model.sigma[2],2)
+            
+            criterion_loss = torch.div(criterion_loss,sigma1)
+            rank_loss = torch.div(rank_loss, sigma2)
+            perm_classification_loss = torch.div(perm_classification_loss, sigma3)
+            
+            constarint_loss = torch.log(model.sigma.prod())
+            constarint_loss = constarint_loss.to(device)
+            criterion_loss = torch.add(criterion_loss, constarint_loss)
 
         if optimizer is not None:
             criterion_loss.backward()
@@ -611,24 +532,23 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             
                      
             optimizer.step()
-            
             # if hasattr(model, 'sigma'):
             #     optimizer_sigma.step()
             # optimizer_sigma
             model.sigma.data = torch.relu(model.sigma.data)
 
-            # model.sigma[model.sigma < 0].data = 0
 
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
         
         # accuracy = 0
-        representation_pred_1_2 = representation_pred_1_2.detach()
-        representation_pred_2_1 = representation_pred_2_1.detach()
-        representation_pred_1_1 = representation_pred_1_1.detach()
-        representation_pred_2_2 = representation_pred_2_2.detach()
+        # representation_pred_1_2 = representation_pred_1_2.detach()
+        # representation_pred_2_1 = representation_pred_2_1.detach()
+        # representation_pred_1_1 = representation_pred_1_1.detach()
+        # representation_pred_2_2 = representation_pred_2_2.detach()
+        del representation_pred_1_2, representation_pred_2_1
+        del representation_pred_1_1, representation_pred_2_2
 
-        
 
     return criterion_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss
 
@@ -709,7 +629,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             if not student is  None:
                 beta = model.student_ema_updater.initial_beta
                 epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
-                total_amount_of_steps =  epoch_optimization_steps*num_epochs*2
+                total_amount_of_steps =  epoch_optimization_steps*num_epochs
                 current_steps = epoch*batch_size+idx
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta

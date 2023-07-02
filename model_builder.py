@@ -348,42 +348,13 @@ def update_representation_head(backbone, image_dim, num_classes, \
     grid_size = int(amount_of_patch**0.5)
     prem_hidden = flatten_size
     
-    # PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0.3),
-    #                                 nn.Linear(flatten_size, hidden_size),
-    #                                 nn.BatchNorm1d(hidden_size),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0.25),
-    #                                 nn.Linear(hidden_size, amount_of_patch)
-    #                                 )
     
     prem_hidden2 = int(prem_hidden*0.75)
-    # PERM_HEAD = torch.nn.Sequential(nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden, prem_hidden2),
-    #                                 nn.BatchNorm1d(prem_hidden2),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 nn.BatchNorm1d(prem_hidden2),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 nn.BatchNorm1d(prem_hidden2),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden2,amount_of_patch))
+
     
     # prem_hidden = 512
     PERM_HEAD = torch.nn.Sequential(
-                                    # nn.Linear(prem_hidden, prem_hidden2),
-                                    # nn.BatchNorm1d(prem_hidden2),
-                                    # nn.ReLU(inplace=True),
-                                    # nn.Dropout(p=0),
-                                    # nn.Linear(prem_hidden2, prem_hidden2),
-                                    # nn.BatchNorm1d(prem_hidden2),
-                                    # nn.ReLU(inplace=True),
-                                    # nn.Dropout(p=0),
-                                    # nn.Linear(prem_hidden2, prem_hidden2),
-                                    nn.AdaptiveAvgPool2d((1, 1)),
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -396,41 +367,12 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
-    # PERM_HEAD = torch.nn.Sequential(
-    #                                 # nn.Linear(prem_hidden, prem_hidden2),
-    #                                 # nn.BatchNorm1d(prem_hidden2),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 # nn.BatchNorm1d(prem_hidden2),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 nn.AdaptiveAvgPool2d((1, 1)),
-    #                                 nn.Flatten(),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden, prem_hidden//2),
-    #                                 nn.BatchNorm1d(prem_hidden),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden//2, prem_hidden//4),
-    #                                 # nn.BatchNorm1d(prem_hidden//4),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden, amount_of_patch))
+
     
     
     PERM_LABEL_HEAD = torch.nn.Sequential(
-                                    # nn.Linear(prem_hidden, prem_hidden2),
-                                    # nn.BatchNorm1d(prem_hidden2),
-                                    # nn.ReLU(inplace=True),
-                                    # nn.Dropout(p=0),
-                                    # nn.Linear(prem_hidden2, prem_hidden2),
-                                    # nn.BatchNorm1d(prem_hidden2),
-                                    # nn.ReLU(inplace=True),
-                                    # nn.Dropout(p=0),
-                                    # nn.Linear(prem_hidden2, prem_hidden2),
-                                    nn.AdaptiveAvgPool2d((1, 1)),
+
+                                    # nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -443,36 +385,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,max_allowed_permutation))
     
-    # PERM_LABEL_HEAD = torch.nn.Sequential(
-    #                                 # nn.Linear(prem_hidden, prem_hidden2),
-    #                                 # nn.BatchNorm1d(prem_hidden2),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 # nn.BatchNorm1d(prem_hidden2),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden2, prem_hidden2),
-    #                                 nn.AdaptiveAvgPool2d((1, 1)),
-    #                                 nn.Flatten(),
-    #                                 # nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden, prem_hidden//2),
-    #                                 nn.BatchNorm1d(prem_hidden),
-    #                                 nn.ReLU(inplace=True),
-    #                                 nn.Dropout(p=0),
-    #                                 # nn.Linear(prem_hidden//2, prem_hidden//4),
-    #                                 # nn.BatchNorm1d(prem_hidden//4),
-    #                                 # nn.ReLU(inplace=True),
-    #                                 # nn.Dropout(p=0),
-    #                                 nn.Linear(prem_hidden, max_allowed_permutation))
-    
-    
-    # freeze_all_layers(PERM_HEAD)
-    # nn.Tanh()
-    
-    # m = nn.AdaptiveAvgPool2d((1, 1))
-    # input = torch.randn(1, 64, 8, 9)
-    # m(input).shape
+   
     
     if model_name.find('resnet') != -1:
         # set classification head 
@@ -601,8 +514,9 @@ class CNN(nn.Module):
         balance_factor2=training_configuration.balance_factor2
         max_allowed_permutation = training_configuration.max_allowed_permutation
         moving_average_decay=training_configuration.moving_average_decay
+        use_auto_weight = training_configuration.use_auto_weight
+        device = training_configuration.device
 
-        
         model_bank = ['resnet18','resnet34', 'resnet50', 'resnet152',
                       'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
         # model_name = 'resnet50'
@@ -647,7 +561,8 @@ class CNN(nn.Module):
         
         # for param in PERM_HEAD.named_parameters():
         #     print(param[1].requires_grad)
-             
+        self.device = device
+        self.use_auto_weight = use_auto_weight
         self.sigma = nn.Parameter(torch.ones(3))
         # self.sigma.data[1:3] = 0.5
         self.student = False
@@ -670,9 +585,9 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            # projection_output = self.backbone(images)
+            projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            projection_output, geometric_output = forward_using_loop(self, images)
+            # projection_output, geometric_output = forward_using_loop(self, images)
             
             
             # projection_output = self.backbone(images)
@@ -681,15 +596,22 @@ class CNN(nn.Module):
             # perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
             # perm_pred = self.PERM_HEAD(geometric_output)
             # representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            
-            if not self.student:
-                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+            balance_factor = self.balance_factor
+            balance_factor2 = self.balance_factor2
+            if not self.student or balance_factor !=0:
+                perm_pred = self.PERM_HEAD(projection_output)
+            else:
+                perm_pred = None
+                
+            if not self.student or balance_factor2 !=0:
+                perm_label_pred = self.PERM_LABEL_HEAD(projection_output)
             else:
                 perm_label_pred = None
-            perm_pred = self.PERM_HEAD(geometric_output)
+                
+            # perm_pred = self.PERM_HEAD(projection_output)
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            # del projection_output
-            del projection_output, geometric_output
+            del projection_output
+            # del projection_output, geometric_output
 # 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred

@@ -27,6 +27,7 @@ import gc
 import numpy as np
 import random
 import itertools
+import sys
 from scipy.spatial.distance import pdist, squareform,cdist
 # def generate_max_hamming_permutations(amount_of_perm=4, max_allowed_perm=1000):
 #     permutations = np.zeros((max_allowed_perm, amount_of_perm + 1), dtype=np.int32)
@@ -430,8 +431,7 @@ class MyDataset(Dataset):
           a=5 
       else:
           transform_image =  self.transform(image)
-
-          perm_order = torch.empty(self.amount_of_patch)
+          perm_order = torch.empty((1,self.amount_of_patch))
           new_image = transform_image
           perm_label = np.zeros((1,1))
       perm_order = torch.Tensor(perm_order)
@@ -464,7 +464,10 @@ class MyDataset(Dataset):
             image = Image.open(image_path).convert('RGB')
         except:
             print('secound image read try')
-            gc.collect()
+            df.squeeze(axis=0)
+            data_df_row= self.data_df.sample().squeeze(axis=0)
+            image_path = data_df_row['image_path']
+            label_file_name = data_df_row['class_index']
             image = Image.open(image_path).convert('RGB')
 
     else:
@@ -631,7 +634,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                 [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2.0))],
                 p = 0.25
             ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.4, 1.0)),
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.2, 1.0)),
             transforms.RandomGrayscale(p=0.2)
             ]
             
