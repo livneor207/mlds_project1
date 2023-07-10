@@ -68,6 +68,29 @@ tensorboard --logdir logdir_folder_path --port default
 tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_project\opencv-pytorch-dl-course-classification\expirement1" --port default
 """
 
+
+csv_folder_path  = r'C:\MSC\mlds_project1\csv_results'
+file_type_to_find =  os.path.join(csv_folder_path, '*.csv')
+all_csv_path = glob.glob(file_type_to_find)
+
+results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss']
+result_collector = []
+for i_path in  all_csv_path:
+    i_df =  pd.read_csv(i_path)
+    sim_name = os.path.basename(i_path)
+    i_df_columns = i_df.columns.tolist()
+    if 'val_f1_permutation_score' in i_df_columns:
+        continue
+    else:
+        train_accuracy = i_df['train_accuracy'].max()
+        train_f_score = i_df['train_f_score'].max()
+        val_accuracy = i_df['val_accuracy'].max()
+        val_f_score = i_df['val_f_score_loss'].max()
+        i_results = [sim_name, train_accuracy, train_f_score, val_accuracy, val_f_score]
+        result_collector.append(i_results)
+
+simulation_summary = pd.DataFrame(result_collector, columns = results_columns)    
+    
 # seed
 seed =  48
 val_split = 0.001
@@ -125,7 +148,7 @@ training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
-                                     epochs_count = 1, perm= 'no_perm', num_workers = 0, 
+                                     epochs_count = 5, perm= 'no_perm', num_workers = 0, 
                                      max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
                                      balance_factor2 = 0, amount_of_patch = 9, 
                                      moving_average_decay = 0.995,weight_decay = 0, 

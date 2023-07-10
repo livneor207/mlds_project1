@@ -354,7 +354,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     # prem_hidden = 512
     PERM_HEAD = torch.nn.Sequential(
-                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -372,7 +372,7 @@ def update_representation_head(backbone, image_dim, num_classes, \
     
     PERM_LABEL_HEAD = torch.nn.Sequential(
 
-                                    # nn.AdaptiveAvgPool2d((1, 1)),
+                                    nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
@@ -585,9 +585,9 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            projection_output = self.backbone(images)
+            # projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            # projection_output, geometric_output = forward_using_loop(self, images)
+            projection_output, geometric_output = forward_using_loop(self, images)
             
             
             # projection_output = self.backbone(images)
@@ -599,19 +599,19 @@ class CNN(nn.Module):
             balance_factor = self.balance_factor
             balance_factor2 = self.balance_factor2
             if not self.student or balance_factor !=0:
-                perm_pred = self.PERM_HEAD(projection_output)
+                perm_pred = self.PERM_HEAD(geometric_output)
             else:
                 perm_pred = None
                 
             if not self.student or balance_factor2 !=0:
-                perm_label_pred = self.PERM_LABEL_HEAD(projection_output)
+                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
             else:
                 perm_label_pred = None
                 
             # perm_pred = self.PERM_HEAD(projection_output)
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            del projection_output
-            # del projection_output, geometric_output
+            # del projection_output
+            del projection_output, geometric_output
 # 
             # representation_pred = self.backbone(images)
             # return representation_pred, perm_pred
