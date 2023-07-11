@@ -637,8 +637,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                 [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2.0))],
                 p = 0.25
             ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.7, 1.0)),
-            transforms.RandomGrayscale(p=0.2)
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.3, 1.0)),
+            transforms.RandomGrayscale(p=0.4)
             ]
             
             

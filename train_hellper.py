@@ -286,6 +286,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
        assert False, 'needed to add optimizer'
     # optimizer settings 
     if optimizer_name == 'adam':
+      # model_parameters = [p for p in model.parameters()][1::] # remove sigma parameters
       optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'lion':
       optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
@@ -428,8 +429,8 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
             # data2 = data2.detach()
         del data1, data2
-        # gc.collect()
-        # torch.cuda.empty_cache()
+        gc.collect()
+        torch.cuda.empty_cache()
 
         # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
         balance_factor = model.balance_factor
@@ -507,13 +508,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
         accuracy = criterion_loss.item()
         f1_score = rank_loss
-        if balance_factor != 0:    
-            # criterion_loss = torch.add(criterion_loss, rank_loss)
-            criterion_loss += rank_loss
-        if balance_factor2 != 0:    
-            # criterion_loss = torch.add(criterion_loss, perm_classification_loss)
-            criterion_loss += perm_classification_loss
-            
+        
 
         if model.use_auto_weight:  
             # sigma_squered = torch.pow(model.sigma,2)
@@ -534,7 +529,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             constarint_sigma3 = torch.log(sigma3)
             constarint_sigma3 = constarint_sigma3.to(device)
             criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
-
+        
+        if balance_factor != 0:    
+            # criterion_loss = torch.add(criterion_loss, rank_loss)
+            criterion_loss += rank_loss
+        if balance_factor2 != 0:    
+            # criterion_loss = torch.add(criterion_loss, perm_classification_loss)
+            criterion_loss += perm_classification_loss
+            
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad= False
@@ -545,7 +547,6 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             optimizer.step()
             # if hasattr(model, 'sigma'):
             #     optimizer_sigma.step()
-            # optimizer_sigma
             model.sigma.data = torch.relu(model.sigma.data)
 
 
@@ -823,7 +824,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     
     
     if hasattr(model, 'sigma'):
-        optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-3)
+        optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-4)
     else:
         optimizer_sigma =   None
     
