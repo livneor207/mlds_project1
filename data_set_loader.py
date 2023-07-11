@@ -461,6 +461,7 @@ class MyDataset(Dataset):
             image = Image.open(image_path).convert('RGB')
         except:
             amount_of_tries = 4
+            tries_index = 1
             while  tries_index < amount_of_tries:
                 try:
                     data_df_row= self.data_df.sample().squeeze(axis=0)
