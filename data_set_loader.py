@@ -328,9 +328,6 @@ class MyDataset(Dataset):
    
     
   def permutatation_aug(self, image):
-      
-      
-      
      
       transform_image =  self.transform(image)
 
@@ -463,11 +460,17 @@ class MyDataset(Dataset):
         try:
             image = Image.open(image_path).convert('RGB')
         except:
-            print('secound image read try')
-            data_df_row= self.data_df.sample().squeeze(axis=0)
-            image_path = data_df_row['image_path']
-            label_file_name = data_df_row['class_index']
-            image = Image.open(image_path).convert('RGB')
+            amount_of_tries = 4
+            while  tries_index < amount_of_tries:
+                try:
+                    data_df_row= self.data_df.sample().squeeze(axis=0)
+                    image_path = data_df_row['image_path']
+                    label_file_name = data_df_row['class_index']
+                    image = Image.open(image_path).convert('RGB')
+                    break
+                except:
+                    pass
+                tries_index += 1
 
     else:
         image = self.data[self.index_list[idx]]
@@ -627,13 +630,13 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     if rand_choise:
         transformations = [
             transforms.RandomApply(
-            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.25)], p=0.8),
             transforms.RandomHorizontalFlip(),
             transforms.RandomApply(
                 [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2.0))],
                 p = 0.25
             ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.5, 1.0)),
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.7, 1.0)),
             transforms.RandomGrayscale(p=0.2)
             ]
             

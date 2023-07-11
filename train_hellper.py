@@ -507,22 +507,33 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
         accuracy = criterion_loss.item()
         f1_score = rank_loss
-                
-        criterion_loss = torch.add(criterion_loss, rank_loss)
-        criterion_loss = torch.add(criterion_loss, perm_classification_loss)
+        if balance_factor != 0:    
+            # criterion_loss = torch.add(criterion_loss, rank_loss)
+            criterion_loss += rank_loss
+        if balance_factor2 != 0:    
+            # criterion_loss = torch.add(criterion_loss, perm_classification_loss)
+            criterion_loss += perm_classification_loss
+            
 
-        if model.use_auto_weight:    
-            sigma1 = torch.pow(model.sigma[0],2)
-            sigma2 =  torch.pow(model.sigma[1],2)
-            sigma3 =  torch.pow(model.sigma[2],2)
+        if model.use_auto_weight:  
+            # sigma_squered = torch.pow(model.sigma,2)
+            # sigma1 = sigma_squered[0]
+            # sigma2 =  sigma_squered[1]
+            # sigma3 =  sigma_squered[2]
+            sigma1 = model.sigma[0]
+            sigma2 =  model.sigma[1]
+            sigma3 =  model.sigma[2]
+            criterion_loss = criterion_loss/(sigma1) 
+            rank_loss = rank_loss/(sigma2)
+            perm_classification_loss = perm_classification_loss/(sigma3)
             
-            criterion_loss = torch.div(criterion_loss,sigma1)
-            rank_loss = torch.div(rank_loss, sigma2)
-            perm_classification_loss = torch.div(perm_classification_loss, sigma3)
-            
-            constarint_loss = torch.log(model.sigma.prod())
-            constarint_loss = constarint_loss.to(device)
-            criterion_loss = torch.add(criterion_loss, constarint_loss)
+            constarint_sigma1 = torch.log(sigma1)
+            constarint_sigma1 = constarint_sigma1.to(device)
+            constarint_sigma2 = torch.log(sigma2)
+            constarint_sigma2 = constarint_sigma2.to(device)
+            constarint_sigma3 = torch.log(sigma3)
+            constarint_sigma3 = constarint_sigma3.to(device)
+            criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
 
         if optimizer is not None:
             criterion_loss.backward()
@@ -617,8 +628,8 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             if idx >1 and debug:
                 break
             optimizer.zero_grad()
-            if hasattr(model, 'sigma'):
-                optimizer_sigma.zero_grad()
+            # if hasattr(model, 'sigma'):
+            #     optimizer_sigma.zero_grad()
             classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss \
                 = step(model,student, data.to(device), target.to(device), 
                         classification_criterion.to(device), ranking_criterion.to(device), 
@@ -629,8 +640,8 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             if not student is  None:
                 beta = model.student_ema_updater.initial_beta
                 epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
-                total_amount_of_steps =  epoch_optimization_steps*num_epochs
-                current_steps = epoch*batch_size+idx
+                total_amount_of_steps =  epoch_optimization_steps*num_epochs*2
+                current_steps = (epoch*batch_size+idx)
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
                 update_moving_average(model.student_ema_updater, student, model)

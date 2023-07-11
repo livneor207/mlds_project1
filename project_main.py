@@ -148,12 +148,12 @@ training_configuration.get_device_type()
 training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
                                      learning_type='self_supervised', batch_size= 20, 
                                      scheduler_name = 'None', max_opt = False,
-                                     epochs_count = 5, perm= 'no_perm', num_workers = 0, 
-                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 0,
-                                     balance_factor2 = 0, amount_of_patch = 9, 
+                                     epochs_count = 5, perm= 'perm', num_workers = 0, 
+                                     max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
+                                     balance_factor2 = 1, amount_of_patch = 9, 
                                      moving_average_decay = 0.995,weight_decay = 0, 
                                      optimizer_name = 'adam', max_allowed_permutation = 50,
-                                     use_auto_weight=False)
+                                     use_auto_weight=True)
 
 
 device = training_configuration.device
