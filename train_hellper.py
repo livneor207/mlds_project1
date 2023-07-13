@@ -27,8 +27,64 @@ from data_set_loader import *
 #         student_params.data = ema_updater.update_average(old_weight, up_weight)
 
 
-        
-        
+
+def argparser_validation(argparser):
+    
+    max_allowed_permutation = argparser.max_allowed_permutation
+    amount_of_patch = argparser.amount_of_patch
+    perm = argparser.perm 
+    argparser.amount_of_perm = math.factorial(argparser.amount_of_patch) 
+
+    if argparser.max_allowed_permutation <= argparser.amount_of_perm:
+        argparser.max_allowed_permutation = max_allowed_permutation
+    else:
+        argparser.max_allowed_permutation =  argparser.amount_of_perm
+    if perm != 'perm':
+        argparser.balance_factor2 = argparser.balance_factor = 0
+    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 1000)
+    argparser.all_permutation_option = all_permutation_option
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    argparser.device = device
+
+def update_merics(training_configuration, loss_functions_name = 'CE', learning_rate = 1e-3, 
+                  learning_type = 'supervised', batch_size = 8,
+                  scheduler_name = 'OneCycleLR', max_opt = True,
+                  epochs_count = 20, perm = 'no_perm', num_workers = 0,
+                  max_lr = 1e-2, hidden_size = 512, balance_factor  = 1,
+                  balance_factor2 = 1, amount_of_patch = 9, moving_average_decay = 0.996,
+                  weight_decay = 1e-5, optimizer_name = 'adam', max_allowed_permutation = 75,
+                  use_auto_weight = False):
+    training_configuration.loss_functions_name = loss_functions_name
+    training_configuration.learning_rate = learning_rate
+    training_configuration.learning_type = learning_type
+    training_configuration.batch_size = batch_size
+    training_configuration.scheduler_name = scheduler_name
+    training_configuration.max_opt = max_opt
+   
+    training_configuration.epochs_count = epochs_count
+    training_configuration.perm = perm
+    training_configuration.num_workers = num_workers
+    training_configuration.max_lr = max_lr
+    training_configuration.hidden_size = hidden_size
+    training_configuration.balance_factor = balance_factor
+    training_configuration.amount_of_patch = amount_of_patch
+    training_configuration.moving_average_decay = moving_average_decay
+    training_configuration.weight_decay = weight_decay
+    training_configuration.optimizer_name = optimizer_name
+    training_configuration.balance_factor2 = balance_factor2
+    training_configuration.amount_of_perm = math.factorial(training_configuration.amount_of_patch) 
+    training_configuration.use_auto_weight = use_auto_weight
+    
+    if max_allowed_permutation <= training_configuration.amount_of_perm:
+        training_configuration.max_allowed_permutation = max_allowed_permutation
+    else:
+        training_configuration.max_allowed_permutation =  training_configuration.amount_of_perm
+    if perm != 'perm':
+        training_configuration.balance_factor2 = training_configuration.balance_factor = 0
+    # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+    # self.all_permutation_option = all_permutation_option
+    
+    
 class TrainingConfiguration:
     '''
     Describes configuration of the training process
@@ -511,16 +567,16 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
 
         if model.use_auto_weight:  
-            # sigma_squered = torch.pow(model.sigma,2)
-            # sigma1 = sigma_squered[0]
-            # sigma2 =  sigma_squered[1]
-            # sigma3 =  sigma_squered[2]
-            sigma1 = model.sigma[0]
-            sigma2 =  model.sigma[1]
-            sigma3 =  model.sigma[2]
-            criterion_loss = criterion_loss/(sigma1) 
-            rank_loss = rank_loss/(sigma2)
-            perm_classification_loss = perm_classification_loss/(sigma3)
+            sigma_squered = torch.pow(model.sigma,2)
+            sigma1 = sigma_squered[0]
+            sigma2 =  sigma_squered[1]
+            sigma3 =  sigma_squered[2]
+            # sigma1 = model.sigma[0]
+            # sigma2 =  model.sigma[1]
+            # sigma3 =  model.sigma[2]
+            criterion_loss = criterion_loss/(sigma1*2) 
+            rank_loss = rank_loss/(sigma2*2)
+            perm_classification_loss = perm_classification_loss/(sigma3*2)
             
             constarint_sigma1 = torch.log(sigma1)
             constarint_sigma1 = constarint_sigma1.to(device)
