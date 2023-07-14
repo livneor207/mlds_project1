@@ -29,16 +29,40 @@ python project_main.py \
 --val_split 0.1 \
 --image_dim 224 \
 --train_split 1 \
---rand_choise True \
+--rand_choise 1 \
 --classification_loss_name 'ce' \
---ssl_training True \
---sup_ssl_withperm True \
---sup_ssl_withoutperm True \
---sup_withoutperm False \
---sup_withperm False
+--ssl_training 1 \
+--sup_ssl_withperm 1 \
+--sup_ssl_withoutperm 1 \
+--sup_withoutperm 0 \
+--sup_withperm 0
 
 ######################################################################################################################### 
-1. simulation 1
+1. simulation 1 - Pet 3x3 - only ImageNet with and without perm	
+python project_main.py \
+--ssl_model_name 'ssl_model_pets_9_byol_pe_cls_autocoef' \
+--sup_ssl_model_withperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withperm' \
+--sup_ssl_model_withoutperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withoutperm' \
+--sup_model_withoutperm_name 'sup_IN_model_pets_9_withoutperm' \
+--sup_model_withperm_name 'sup_IN_model_pets_9_withperm' \
+--balance_factor 1.0 \
+--balance_factor2 1.0 \
+--batch_size 1024 \
+--task_name 'OxfordIIITPet' \
+--use_auto_weight True \
+--amount_of_patch 9 \
+--num_workers 2 \
+--ssl_training False \
+--sup_ssl_withperm False \
+--sup_ssl_withoutperm False \
+--sup_withoutperm True \
+--sup_withperm True
+
+# ask from chat GPT to convert command to single line
+python project_main.py --ssl_model_name 'ssl_model_pets_9_byol_pe_cls_autocoef' --sup_ssl_model_withperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withperm' --sup_ssl_model_withoutperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withoutperm' --sup_model_withoutperm_name 'sup_IN_model_pets_9_withoutperm' --sup_model_withperm_name 'sup_IN_model_pets_9_withperm' --balance_factor 1.0 --balance_factor2 1.0 --batch_size 1024 --task_name 'OxfordIIITPet' --moving_average_decay 0.996 --max_allowed_permutation 75 --use_auto_weight 1 --weight_decay 0 --amount_of_patch 9 --num_workers 2 --max_opt 1 --optimizer_name 'adam' --epochs_count 200 --scheduler_name 'ReduceLROnPlateau' --learning_rate 1e-4 --learning_type 'self_supervised' --hidden_size 512 --loss_functions_name 'ce' --perm 'perm' --seed 42 --val_split 0.2 --image_dim 224 --train_split 1 --rand_choise 1 --classification_loss_name 'ce' --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 1 --sup_withperm 1
+
+######################################################################################################################### 
+1. simulation 2 - Pet 3x3 - SSL Training and than supervised on all data with and without perm	
 python project_main.py \
 --ssl_model_name 'ssl_model_pets_9_byol_pe_cls_autocoef' \
 --sup_ssl_model_withperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withperm' \
@@ -51,7 +75,7 @@ python project_main.py \
 --task_name 'OxfordIIITPet' \
 --moving_average_decay 0.996 \
 --max_allowed_permutation 75 \
---use_auto_weight True \
+--use_auto_weight 1 \
 --weight_decay 1e-4 \
 --amount_of_patch 9 \
 --num_workers 2 \
@@ -68,16 +92,15 @@ python project_main.py \
 --val_split 0.2 \
 --image_dim 224 \
 --train_split 1 \
---rand_choise True \
+--rand_choise 1 \
 --classification_loss_name 'ce' \
---ssl_training False \
---sup_ssl_withperm False \
---sup_ssl_withoutperm False \
---sup_withoutperm True \
---sup_withperm True
+--ssl_training 1 \
+--sup_ssl_withperm 1 \
+--sup_ssl_withoutperm 1 \
+--sup_withoutperm 0 \
+--sup_withperm 0
 
 # ask from chat GPT to convert command to single line
-python project_main.py --ssl_model_name 'ssl_model_pets_9_byol_pe_cls_autocoef' --sup_ssl_model_withperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withperm' --sup_ssl_model_withoutperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withoutperm' --sup_model_withoutperm_name 'sup_IN_model_pets_9_withoutperm' --sup_model_withperm_name 'sup_IN_model_pets_9_withperm' --balance_factor 1.0 --balance_factor2 1.0 --batch_size 1024 --task_name 'OxfordIIITPet' --moving_average_decay 0.996 --max_allowed_permutation 75 --use_auto_weight True --weight_decay 1e-4 --amount_of_patch 9 --num_workers 2 --max_opt False --optimizer_name 'adam' --epochs_count 200 --scheduler_name 'ReduceLROnPlateau' --learning_rate 1e-4 --learning_type 'self_supervised' --hidden_size 512 --loss_functions_name 'ce' --perm 'perm' --seed 42 --val_split 0.2 --image_dim 224 --train_split 1 --rand_choise True --classification_loss_name 'ce' --ssl_training False --sup_ssl_withperm False --sup_ssl_withoutperm False --sup_withoutperm True --sup_withperm True
+python project_main.py --ssl_model_name 'ssl_model_pets_9_byol_pe_cls_autocoef' --sup_ssl_model_withperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withperm' --sup_ssl_model_withoutperm_name 'sup_ssl_model_pets_9_byol_pe_cls_autocoef_withoutperm' --sup_model_withoutperm_name 'sup_IN_model_pets_9_withoutperm' --sup_model_withperm_name 'sup_IN_model_pets_9_withperm' --balance_factor 1.0 --balance_factor2 1.0 --batch_size 1024 --task_name 'OxfordIIITPet' --moving_average_decay 0.996 --max_allowed_permutation 75 --use_auto_weight 1 --weight_decay 0 --amount_of_patch 9 --num_workers 2 --max_opt 1 --optimizer_name 'adam' --epochs_count 200 --scheduler_name 'ReduceLROnPlateau' --learning_rate 1e-4 --learning_type 'self_supervised' --hidden_size 512 --loss_functions_name 'ce' --perm 'perm' --seed 42 --val_split 0.2 --image_dim 224 --train_split 1 --rand_choise 1 --classification_loss_name 'ce' --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0
 
-######################################################################################################################### 
-
+#########################################################################################################################

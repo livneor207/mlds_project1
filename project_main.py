@@ -156,11 +156,11 @@ task_name  = 'OxfordIIITPet'
 training_configuration.add_argument('--task_name', type=str, default = 'OxfordIIITPet', help='Specify an task to work on')
 training_configuration.add_argument('--moving_average_decay', type=float, default = 0.996, help='Specify an factor of how to update target model, shold be greater the 0.9')
 training_configuration.add_argument('--max_allowed_permutation', type=int, default = 75, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
-training_configuration.add_argument('--use_auto_weight', type=bool, default = True, help='Specify if model require to auto adjust the loss coeficient')
+training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
 training_configuration.add_argument('--weight_decay', type=float, default = 0, help='Specify if to use weight decay regurelaization in optimizer')
 training_configuration.add_argument('--amount_of_patch', type=int, default = 9, help='Specify the grid size for permutation defenition')
 training_configuration.add_argument('--num_workers', type=int, default = 0, help='Specify the amount of worker for dataloader multiprocessing')
-training_configuration.add_argument('--max_opt', type=bool, default = False, help='Specify if optimization goal is maximization of minimuzation')
+training_configuration.add_argument('--max_opt', type=int, default = 0, help='Specify if optimization goal is maximization of minimuzation')
 training_configuration.add_argument('--optimizer_name', type=str, default = 'adam', help='Specify optimizer name between adam and lion')
 training_configuration.add_argument('--epochs_count', type=int, default = 200, help='Specify the amount of apoch for optimization training')
 training_configuration.add_argument('--scheduler_name', type=str, default = 'ReduceLROnPlateau', help='Specify scheduler for optimization')
@@ -173,13 +173,13 @@ training_configuration.add_argument('--seed', type=int, default = 42, help='Spec
 training_configuration.add_argument('--val_split', type=float, default = 0.1, help='Specify validation size')
 training_configuration.add_argument('--image_dim', type=int, default = 224, help='Specify image size')
 training_configuration.add_argument('--train_split', type=float, default = 1, help='Specify amount of trainig data to be trained')
-training_configuration.add_argument('--rand_choise', type=bool, default = True, help='Specify use or not augmentation')
+training_configuration.add_argument('--rand_choise', type=int, default = 1, help='Specify use or not augmentation')
 training_configuration.add_argument('--classification_loss_name', type=str, default = 'ce', help='Specify classification loss name')
-training_configuration.add_argument('--ssl_training', type=bool, default = True, help='Specify classification loss name')
-training_configuration.add_argument('--sup_ssl_withperm', type=bool, default = True, help='Specify classification loss name')
-training_configuration.add_argument('--sup_ssl_withoutperm', type=bool, default = True, help='Specify classification loss name')
-training_configuration.add_argument('--sup_withoutperm', type=bool, default = False, help='Specify classification loss name')
-training_configuration.add_argument('--sup_withperm', type=bool, default = False, help='Specify classification loss name')
+training_configuration.add_argument('--ssl_training', type=int, default=1, help='Specify classification loss name')
+training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, help='Specify classification loss name')
+training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =1, help='Specify classification loss name')
+training_configuration.add_argument('--sup_withoutperm', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--sup_withperm', type=int, default=0, help='Specify classification loss name')
 
 
 # training_configuration.classification_loss_name = 'ce'
@@ -203,17 +203,26 @@ if debug:
     training_configuration.batch_size = 16
     training_configuration.epochs_count = 1
     
-    training_configuration.ssl_training = True
-    training_configuration.sup_ssl_withperm = True
-    training_configuration.sup_ssl_withoutperm = True
-    training_configuration.sup_withoutperm = True
-    training_configuration.sup_withperm = True
+    # training_configuration.ssl_training = False
+    # training_configuration.sup_ssl_withperm = False
+    # training_configuration.sup_ssl_withoutperm = False
+    # training_configuration.sup_withoutperm = True
+    # training_configuration.sup_withperm = True
     
     
 
 seed_everything(seed)
 
-print(training_configuration.ssl_model_name)
+# print(training_configuration.ssl_model_name)
+# print(training_configuration.ssl_training)
+# print(training_configuration.sup_ssl_withperm)
+# print(training_configuration.sup_ssl_withoutperm)
+# print(training_configuration.sup_withperm)
+# print(training_configuration.sup_withoutperm)
+# print(training_configuration.rand_choise)
+
+
+	
 
 # set path's
 current_folder = os.getcwd()
