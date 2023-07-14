@@ -175,13 +175,11 @@ training_configuration.add_argument('--image_dim', type=int, default = 224, help
 training_configuration.add_argument('--train_split', type=float, default = 1, help='Specify amount of trainig data to be trained')
 training_configuration.add_argument('--rand_choise', type=bool, default = True, help='Specify use or not augmentation')
 training_configuration.add_argument('--classification_loss_name', type=str, default = 'ce', help='Specify classification loss name')
-
 training_configuration.add_argument('--ssl_training', type=bool, default = True, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withperm', type=bool, default = True, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withoutperm', type=bool, default = True, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withoutperm', type=bool, default = False, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withperm', type=bool, default = False, help='Specify classification loss name')
-
 
 
 # training_configuration.classification_loss_name = 'ce'
@@ -198,7 +196,7 @@ val_split = training_configuration.val_split
 image_dim = training_configuration.image_dim
 train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
-debug=  True
+debug=  False
 if debug: 
     train_split = 0.02
     val_split = 0.02
