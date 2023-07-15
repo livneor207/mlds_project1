@@ -314,6 +314,9 @@ if training_configuration.ssl_training:
                                 weights = None,
                                 unfreeze = unfreeze)
     
+    
+    model.to(device)
+    student.to(device)
     summary(model, (3,image_dim, image_dim))
     if not student is None:
         summary(student, (3,image_dim, image_dim))
