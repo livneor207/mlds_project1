@@ -197,7 +197,7 @@ val_split = training_configuration.val_split
 image_dim = training_configuration.image_dim
 train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
-debug=  True
+debug=  False
 if debug: 
     train_split = 0.02
     val_split = 0.02
