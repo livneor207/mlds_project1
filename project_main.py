@@ -181,6 +181,8 @@ training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =
 training_configuration.add_argument('--sup_withoutperm', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withperm', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
+
 
 
 # training_configuration.classification_loss_name = 'ce'
@@ -204,9 +206,9 @@ if debug:
     training_configuration.batch_size = 16
     training_configuration.epochs_count = 1
     
-    training_configuration.ssl_training = 0
-    training_configuration.sup_ssl_withperm = 0
-    training_configuration.sup_ssl_withoutperm = 0
+    training_configuration.ssl_training = 1
+    training_configuration.sup_ssl_withperm = 1
+    training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 1
     
@@ -258,7 +260,7 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 # get device
 device = training_configuration.device
 unfreeze = training_configuration.unfreeze
-
+pin_memory = training_configuration.pin_memory
 ######### start ssl leanring ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if training_configuration.ssl_training:
@@ -288,7 +290,8 @@ if training_configuration.ssl_training:
                                 test_data=test_data,
                                 image_size = image_dim,
                                 rand_choise = rand_choise,
-                                train_split = train_split)
+                                train_split = train_split,
+                                pin_memory = pin_memory)
         
     # print size of data-sets
     print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \
@@ -423,7 +426,8 @@ if training_configuration.sup_ssl_withperm:
                                 test_data=test_data,
                                 image_size = image_dim,
                                 rand_choise = rand_choise,
-                                train_split = train_split)
+                                train_split = train_split,
+                                pin_memory = pin_memory)
         
         
     # print size of data-sets
@@ -538,7 +542,8 @@ if training_configuration.sup_ssl_withoutperm:
                                 test_data=test_data,
                                 image_size = image_dim,
                                 rand_choise = rand_choise,
-                                train_split = train_split)
+                                train_split = train_split,
+                                pin_memory = pin_memory)
         
     
     
@@ -642,8 +647,8 @@ if training_configuration.sup_withoutperm:
                                 test_data=test_data,
                                 image_size = image_dim,
                                 rand_choise = rand_choise,
-                                train_split = train_split)
-        
+                                train_split = train_split,
+                                pin_memory = pin_memory)
     
     
     
@@ -749,7 +754,8 @@ if training_configuration.sup_withperm:
                                 test_data=test_data,
                                 image_size = image_dim,
                                 rand_choise = rand_choise,
-                                train_split = train_split)
+                                train_split = train_split,
+                                pin_memory = pin_memory)
         
     
     
