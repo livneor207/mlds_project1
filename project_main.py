@@ -180,6 +180,7 @@ training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, h
 training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withoutperm', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withperm', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
 
 
 # training_configuration.classification_loss_name = 'ce'
@@ -196,18 +197,18 @@ val_split = training_configuration.val_split
 image_dim = training_configuration.image_dim
 train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
-debug=  False
+debug=  True
 if debug: 
     train_split = 0.02
     val_split = 0.02
     training_configuration.batch_size = 16
     training_configuration.epochs_count = 1
     
-    # training_configuration.ssl_training = False
-    # training_configuration.sup_ssl_withperm = False
-    # training_configuration.sup_ssl_withoutperm = False
-    # training_configuration.sup_withoutperm = True
-    # training_configuration.sup_withperm = True
+    training_configuration.ssl_training = 0
+    training_configuration.sup_ssl_withperm = 0
+    training_configuration.sup_ssl_withoutperm = 0
+    training_configuration.sup_withoutperm = 1
+    training_configuration.sup_withperm = 1
     
     
 
@@ -256,7 +257,7 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 
 # get device
 device = training_configuration.device
-
+unfreeze = training_configuration.unfreeze
 
 ######### start ssl leanring ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -302,7 +303,7 @@ if training_configuration.ssl_training:
                   freeze_all = False,
                   model_name = 'resnet50',
                   weights = 'IMAGENET1K_V1',
-                  unfreeze = False)
+                  unfreeze = unfreeze)
     
     
     student = generate_student(model, 
@@ -311,7 +312,7 @@ if training_configuration.ssl_training:
                                 amount_of_class,
                                 model_name = 'resnet50',
                                 weights = None,
-                                unfreeze = True)
+                                unfreeze = unfreeze)
     
     summary(model, (3,image_dim, image_dim))
     if not student is None:
