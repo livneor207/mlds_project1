@@ -272,9 +272,12 @@ def generate_student(teacher, training_configuration, image_dim,
         # setattr(student.backbone, last_layer_name, new_projection_layer)
         
         
-        
+        old_beta = teacher.student_ema_updater.beta 
+        teacher.student_ema_updater.beta = 1-old_beta
         update_moving_average(teacher.student_ema_updater, student, teacher)
         freeze_all_layers(student)
+        teacher.student_ema_updater.beta = old_beta 
+
  
                 
                 

@@ -337,7 +337,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     scheduler_name = training_configuration.scheduler_name
     weight_decay = training_configuration.weight_decay
     
-    optimizer_bank = ['adam', 'lion']
+    optimizer_bank = ['adam', 'lion', 'AdamW']
     if not optimizer_name in optimizer_bank:
        assert False, 'needed to add optimizer'
     # optimizer settings 
@@ -346,7 +346,8 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
       optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'lion':
       optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
-    
+    elif optimizer_name == 'AdamW':
+        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     # Scheduler
     scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = scheduler_name)
     
@@ -599,7 +600,11 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             if debug_grad:
                 print_grad(model)
             
-                     
+            # clip gradient between -1 to 1 
+            for param in model.parameters():
+                if param.grad is not None:
+                    param.grad.data.clamp_(-1, 1)
+                    
             optimizer.step()
             # if hasattr(model, 'sigma'):
             #     optimizer_sigma.step()
@@ -679,8 +684,6 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
         model.train()
         for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
             batch_size = target.shape[0]
-
-            
 
             if idx >1 and debug:
                 break

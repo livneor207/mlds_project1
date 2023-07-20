@@ -380,7 +380,7 @@ class MyDataset(Dataset):
                             
           except:
               a=5 
-          border_size = 2
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           # masked_patch = patch_image.copy()
           # masked_patch = patch_image.clone()
