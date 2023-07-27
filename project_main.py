@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 import torchvision.transforms as T
 import matplotlib.pyplot as plt
 import numpy as np
-from albumentations import Compose, Normalize, RandomCrop, HorizontalFlip, ShiftScaleRotate, HueSaturationValue
+# from albumentations import Compose, Normalize, RandomCrop, Horizont1alFlip, ShiftScaleRotate, HueSaturationValue
 import cv2
 from albumentations.pytorch import ToTensorV2
 from PIL import Image
@@ -153,15 +153,20 @@ task_name  = 'cat_dogs'
 task_name  = 'CIFAR10'
 task_name  = 'OxfordIIITPet'
 """
+
+"""
+!todo 
+max_allowed_permutation change
+"""
 training_configuration.add_argument('--task_name', type=str, default = 'OxfordIIITPet', help='Specify an task to work on')
 training_configuration.add_argument('--moving_average_decay', type=float, default = 0.996, help='Specify an factor of how to update target model, shold be greater the 0.9')
 training_configuration.add_argument('--max_allowed_permutation', type=int, default = 75, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
 training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
-training_configuration.add_argument('--weight_decay', type=float, default = 0, help='Specify if to use weight decay regurelaization in optimizer')
-training_configuration.add_argument('--amount_of_patch', type=int, default = 9, help='Specify the grid size for permutation defenition')
+training_configuration.add_argument('--weight_decay', type=float, default = 5e-2, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--amount_of_patch', type=int, default = 4, help='Specify the grid size for permutation defenition')
 training_configuration.add_argument('--num_workers', type=int, default = 0, help='Specify the amount of worker for dataloader multiprocessing')
 training_configuration.add_argument('--max_opt', type=int, default = 0, help='Specify if optimization goal is maximization of minimuzation')
-training_configuration.add_argument('--optimizer_name', type=str, default = 'adam', help='Specify optimizer name between adam and lion')
+training_configuration.add_argument('--optimizer_name', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
 training_configuration.add_argument('--epochs_count', type=int, default = 200, help='Specify the amount of apoch for optimization training')
 training_configuration.add_argument('--scheduler_name', type=str, default = 'ReduceLROnPlateau', help='Specify scheduler for optimization')
 training_configuration.add_argument('--learning_rate', type=float, default = 1e-4, help='Specify learning rate for optimization')
@@ -182,6 +187,7 @@ training_configuration.add_argument('--sup_withoutperm', type=int, default=0, he
 training_configuration.add_argument('--sup_withperm', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
+training_configuration.add_argument('--copy_weights', type=int, default=5e-2, help='Specify classification loss name')
 
 
 
@@ -201,17 +207,17 @@ train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
 debug=  False
 if debug: 
-    train_split = 0.02
+    train_split = 0.1
     val_split = 0.02
     training_configuration.batch_size = 16
-    training_configuration.epochs_count = 1
+    training_configuration.epochs_count = 100
     
     training_configuration.ssl_training = 1
-    training_configuration.sup_ssl_withperm = 1
+    training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
-    training_configuration.sup_withperm = 1
-    
+    training_configuration.sup_withperm = 0
+    # training_configuration.unfreeze = 0
     
 
 seed_everything(seed)
@@ -261,6 +267,7 @@ generate_hitogram_base_dataframe_column(train_df, 'class_name')
 device = training_configuration.device
 unfreeze = training_configuration.unfreeze
 pin_memory = training_configuration.pin_memory
+copy_weights = training_configuration.copy_weights
 ######### start ssl leanring ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if training_configuration.ssl_training:
@@ -315,7 +322,8 @@ if training_configuration.ssl_training:
                                 amount_of_class,
                                 model_name = 'resnet50',
                                 weights = None,
-                                unfreeze = unfreeze)
+                                unfreeze = unfreeze,
+                                copy_weights = copy_weights)
     
     
     model.to(device)

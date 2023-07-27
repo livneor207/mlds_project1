@@ -34,17 +34,26 @@ def argparser_validation(argparser):
     amount_of_patch = argparser.amount_of_patch
     perm = argparser.perm 
     argparser.amount_of_perm = math.factorial(argparser.amount_of_patch) 
-
+    
     if argparser.max_allowed_permutation <= argparser.amount_of_perm:
         argparser.max_allowed_permutation = max_allowed_permutation
     else:
         argparser.max_allowed_permutation =  argparser.amount_of_perm
     if perm != 'perm':
         argparser.balance_factor2 = argparser.balance_factor = 0
-    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 1000)
+    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 5000)
     argparser.all_permutation_option = all_permutation_option
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     argparser.device = device
+    
+    
+    argparser.grid_size = np.sqrt(argparser.amount_of_patch)
+    mode_image_gridsize = argparser.image_dim%argparser.grid_size
+    if mode_image_gridsize != 0:
+        addition_2_dim = int(argparser.grid_size-mode_image_gridsize)
+        argparser.image_dim +=  addition_2_dim
+
+    
 
 def update_merics(training_configuration, loss_functions_name = 'CE', learning_rate = 1e-3, 
                   learning_type = 'supervised', batch_size = 8,
@@ -155,7 +164,7 @@ class TrainingConfiguration:
             self.max_allowed_permutation =  self.amount_of_perm
         if perm != 'perm':
             self.balance_factor2 = self.balance_factor = 0
-        all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+        all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 5000)
         self.all_permutation_option = all_permutation_option
         
         
@@ -568,22 +577,22 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
 
         if model.use_auto_weight:  
-            sigma_squered = torch.pow(model.sigma,2)
-            sigma1 = sigma_squered[0]
-            sigma2 =  sigma_squered[1]
-            sigma3 =  sigma_squered[2]
-            # sigma1 = model.sigma[0]
-            # sigma2 =  model.sigma[1]
-            # sigma3 =  model.sigma[2]
+            # sigma_squered = torch.pow(model.sigma,2)
+            # sigma1 = sigma_squered[0]
+            # sigma2 =  sigma_squered[1]
+            # sigma3 =  sigma_squered[2]
+            sigma1 = model.sigma[0]
+            sigma2 =  model.sigma[1]
+            sigma3 =  model.sigma[2]
             criterion_loss = criterion_loss/(sigma1*2) 
             rank_loss = rank_loss/(sigma2*2)
             perm_classification_loss = perm_classification_loss/(sigma3*2)
             
-            constarint_sigma1 = torch.log(sigma1)
+            constarint_sigma1 = torch.log(1+sigma1)
             constarint_sigma1 = constarint_sigma1.to(device)
-            constarint_sigma2 = torch.log(sigma2)
+            constarint_sigma2 = torch.log(1+sigma2)
             constarint_sigma2 = constarint_sigma2.to(device)
-            constarint_sigma3 = torch.log(sigma3)
+            constarint_sigma3 = torch.log(1+sigma3)
             constarint_sigma3 = constarint_sigma3.to(device)
             criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
         
@@ -700,7 +709,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             if not student is  None:
                 beta = model.student_ema_updater.initial_beta
                 epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
-                total_amount_of_steps =  epoch_optimization_steps*num_epochs*2
+                total_amount_of_steps =  epoch_optimization_steps*num_epochs
                 current_steps = (epoch*batch_size+idx)
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta

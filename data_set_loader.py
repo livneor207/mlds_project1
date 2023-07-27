@@ -276,9 +276,22 @@ class MyDataset(Dataset):
         index_list= np.arange(0, data_df.shape[0])
     self.index_list = index_list
     self.pill_transform = transforms.ToPILImage()
-    self.perm_order_list = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
-    self.perm_order_list2 = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
 
+    # r,z = np.unique(np.array(self.perm_order_list), return_counts= True, axis =0)
+    # r,z2 = np.unique(np.array(self.perm_order_list2), return_counts= True, axis =0)
+    
+    amount_of_perm = len(self.all_permutation_option)
+    frequency =  amount_of_sampels//amount_of_perm+1
+    k = amount_of_perm * frequency
+    weighted_list = [element for element in self.all_permutation_option for _ in range(frequency)]
+    self.perm_order_list = random.sample(weighted_list, amount_of_sampels)
+    self.perm_order_list2 = random.sample(weighted_list, amount_of_sampels)
+
+    # self.perm_order_list = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
+    # self.perm_order_list2 = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
+    
+
+    
     if data is None:
         read_image = True
     else:
@@ -380,7 +393,7 @@ class MyDataset(Dataset):
                             
           except:
               a=5 
-          border_size = 1
+          border_size = 0
           row_size, col_size = patch_image.shape[1::]
           # masked_patch = patch_image.copy()
           # masked_patch = patch_image.clone()
@@ -626,18 +639,26 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         p = 1
     center_crop_size = int(0.9*image_size)
 
-    resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
-    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR)
+    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
+    resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BICUBIC )
+    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.LANCZOS )
+
+    
+    if taske_name == 'perm':
+        min_scale = 0.85
+    else:
+        min_scale = 0.5
+
     if rand_choise:
         transformations = [
             transforms.RandomApply(
             [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
             transforms.RandomHorizontalFlip(),
             transforms.RandomApply(
-                [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2.0))],
+                [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],
                 p = 0.5
             ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(0.5, 1.0)),
+            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
             transforms.RandomGrayscale(p=0.2)
             ]
             

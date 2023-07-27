@@ -108,8 +108,8 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
              print(param[0])
          # if param[0].find(last_layer_name) !=-1 :
 
-         # if (param[0].find('layer4.2') !=-1 or  param[0].find('bn') !=-1):
-         if param[0].find('layer4') !=-1 :
+         if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
+         # if param[0].find('layer4') !=-1 :
             param[1].requires_grad = True
          else:
             param[1].requires_grad = False
@@ -211,10 +211,10 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
     HEAD = torch.nn.Sequential(
                                 nn.Dropout(p=0.3),
                                 nn.Linear(flatten_size, hidden_size),
-                                nn.ReLU(inplace=True),
+                                nn.ReLU(),
                                 nn.Dropout(p=0.25),
                                 nn.Linear(hidden_size, hidden_size//4),
-                                nn.ReLU(inplace=True),
+                                nn.ReLU(),
                                 nn.Dropout(p=0.25),
                                 nn.Linear(hidden_size//4,num_classes)
                                 )
@@ -273,7 +273,7 @@ def generate_student(teacher, training_configuration, image_dim,
         
         
         old_beta = teacher.student_ema_updater.beta 
-        teacher.student_ema_updater.beta = 1-old_beta
+        teacher.student_ema_updater.beta = 1- old_beta
         update_moving_average(teacher.student_ema_updater, student, teacher)
         freeze_all_layers(student)
         teacher.student_ema_updater.beta = old_beta 
@@ -334,17 +334,17 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 
     
                                 
-    
+    p = 0.2
     REPRESENTATION_HEAD = torch.nn.Sequential(  
                                                 nn.Flatten(),
                                                 nn.Dropout(p=0),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
-                                                nn.ReLU(inplace=True),
+                                                nn.ReLU(),
                                                 nn.Dropout(p=0),
                                                 nn.Linear(hidden2, hidden_size),
                                                 nn.BatchNorm1d(hidden_size),
-                                                nn.ReLU(inplace=True),
+                                                nn.ReLU(),
                                                 nn.Dropout(p=0),            
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
@@ -362,11 +362,11 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden, prem_hidden//2),
                                     nn.BatchNorm1d(prem_hidden//2),
-                                    nn.ReLU(inplace=True),
+                                    nn.ReLU(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//2, prem_hidden//4),
                                     nn.BatchNorm1d(prem_hidden//4),
-                                    nn.ReLU(inplace=True),
+                                    nn.ReLU(),
                                     nn.Dropout(p=0),
                                     nn.Linear(prem_hidden//4,amount_of_patch))
     
@@ -377,15 +377,15 @@ def update_representation_head(backbone, image_dim, num_classes, \
 
                                     nn.AdaptiveAvgPool2d((1, 1)),
                                     nn.Flatten(),
-                                    nn.Dropout(p=0),
+                                    nn.Dropout(p=p),
                                     nn.Linear(prem_hidden, prem_hidden//2),
                                     nn.BatchNorm1d(prem_hidden//2),
-                                    nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
+                                    nn.ReLU(),
+                                    nn.Dropout(p=p),
                                     nn.Linear(prem_hidden//2, prem_hidden//4),
                                     nn.BatchNorm1d(prem_hidden//4),
-                                    nn.ReLU(inplace=True),
-                                    nn.Dropout(p=0),
+                                    nn.ReLU(),
+                                    nn.Dropout(p=p),
                                     nn.Linear(prem_hidden//4,max_allowed_permutation))
     
    
