@@ -933,6 +933,8 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         current_val = update_ephoch_result(max_opt, val_classification_loss, val_f1_score)
 
 
+        random.shuffle(train_loader.dataset.perm_order_list)
+        random.shuffle(train_loader.dataset.perm_order_list2)
 
         # if max_opt:
         #     current_val = val_f1_score

@@ -146,7 +146,7 @@ training_configuration.add_argument('--sup_model_withperm_name', type=str, defau
 
 training_configuration.add_argument('--balance_factor', type=float, default = 1.0, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
 training_configuration.add_argument('--balance_factor2', type=float, default = 1.0, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
-training_configuration.add_argument('--batch_size', type=int, default = 512, help='Specify an batch size for training sould, ssl improve as batch size increases')
+training_configuration.add_argument('--batch_size', type=int, default = 256, help='Specify an batch size for training sould, ssl improve as batch size increases')
 """
 options
 task_name  = 'cat_dogs'
@@ -183,11 +183,11 @@ training_configuration.add_argument('--classification_loss_name', type=str, defa
 training_configuration.add_argument('--ssl_training', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =1, help='Specify classification loss name')
-training_configuration.add_argument('--sup_withoutperm', type=int, default=0, help='Specify classification loss name')
-training_configuration.add_argument('--sup_withperm', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--sup_withoutperm', type=int, default=1, help='Specify classification loss name')
+training_configuration.add_argument('--sup_withperm', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
-training_configuration.add_argument('--copy_weights', type=int, default=5e-2, help='Specify classification loss name')
+training_configuration.add_argument('--copy_weights', type=int, default=0, help='Specify classification loss name')
 
 
 

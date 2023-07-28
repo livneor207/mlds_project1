@@ -356,14 +356,14 @@ class MyDataset(Dataset):
 
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
       # patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
-      # np_transform_image= transform_image.numpy()
-      if self.train:
-           perm_order  = random.choice(self.all_permutation_option)
+      # # np_transform_image= transform_image.numpy()
+      # if self.train:
+      #      perm_order  = random.choice(self.all_permutation_option)
+      # else:
+      if self.image_idx == 1:
+            perm_order = self.perm_order_list[self.idx]
       else:
-          if self.image_idx == 1:
-              perm_order = self.perm_order_list[self.idx]
-          else:
-              perm_order = self.perm_order_list2[self.idx]
+            perm_order = self.perm_order_list2[self.idx]
 
       
       new_image = torch.zeros_like(transform_image)
