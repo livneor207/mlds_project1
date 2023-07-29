@@ -602,12 +602,12 @@ class CNN(nn.Module):
             balance_factor = self.balance_factor
             balance_factor2 = self.balance_factor2
             if not self.student or balance_factor !=0:
-                perm_pred = self.PERM_HEAD(geometric_output.clone())
+                perm_pred = self.PERM_HEAD(geometric_output)
             else:
                 perm_pred = None
                 
             if not self.student or balance_factor2 !=0:
-                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output.clone())
+                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
             else:
                 perm_label_pred = None
                 

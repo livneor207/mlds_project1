@@ -470,29 +470,35 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         if optimizer is  None:
          with torch.no_grad():
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
          with torch.no_grad():
             representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
          # data1 = data1.detach()
          with torch.no_grad():
             representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
          with torch.no_grad():
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
          # data2 = data2.detach()
             
         else:
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
 
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
             with torch.no_grad():
                 representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
             # data1 = data1.detach()
+            torch.cuda.empty_cache()
+
             with torch.no_grad():
                 representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
+            torch.cuda.empty_cache()
+
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
+            torch.cuda.empty_cache()
+
             # data2 = data2.detach()
         del data1, data2
         gc.collect()

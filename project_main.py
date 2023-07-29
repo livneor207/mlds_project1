@@ -188,6 +188,7 @@ training_configuration.add_argument('--sup_withperm', type=int, default=1, help=
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--copy_weights', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--load_ssl', type=int, default=0, help='Specify classification loss name')
 
 
 
@@ -268,6 +269,7 @@ device = training_configuration.device
 unfreeze = training_configuration.unfreeze
 pin_memory = training_configuration.pin_memory
 copy_weights = training_configuration.copy_weights
+load_ssl = training_configuration.load_ssl
 ######### start ssl leanring ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if training_configuration.ssl_training:
@@ -315,7 +317,10 @@ if training_configuration.ssl_training:
                   weights = 'IMAGENET1K_V1',
                   unfreeze = unfreeze)
     
-    
+    if load_ssl:
+        model.load_state_dict(torch.load(model_path))
+
+        
     student = generate_student(model, 
                                 training_configuration, 
                                 image_dim, 
