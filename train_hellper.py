@@ -838,12 +838,12 @@ def optimization_improve_checker(best_model_score, current_val, max_opt, model,b
         best_model_wts = copy.deepcopy(model.state_dict())
         if model_path != '':
             torch.save(best_model_wts, model_path)
-
-        best_model_score = current_val
         if current_val == best_model_score:
             patience -= 0.5
         else:
             patience = 0
+        best_model_score = current_val
+        
     patience += 1
     return best_model_wts, best_model_score, patience
 
