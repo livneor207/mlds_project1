@@ -179,8 +179,41 @@ python project_main.py \
     --sup_withoutperm 0 \
     --sup_withperm 0 \
     --copy_weights 0
+	
+python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
+python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0 --load_ssl 1
+python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0 --load_ssl 1
+
 
 #########################################################################################################################
-simulation 4 - Pet 4x4 - SSL Training 
+simulation4 - CIFAR10 2x2 - BYOL&PE&CLS
+python project_main.py \
+    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS_AUTO \
+    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS_AUTO \
+    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS_AUTO \
+    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
+    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
+    --balance_factor 1 \
+    --balance_factor2 1 \
+    --batch_size 256 \
+    --task_name CIFAR10 \
+    --use_auto_weight 1 \
+    --weight_decay 0.05 \
+    --amount_of_patch 4 \
+    --num_workers 2 \
+    --max_opt 0 \
+    --epochs_count 150 \
+    --learning_rate 0.0001 \
+    --learning_type self_supervised \
+    --perm perm \
+    --val_split 0.1 \
+    --image_dim 128 \
+    --rand_choise 1 \
+    --ssl_training 1 \
+    --sup_ssl_withperm 1 \
+    --sup_ssl_withoutperm 1 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --copy_weights 0
 #########################################################################################################################
 simulation 5 - Pet 2x2 - SSL Training 
