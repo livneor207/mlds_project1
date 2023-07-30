@@ -149,7 +149,7 @@ training_configuration.add_argument('--loss_functions_name', type=str, default =
 training_configuration.add_argument('--perm', type=str, default = 'perm', help='Specify use or not permutation augmentation')
 training_configuration.add_argument('--seed', type=int, default = 42, help='Specify random state')
 training_configuration.add_argument('--val_split', type=float, default = 0.1, help='Specify validation size')
-training_configuration.add_argument('--image_dim', type=int, default = 224, help='Specify image size')
+training_configuration.add_argument('--image_dim', type=int, default = 128, help='Specify image size')
 training_configuration.add_argument('--train_split', type=float, default = 1, help='Specify amount of trainig data to be trained')
 training_configuration.add_argument('--rand_choise', type=int, default = 1, help='Specify use or not augmentation')
 training_configuration.add_argument('--classification_loss_name', type=str, default = 'ce', help='Specify classification loss name')
@@ -183,7 +183,7 @@ debug=  False
 if debug: 
     train_split = 0.1
     val_split = 0.02
-    training_configuration.batch_size = 16
+    training_configuration.batch_size = 128
     training_configuration.epochs_count = 100
     
     training_configuration.ssl_training = 1
