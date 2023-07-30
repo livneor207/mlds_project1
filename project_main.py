@@ -64,39 +64,6 @@ python -m spyder_kernels.console --matplotlib='inline' --ip=172.17.0.1
 
 """
 
-#
-# import paramiko
-# import getpass
-# from sshtunnel import SSHTunnelForwarder
-
-# # Replace the placeholders with the actual values
-# VM_PUBLIC_IP_OR_DNS = 'lab-f4aa12e2-e753-4681-ba02-e86562b10c06.northeurope.cloudapp.azure.com'
-# USERNAME = 'mlds_user'
-# SSH_PORT = 5000
-# SSH_FINGERPRINT = 'SHA256:ODPcVinYo/ibLvFcj3TVLUyOvcUCiPjCUvb2WUgSBFw'
-# PATH_TO_PRIVATE_KEY_FILE = '/path/to/private_key.pem'  # Replace with the path to your private key file
-# password = 'Runi123!'
-
-# # Create the SSH tunnel
-# tunnel = SSHTunnelForwarder(
-#     VM_PUBLIC_IP_OR_DNS,
-#     ssh_username=USERNAME,
-#     ssh_password=password,
-#     ssh_pkey=PATH_TO_PRIVATE_KEY_FILE,
-#     ssh_port=SSH_PORT,
-#     ssh_host_key=SSH_FINGERPRINT,
-#     remote_bind_address=('localhost', 22)
-# )
-
-# # Start the SSH tunnel
-# tunnel.start()
-
-# # At this point, the SSH tunnel is established and ready to use
-
-# # Do your operations over the SSH tunnel
-
-# # Remember to close the tunnel when you're done
-# tunnel.stop()
 """
 # TODO! remove features.7.4.block.3
 # TODO! add to training configuration in colab
@@ -110,11 +77,12 @@ tensorboard --logdir logdir_folder_path --port default
 tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_project\opencv-pytorch-dl-course-classification\expirement1" --port default
 """
 
-
-# csv_folder_path  = r'C:\MSC\mlds_project1\csv_results'
+# import pandas as pd 
+# import glob 
+# import os
+# csv_folder_path  = r'/home/mlds_user/Desktop/mlds_project1/expirements'
 # file_type_to_find =  os.path.join(csv_folder_path, '*.csv')
 # all_csv_path = glob.glob(file_type_to_find)
-
 # results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss']
 # result_collector = []
 # for i_path in  all_csv_path:
@@ -132,6 +100,11 @@ tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_proje
 #         result_collector.append(i_results)
 # simulation_summary = pd.DataFrame(result_collector, columns = results_columns)    
     
+# simulation_summary
+# substring = '_withperm'
+# filtered_df = simulation_summary[simulation_summary['sim_name'].str.contains(substring, case=False)]
+# substring = '_withoutperm'
+# filtered_df = simulation_summary[simulation_summary['sim_name'].str.contains(substring, case=False)]
 
 
 

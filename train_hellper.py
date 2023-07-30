@@ -618,7 +618,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             # clip gradient between -1 to 1 
             for param in model.parameters():
                 if param.grad is not None:
-                    param.grad.data.clamp_(-1, 1)
+                    param.grad.data.clamp_(-0.75, 0.75)
                     
             optimizer.step()
             # if hasattr(model, 'sigma'):
@@ -940,7 +940,6 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
         
         current_val = update_ephoch_result(max_opt, val_classification_loss, val_f1_score)
-
 
         random.shuffle(train_loader.dataset.perm_order_list)
         random.shuffle(train_loader.dataset.perm_order_list2)
