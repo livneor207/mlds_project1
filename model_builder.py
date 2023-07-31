@@ -233,7 +233,7 @@ def generate_student(teacher, training_configuration, image_dim,
                      amount_of_class, model_name = 'efficientnet',
                      amount_of_patch = 1, freeze_all = False,
                      weights = 'IMAGENET1K_V1', unfreeze = True,
-                     copy_weights = True):
+                     copy_weights = True, update_student = True):
     
     amount_of_patch = training_configuration.amount_of_patch
     
@@ -271,12 +271,12 @@ def generate_student(teacher, training_configuration, image_dim,
         # new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-3])
         # setattr(student.backbone, last_layer_name, new_projection_layer)
         
-        
-        old_beta = teacher.student_ema_updater.beta 
-        teacher.student_ema_updater.beta = 1- old_beta
-        update_moving_average(teacher.student_ema_updater, student, teacher)
-        freeze_all_layers(student)
-        teacher.student_ema_updater.beta = old_beta 
+        if update_student:
+            old_beta = teacher.student_ema_updater.beta 
+            teacher.student_ema_updater.beta = 1- old_beta
+            update_moving_average(teacher.student_ema_updater, student, teacher)
+            freeze_all_layers(student)
+            teacher.student_ema_updater.beta = old_beta 
 
  
                 

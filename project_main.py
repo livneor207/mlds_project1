@@ -131,7 +131,7 @@ task_name  = 'OxfordIIITPet'
 !todo 
 max_allowed_permutation change
 """
-training_configuration.add_argument('--task_name', type=str, default = 'OxfordIIITPet', help='Specify an task to work on')
+training_configuration.add_argument('--task_name', type=str, default = 'CIFAR10', help='Specify an task to work on')
 training_configuration.add_argument('--moving_average_decay', type=float, default = 0.996, help='Specify an factor of how to update target model, shold be greater the 0.9')
 training_configuration.add_argument('--max_allowed_permutation', type=int, default = 75, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
 training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
@@ -161,6 +161,8 @@ training_configuration.add_argument('--sup_withperm', type=int, default=1, help=
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--copy_weights', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--update_student', type=int, default=1, help='Specify classification loss name')
+
 training_configuration.add_argument('--load_ssl', type=int, default=0, help='Specify classification loss name')
 
 
@@ -181,13 +183,13 @@ train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
 debug=  False
 if debug: 
-    train_split = 0.1
-    val_split = 0.02
-    training_configuration.batch_size = 128
-    training_configuration.epochs_count = 100
+    train_split = 0.05
+    val_split = 0.01
+    training_configuration.batch_size = 32
+    training_configuration.epochs_count = 32
     
     training_configuration.ssl_training = 1
-    training_configuration.sup_ssl_withperm = 0
+    training_configuration.sup_ssl_withperm = 1
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 0
@@ -210,6 +212,8 @@ seed_everything(seed)
 # set path's
 current_folder = os.getcwd()
 data_folder = os.path.join(current_folder,  'expirements')
+if not os.path.exists(data_folder):
+    os.makedirs(data_folder)
 test_folder_path = os.path.join(data_folder,  'test1', 'test1')
 train_folder_path = os.path.join(data_folder,  'train', 'train')
 
@@ -243,6 +247,7 @@ unfreeze = training_configuration.unfreeze
 pin_memory = training_configuration.pin_memory
 copy_weights = training_configuration.copy_weights
 load_ssl = training_configuration.load_ssl
+update_student = training_configuration.update_student
 ######### start ssl leanring ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if training_configuration.ssl_training:
@@ -301,7 +306,8 @@ if training_configuration.ssl_training:
                                 model_name = 'resnet50',
                                 weights = None,
                                 unfreeze = unfreeze,
-                                copy_weights = copy_weights)
+                                copy_weights = copy_weights,
+                                update_student = update_student)
     
     
     model.to(device)
@@ -329,6 +335,15 @@ if training_configuration.ssl_training:
     # show example for data after transformations    
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
+
+    # im1 = image[0:3,0:3,:,:]
+    # im2 = image[0:3,3::,:,:]
+    # representation_pred_1, perm_pred_1, perm_label_pred_1 =  model(im1)
+    # representation_pred_2, perm_pred_2, perm_label_pred_2 = student(im2)
+    # representation_pred_2 = torch.flip(representation_pred_2, dims=[0])
+
+    
+    # ranking_criterion(representation_pred_1, representation_pred_2)
     
     train_results_df = main(model, student, optimizer, criterion,
                             ranking_criterion, accuracy_metric , perm_creterion,

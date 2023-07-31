@@ -694,11 +694,11 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
         message = 'accuracy {}, f1-score {}, classification loss {}'
     else:
         message = 'embeedding loss {}, postion embedding loss {}, total loss {}, classification permutation loss {}, permutation prediction accuracy {}'
-
+    all_idx = 0
     with tqdm(data_loader) as pbar:
         model.train()
         for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
-            batch_size = target.shape[0]
+            batch_size = data_loader.batch_size
 
             if idx >1 and debug:
                 break
@@ -713,10 +713,15 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             del data, target, perm_order , target_name
             # gc.collect()
             if not student is  None:
+                epoch_optimization_steps = data_loader.dataset.__len__()//batch_size+1
+                current_steps = (epoch*epoch_optimization_steps+idx)
+                # if current_steps%50==0:
+                #     model.student_ema_updater.beta = 0
+                #     update_moving_average(model.student_ema_updater, student, model)
+
+                
                 beta = model.student_ema_updater.initial_beta
-                epoch_optimization_steps = data_loader.dataset.__len__()//batch_size
                 total_amount_of_steps =  epoch_optimization_steps*num_epochs
-                current_steps = (epoch*batch_size+idx)
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
                 update_moving_average(model.student_ema_updater, student, model)
