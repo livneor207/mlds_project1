@@ -6,26 +6,98 @@ import numpy as np
 import copy
 
 
+# for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.named_parameters(), student_model.named_parameters())):
+#         # print(idx)
+#         # if idx == 650:
+#         #     a=5
+#         # print(teacher_params[0])
+#         # print(teacher_params[1].shape)
+
+#         # print(student_params[0])
+#         # print(student_params[1].shape)
+
+#         # get current weights
+#         old_weight, up_weight = student_params[1].data, teacher_params[1].data
+        
+#         student_params[1].data = 0.99*student_params[1].data+0.01*teacher_params[1].data
+
         
         
 def update_moving_average(ema_updater, student_model, teacher_model):
     # max_update_size = list(student_model.parameters()).__len__()-1
-    for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.named_parameters(), student_model.named_parameters())):
+    for idx, (teacher_params, teacher_module, student_params, student_module) in enumerate(zip(teacher_model.named_parameters(), teacher_model.modules() , student_model.named_parameters(), student_model.modules())):
+            # print(teacher_params)
+            # print(student_params)
+            
+            
             # print(idx)
             # if idx == 650:
             #     a=5
-            # print(teacher_params[0])
-            # print(teacher_params[1].shape)
+            teacher_parameter_name = teacher_params[0]
+            student_parameter_name = student_params[0]
+            
+            old_weight, up_weight = student_params[1], teacher_params[1]
 
-            # print(student_params[0])
-            # print(student_params[1].shape)
 
-            # get current weights
-            old_weight, up_weight = student_params[1].data, teacher_params[1].data
+
+            # print(teacher_parameter_name)
+            # print(student_parameter_name)
+            if student_parameter_name == 'backbone.layer4.2.conv3.weight':
+                a=5 
+            # print(teacher_parameter_name)
+            # print(student_parameter_name)
+            # student_parameter_name
+            if isinstance(student_module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                teacher_mean =  teacher_module.running_mean
+                teacher_var =   teacher_module.running_var
+                
+                student_mean =  student_module.running_mean
+                student_var =  student_module.running_var
+                
+                
+                
+                if up_weight.requires_grad :
+                    student_module.running_mean.data = ema_updater.update_average(student_mean.data, teacher_mean.data)
+                    student_module.running_var.data = ema_updater.update_average(student_var.data, teacher_var.data)
+                else:
+                    student_module.running_mean.data = teacher_mean.data
+                    student_module.running_var.data = teacher_var.data
+                    
+                
+                # student_params[1].data = up_weight
+                # continue
+
+               
             
             # update student weights
-            student_params[1].data = ema_updater.update_average(old_weight, up_weight)
+            if up_weight.requires_grad:
+                student_params[1].data = ema_updater.update_average(old_weight.data, up_weight.data)
+            else:
+                student_params[1].data = up_weight.data
+ 
+                
+                
+            
+            
             # print(student_params[1].requires_grad)
+            
+    # for idx, (online_module, target_module) in enumerate(zip(teacher_model.modules(), student_model.modules())):
+    #     print(online_module)
+    #     print(target_module)
+    #     print(idx)
+    #     if idx == 169:
+    #         break
+    #     if isinstance(online_module, (nn.BatchNorm2d, nn.BatchNorm1d)) and isinstance(target_module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+    #         print(online_module)
+    #         online_mean =  online_module.running_mean.data
+    #         online_var =  online_module.running_var.data
+            
+    #         target_mean =  target_module.running_mean.data
+    #         target_var =  target_module.running_var.data
+            
+    #         target_module.running_mean.data = ema_updater.update_average(target_mean, online_mean)
+    #         target_module.running_var.data = ema_updater.update_average(target_var, online_var)
+
         
 def model_sellection(model_bank, model_name = 'efficientnet_v2_m', weights = 'IMAGENET1K_V1' ):
     """
@@ -62,6 +134,17 @@ def print_grad(model):
              max_grad = torch.max(torch.abs(param[1].grad))
              print(param[0] + ' grad -- '+str(max_grad.item()))
 
+def collect_grads(model):
+    grad_list = []
+    for idx, param in enumerate(model.named_parameters()):
+         if not param[1].grad is None and param[0] not in ['sigma']:
+             max_grad = torch.max(torch.abs(param[1].grad))
+             grad_list.append(max_grad.item())
+             
+    percentile_95 = np.percentile(grad_list, 95)
+    max_norm = percentile_95 * 1.25
+    return max_norm
+
 def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
         
     """
@@ -73,13 +156,15 @@ def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
         last_layer = 'features.8'
     elif model_name == 'efficientnet_v2_s':
         last_layer = 'features.7'
+    
+    for idx, (param, param_module) in enumerate(zip(model.named_parameters(), model.modules())):
 
-    for param in model.named_parameters():
+    # for param in model.named_parameters():
          debug= False
          if debug:
              print(param[0])
          # TODO! remove features.7.4.block.3
-         if (param[0].find('features.8') !=-1 or param[0].find('bn') !=-1) :
+         if (param[0].find('features.8') !=-1 or isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))) :
 
          # if (param[0].find('features.8') !=-1   or param[0].find('features.7.4.block.3') !=-1  or param[0].find('bn') !=-1) :
             param[1].requires_grad = True
@@ -102,15 +187,19 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
         last_layer_name2 = 'layer2.1'
         
         
-    for param in model.named_parameters():
+    for idx, (param, param_module) in enumerate(zip(model.named_parameters(), model.modules())):
          debug= False
          if debug:
              print(param[0])
          # if param[0].find(last_layer_name) !=-1 :
 
-         if (param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1):
-         # if param[0].find('layer4') !=-1 :
+         # if (param[0].find('layer4') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
+         # if (param[0].find('layer4') !=-1 or param[0].find('layer3') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
+         # if (param[0].find('layer4.2') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
+         if param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1:
+             # if param[0].find('layer4') !=-1 :
             param[1].requires_grad = True
+            # print(param[0])
          else:
             param[1].requires_grad = False
       
@@ -211,12 +300,12 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
     HEAD = torch.nn.Sequential(
                                 nn.Dropout(p=0.3),
                                 nn.Linear(flatten_size, hidden_size),
-                                nn.ReLU(),
+                                nn.ReLU(inplace = True),
                                 nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size, hidden_size//4),
-                                nn.ReLU(),
+                                nn.Linear(hidden_size, int(hidden_size*0.75)),
+                                nn.ReLU(inplace = True),
                                 nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size//4,num_classes)
+                                nn.Linear(hidden_size,num_classes)
                                 )
 
     if model_name.find('resnet') != -1:
@@ -251,13 +340,13 @@ def generate_student(teacher, training_configuration, image_dim,
         
         
         last_layer_name = get_model_layers_names(student.backbone)[-1]
-        projection_layer = getattr(student.backbone, last_layer_name)
+        projection_layer = getattr(student, 'REPRESENTATION_HEAD')
         project_layer_list = get_model_layers_names(projection_layer)
         amount_of_layers = project_layer_list.__len__()
 
-        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-4])
-        setattr(student.backbone, last_layer_name, new_projection_layer)
-        
+        new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-6])
+        setattr(student, 'REPRESENTATION_HEAD', new_projection_layer)
+        student.eval()
         student.student = True
         
         # last_layer_name = get_model_layers_names(student.backbone)[-1]
@@ -270,13 +359,19 @@ def generate_student(teacher, training_configuration, image_dim,
 
         # new_projection_layer = nn.Sequential(*list(projection_layer.children())[0:amount_of_layers-3])
         # setattr(student.backbone, last_layer_name, new_projection_layer)
-        
+        old_beta = teacher.student_ema_updater.beta 
         if update_student:
-            old_beta = teacher.student_ema_updater.beta 
-            teacher.student_ema_updater.beta = 1- old_beta
-            update_moving_average(teacher.student_ema_updater, student, teacher)
-            freeze_all_layers(student)
-            teacher.student_ema_updater.beta = old_beta 
+            # teacher.student_ema_updater.beta = 1 - old_beta/2 # update
+            teacher.student_ema_updater.beta = 0
+
+        else:
+            teacher.student_ema_updater.beta = 1 # not update
+        
+        update_moving_average(teacher.student_ema_updater, student.backbone, teacher.backbone)
+        update_moving_average(teacher.student_ema_updater, student.REPRESENTATION_HEAD, teacher.REPRESENTATION_HEAD)
+        update_moving_average(teacher.student_ema_updater, student.PERM_HEAD, teacher.PERM_HEAD)
+        update_moving_average(teacher.student_ema_updater, student.PERM_LABEL_HEAD, teacher.PERM_LABEL_HEAD)
+        teacher.student_ema_updater.beta = old_beta 
 
  
                 
@@ -289,11 +384,15 @@ def generate_student(teacher, training_configuration, image_dim,
 
 def update_representation_head(backbone, image_dim, num_classes, \
                                model_name = 'efficientnet', \
-                               amount_of_patch = 25, hidden_size=512,max_allowed_permutation = 1000):
+                               amount_of_patch = 25, hidden_size=512, max_allowed_permutation=1000):
     # get shape after backbone 
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
-    
+    if backbone.model_layer == 7:
+        flatten_size2 = flatten_size
+
+    else:
+        flatten_size2 = flatten_size//2
     # set regression head
     hidden_size = int(hidden_size)
     hidden2 = 2056
@@ -336,60 +435,110 @@ def update_representation_head(backbone, image_dim, num_classes, \
                                 
     p = 0.2
     REPRESENTATION_HEAD = torch.nn.Sequential(  
-                                                nn.Flatten(),
-                                                nn.Dropout(p=0),
+                                                # nn.Flatten(),
+                                                # MLP1 Projection
+                                                nn.BatchNorm1d(flatten_size),
+                                                # nn.ReLU(inplace = True),
+                                                # nn.Dropout(p=0),
                                                 nn.Linear(flatten_size, hidden2),
                                                 nn.BatchNorm1d(hidden2),
-                                                nn.ReLU(),
+                                                nn.ReLU(inplace = True),
                                                 nn.Dropout(p=0),
                                                 nn.Linear(hidden2, hidden_size),
+                                                
+                                                # MLP2 Prediction
                                                 nn.BatchNorm1d(hidden_size),
-                                                nn.ReLU(),
-                                                nn.Dropout(p=0),            
+                                                # nn.ReLU(inplace = True),
+                                                # nn.Dropout(p=0),
+                                                nn.Linear(hidden_size, hidden_size),
+                                                nn.BatchNorm1d(hidden_size),
+                                                nn.ReLU(inplace = True),
+                                                nn.Dropout(p=0),
                                                 nn.Linear(hidden_size, hidden_size)
                                                 )
     grid_size = int(amount_of_patch**0.5)
-    prem_hidden = flatten_size
+    prem_hidden = flatten_size2
     
     
     prem_hidden2 = int(prem_hidden*0.75)
 
     
+    
+    
+    # PERM_HEAD = torch.nn.Sequential(
+    #                                 nn.AdaptiveAvgPool2d((1, 1)),
+    #                                 nn.Flatten(),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden, prem_hidden//2),
+    #                                 nn.BatchNorm1d(prem_hidden//2),
+    #                                 nn.ReLU(inplace = True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden//2, prem_hidden//4),
+    #                                 nn.BatchNorm1d(prem_hidden//4),
+    #                                 nn.ReLU(inplace = True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(prem_hidden//4,amount_of_patch))
+    
+    
+    PERM_HEAD = torch.nn.Sequential( # MLP3 -  postion embeedding predictions
+                                    
+                                    nn.BatchNorm1d(hidden_size),
+                                    # nn.ReLU(inplace = True),
+                                    # nn.Dropout(p=0),
+                                    nn.Linear(hidden_size, hidden_size),
+                                    # nn.Linear(flatten_size, hidden_size),
+                                    nn.BatchNorm1d(hidden_size),
+                                    nn.ReLU(inplace = True),
+                                    nn.Dropout(p=0),
+                                    nn.Linear(hidden_size, amount_of_patch))
+    
+    
     # prem_hidden = 512
-    PERM_HEAD = torch.nn.Sequential(
-                                    nn.AdaptiveAvgPool2d((1, 1)),
-                                    nn.Flatten(),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden, prem_hidden//2),
-                                    nn.BatchNorm1d(prem_hidden//2),
-                                    nn.ReLU(),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden//2, prem_hidden//4),
-                                    nn.BatchNorm1d(prem_hidden//4),
-                                    nn.ReLU(),
-                                    nn.Dropout(p=0),
-                                    nn.Linear(prem_hidden//4,amount_of_patch))
+    # PERM_HEAD = torch.nn.Sequential( # MLP3 -  postion embeedding predictions
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(hidden_size, hidden_size),
+    #                                 nn.BatchNorm1d(hidden_size),
+    #                                 nn.ReLU(inplace = True),
+    #                                 nn.Dropout(p=0),
+    #                                 nn.Linear(hidden_size, amount_of_patch))
+                                    
+  
     
+    
+    # PERM_LABEL_HEAD = torch.nn.Sequential(
 
+    #                                 nn.AdaptiveAvgPool2d((1, 1)),
+    #                                 nn.Flatten(),
+    #                                 nn.Dropout(p=p),
+    #                                 nn.Linear(prem_hidden, prem_hidden//2),
+    #                                 nn.BatchNorm1d(prem_hidden//2),
+    #                                nn.ReLU(inplace = True),
+    #                                 nn.Dropout(p=p),
+    #                                 nn.Linear(prem_hidden//2, prem_hidden//4),
+    #                                 nn.BatchNorm1d(prem_hidden//4),
+    #                                 nn.ReLU(inplace = True),
+    #                                 nn.Dropout(p=p),
+    #                                 nn.Linear(prem_hidden//4,max_allowed_permutation))
+    # PERM_LABEL_HEAD = torch.nn.Sequential(# MLP3 -  postion embeedding predictions
+    #                                       nn.Dropout(p=0),
+    #                                       nn.Linear(hidden_size, hidden_size),
+    #                                       nn.BatchNorm1d(hidden_size),
+    #                                       nn.ReLU(inplace = True),
+    #                                       nn.Dropout(p=0),
+    #                                       nn.Linear(hidden_size, max_allowed_permutation))
     
-    
-    PERM_LABEL_HEAD = torch.nn.Sequential(
-
-                                    nn.AdaptiveAvgPool2d((1, 1)),
-                                    nn.Flatten(),
-                                    nn.Dropout(p=p),
-                                    nn.Linear(prem_hidden, prem_hidden//2),
-                                    nn.BatchNorm1d(prem_hidden//2),
-                                    nn.ReLU(),
-                                    nn.Dropout(p=p),
-                                    nn.Linear(prem_hidden//2, prem_hidden//4),
-                                    nn.BatchNorm1d(prem_hidden//4),
-                                    nn.ReLU(),
-                                    nn.Dropout(p=p),
-                                    nn.Linear(prem_hidden//4,max_allowed_permutation))
-    
-   
-    
+    PERM_LABEL_HEAD = torch.nn.Sequential(# MLP3 -  postion embeedding predictions
+                                          nn.BatchNorm1d(hidden_size),
+                                          # nn.ReLU(inplace = True),
+                                          # nn.Dropout(p=0),
+                                          nn.Linear(hidden_size, hidden_size),
+                                          # nn.Linear(flatten_size, hidden_size),
+                                          nn.BatchNorm1d(hidden_size),
+                                          nn.ReLU(inplace = True),
+                                          nn.Dropout(p=0),
+                                          nn.Linear(hidden_size, max_allowed_permutation))
+                                    
+                  
     if model_name.find('resnet') != -1:
         # set classification head 
         backbone.fc = BODY
@@ -464,6 +613,7 @@ class SSLMODEL(nn.Module):
         self.use_momentum = use_momentum
         self.target_encoder = None
         self.student_ema_updater = EMA(moving_average_decay)
+        self.worm_up = -1
         
 
     def forward(self, images):
@@ -474,6 +624,8 @@ class SSLMODEL(nn.Module):
     
     
 def forward_using_loop(model, data):
+    model_sub_layer = model.model_sub_layer
+    model_layer = model.model_layer
     layer_input = data
     for layer_idx , layer  in enumerate(model.backbone.children()):
         model_layers_names = get_model_layers_names(layer)
@@ -482,21 +634,24 @@ def forward_using_loop(model, data):
         # print(layer_idx)
         if layer_idx == 7:
             a=5
-        if len(model_layers_names) == 0:
+        amount_of_unit_of_layer =  len(model_layers_names)
+        if amount_of_unit_of_layer < 1:
                 layer_output  = layer(layer_input)
                 # del layer, layer_input
-                if layer_idx == 7 :
+                if layer_idx == model_layer :
                     gemotric_output = layer_output
                 layer_input = layer_output
         else:
     
             for sub_layer_idx , sub_layer  in enumerate(layer.children()):
-    
+                # print(sub_layer_idx)
                 layer_output  = sub_layer(layer_input)
                 # del sub_layer, layer_input
-                if layer_idx == 7 and sub_layer_idx == 0:
+                if layer_idx == model_layer and sub_layer_idx == model_sub_layer:
                     gemotric_output = layer_output
                 layer_input = layer_output
+    if len(gemotric_output.shape) - len(layer_output.shape) == 2:
+        gemotric_output = model.avg_2d_pool(gemotric_output)
     return layer_output, gemotric_output
 
 
@@ -519,6 +674,14 @@ class CNN(nn.Module):
         moving_average_decay=training_configuration.moving_average_decay
         use_auto_weight = training_configuration.use_auto_weight
         device = training_configuration.device
+        model_layer = training_configuration.model_layer
+        model_sub_layer = training_configuration.model_sub_layer
+        pe_dim = training_configuration.pe_dim
+        worm_up = training_configuration.worm_up
+        
+        
+        if learning_type != 'self_supervised':
+            worm_up = -1
 
         model_bank = ['resnet18','resnet34', 'resnet50', 'resnet152',
                       'efficientnet_v2_m', 'efficientnet_v2_s', 'efficientnet_v2_l']
@@ -528,7 +691,9 @@ class CNN(nn.Module):
                                     model_name=model_name,
                                     weights=weights)
         
-       
+        backbone.model_layer = model_layer
+        backbone.model_sub_layer = model_sub_layer
+
         # dummy_array =  torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))
         
         # freeze all except batch norm layer 
@@ -556,14 +721,23 @@ class CNN(nn.Module):
             update_classifier_head(backbone, image_dim, num_classes, model_name = model_name)
             PERM_HEAD = REPRESENTATION_HEAD = PERM_LABEL_HEAD = None
         else:
-            PERM_HEAD, REPRESENTATION_HEAD, PERM_LABEL_HEAD = update_representation_head(backbone, image_dim, num_classes,
-                                                                        model_name = model_name,
-                                                                        amount_of_patch = amount_of_patch,
-                                                                        hidden_size=hidden_size, max_allowed_permutation = max_allowed_permutation)
-            # PERM_HEAD, REPRESENTATION_HEAD = None, None
+            PERM_HEAD, REPRESENTATION_HEAD, PERM_LABEL_HEAD = update_representation_head(backbone, 
+                                                                                         image_dim, 
+                                                                                         num_classes,
+                                                                                         model_name = model_name,
+                                                                                         amount_of_patch = pe_dim,
+                                                                                         hidden_size=hidden_size, 
+                                                                                         max_allowed_permutation = max_allowed_permutation)
+        self.avg_2d_pool = torch.nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+                                               nn.Flatten())
+        # PERM_HEAD, REPRESENTATION_HEAD = None, None
         
         # for param in PERM_HEAD.named_parameters():
         #     print(param[1].requires_grad)
+        self.model_sub_layer = model_sub_layer
+        self.model_layer = model_layer
+        self.worm_up = worm_up
+        self.pe_dim = pe_dim
         self.device = device
         self.use_auto_weight = use_auto_weight
         self.sigma = nn.Parameter(torch.ones(3))
@@ -588,10 +762,9 @@ class CNN(nn.Module):
             classification_pred = self.backbone(images)
             return classification_pred
         else:
-            # projection_output = self.backbone(images)
+            projection_output = self.backbone(images)
             # geometric_output = self.backbone.features[0](images)
-            projection_output, geometric_output = forward_using_loop(self, images)
-            
+            #projection_output, geometric_output = forward_using_loop(self, images)
             
             # projection_output = self.backbone(images)
             # perm_pred = torch.rand(images.shape[0], 25, requires_grad=True)
@@ -599,25 +772,29 @@ class CNN(nn.Module):
             # perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
             # perm_pred = self.PERM_HEAD(geometric_output)
             # representation_pred = self.REPRESENTATION_HEAD(projection_output)
+            
+                
+            # perm_pred = self.PERM_HEAD(projection_output)
+            representation_pred = self.REPRESENTATION_HEAD(projection_output)
+            
+            
             balance_factor = self.balance_factor
             balance_factor2 = self.balance_factor2
             if not self.student or balance_factor !=0:
-                perm_pred = self.PERM_HEAD(geometric_output)
+                # perm_pred = self.PERM_HEAD(geometric_output)
+                perm_pred = self.PERM_HEAD(representation_pred)
+
             else:
                 perm_pred = None
                 
             if not self.student or balance_factor2 !=0:
-                perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+                # perm_label_pred = self.PERM_LABEL_HEAD(geometric_output)
+                perm_label_pred = self.PERM_LABEL_HEAD(representation_pred)
+
             else:
                 perm_label_pred = None
                 
-            # perm_pred = self.PERM_HEAD(projection_output)
-            representation_pred = self.REPRESENTATION_HEAD(projection_output)
-            # del projection_output
-            del projection_output, geometric_output
-# 
-            # representation_pred = self.backbone(images)
-            # return representation_pred, perm_pred
+            del projection_output
             return representation_pred, perm_pred, perm_label_pred
 
     

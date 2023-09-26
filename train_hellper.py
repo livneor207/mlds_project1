@@ -12,9 +12,12 @@ from focal_loss.focal_loss import FocalLoss
 from lion_pytorch import Lion
 import torch.nn as nn
 import pandas as pd 
+from flash.core.optimizers import LARS
 from torch import linalg as LA
 from model_builder import *
 from data_set_loader import *
+from torch.optim.lr_scheduler import LambdaLR
+from functools import partial
 
 # def update_moving_average(ema_updater, student_model, teacher_model):
 #     max_update_size = list(student_model.parameters()).__len__()-1
@@ -311,9 +314,10 @@ def set_classifcation_loss(training_configuration, alpha = None):
     return criterion
 
 def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = 'LambdaLR'):
-    
+    worm_up = training_configuration.worm_up
+    learning_rate = training_configuration.learning_rate
 
-    scheduler_bank = ['LambdaLR', 'OneCycleLR','ReduceLROnPlateau', 'None']
+    scheduler_bank = ['LambdaLR', 'OneCycleLR','ReduceLROnPlateau', 'None', 'worm_up']
     if not scheduler_name in scheduler_bank:
         assert False, 'scheduler not defined'
     if scheduler_name == 'LambdaLR':
@@ -327,6 +331,8 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
         max_lr = training_configuration.max_lr
         steps_per_epoch = len(data_loader)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=max_lr, steps_per_epoch=steps_per_epoch, epochs=epochs_count)
+        # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, steps_per_epoch=len(data_loader_train), epochs=args.epochs, pct_start=0.2)
+
     elif scheduler_name == 'ReduceLROnPlateau':
         factor = 0.5  # reduce by factor 0.5
         patience = 3  # epochs
@@ -335,18 +341,39 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
         scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=factor, patience=patience, verbose=verbose, threshold=threshold)
     elif scheduler_name == 'None':
         scheduler = None
+    elif scheduler_name == 'worm_up' :  
+        # def lr_lambda(epoch, end_lr, worn_up_long):
+        #     if epoch < worn_up_long:
+        #         return end_lr + (end_lr/2 - end_lr) * epoch / worn_up_long
+        #     return end_lr
+        # # Partially apply lr_lambda with fixed parameters
+        # custom_lr_lambda = partial(lr_lambda, end_lr=learning_rate, warm_up_epochs=worm_up)
+        
+        # # Define a lambda scheduler with your custom learning rate function
+        # scheduler = LambdaLR(optimizer, lr_lambda=custom_lr_lambda)
+        scheduler = None
+        # scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: lr_lambda(epoch, learning_rate, worm_up))
+
     return scheduler
 
 
 def set_optimizer(model, training_configuration, data_loader, amount_of_class = 13, alpha = None):
     loss_name = training_configuration.loss_functions_name 
-    learning_rate = training_configuration.learning_rate
-    device = training_configuration.device
-    optimizer_name = training_configuration.optimizer_name
-    scheduler_name = training_configuration.scheduler_name
-    weight_decay = training_configuration.weight_decay
     
-    optimizer_bank = ['adam', 'lion', 'AdamW']
+    if model.learning_type == 'self_supervised':
+        learning_rate = training_configuration.learning_rate_ssl
+        optimizer_name = training_configuration.optimizer_name_ssl
+        weight_decay = training_configuration.weight_decay_ssl
+
+    else:
+        learning_rate = training_configuration.learning_rate
+        optimizer_name = training_configuration.optimizer_name
+        weight_decay = training_configuration.weight_decay
+
+    device = training_configuration.device
+    scheduler_name = training_configuration.scheduler_name
+    
+    optimizer_bank = ['adam', 'lion', 'AdamW', 'Lars']
     if not optimizer_name in optimizer_bank:
        assert False, 'needed to add optimizer'
     # optimizer settings 
@@ -356,11 +383,20 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     elif optimizer_name == 'lion':
       optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'AdamW':
+        # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay, betas=(0.9, 0.99), eps=1e-06)
         optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
+    elif optimizer_name == 'Lars':
+        optimizer = LARS(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay= weight_decay)
+
+
     # Scheduler
     scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = scheduler_name)
     
-    return optimizer, scheduler
+    worm_up_scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = 'worm_up')
+
+    
+    
+    return optimizer, scheduler, worm_up_scheduler
 
 def set_metric(training_configuration, amount_of_class = 13, metric_name = 'accuracy'):
     loss_name = training_configuration.loss_functions_name 
@@ -394,8 +430,6 @@ def prepare_for_rank_cretertion(target, pred):
     target_normelized = convert_2_float_and_require_grad(target_normelized)
     pred_normelized = convert_2_float_and_require_grad(pred_normelized)
     target = (target_argsort-pred_argsort).sign()
-    # yy2 =target.detach().numpy()
-    # print(f"number of zeros: {yy2.size - np.count_nonzero(yy2)}")
 
     return target, target_normelized, pred_normelized
 
@@ -447,9 +481,6 @@ def step(model, student, data, labels, criterion, ranking_criterion,
                 print_grad(model)
             optimizer.step()
         del classification_pred, data, labels_target
-        # classification_pred = classification_pred.detach()
-        # data = data.detach()
-        # labels_target = labels_target.detach()
 
     else:
         learning_type = 'self_supervised'
@@ -505,16 +536,20 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         torch.cuda.empty_cache()
 
         # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
-        balance_factor = model.balance_factor
-        balance_factor2 = model.balance_factor2
+        is_worm_up = model.epoch > model.worm_up-1
+        if is_worm_up or 1:
+            balance_factor = model.balance_factor
+            balance_factor2 = model.balance_factor2
+        else:
+            balance_factor = balance_factor2 = 0
         device = model.device
         if balance_factor != 0:
             ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
-            # ranking_loss_2_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_2_2)
             ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
             
+            # rank_loss = ranking_loss_1_1 
             rank_loss = ranking_loss_1_1 + ranking_loss_1_2
-
+# 
 
         else:
             rank_loss = torch.Tensor([0])
@@ -526,7 +561,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             perm_classification_loss2 = perm_creterion(m(perm_label_pred_1_2), target_prem_label2.argmax(1))
         
         
+            # perm_classification_loss =  perm_classification_loss1
             perm_classification_loss = perm_classification_loss2 + perm_classification_loss1
+
             _, perm_label_pred_1_1 = torch.max(perm_label_pred_1_1.data, 1) # for getting predictions class
             _, perm_label_pred_1_2 = torch.max(perm_label_pred_1_2.data, 1) # for getting predictions class
             _, target_prem_label = torch.max(target_prem_label.data, 1) # for getting predictions class
@@ -537,25 +574,20 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             f1_perm_label_score2 = (perm_label_pred_1_2 == target_prem_label2).sum().item()/target_prem_label.shape[0] # get accuracy val
 
             f1_perm_label_score = (f1_perm_label_score1 + f1_perm_label_score2)/2
-        
-            del perm_label_pred_1_1, perm_label_pred_1_2, target_prem_label,target_prem_label2
-            del target_prem2, target_prem1, perm_pred_1_2,perm_pred_1_1
+            # f1_perm_label_score = f1_perm_label_score1 
 
-            # perm_label_pred_1_1 = perm_label_pred_1_1.detach()
-            # perm_label_pred_1_2 = perm_label_pred_1_2.detach()
-            # target_prem_label = target_prem_label.detach()
-            # target_prem_label2 = target_prem_label2.detach()
-            # target_prem2 = target_prem2.detach()
-            # target_prem1 = target_prem1.detach()
-            # perm_pred_1_2 = perm_pred_1_2.detach()
-            # perm_pred_1_1 = perm_pred_1_1.detach()
+            # del perm_label_pred_1_1, target_prem_label,target_prem_label2
+            del perm_label_pred_1_1, perm_label_pred_1_2, target_prem_label,target_prem_label2
+
+            del target_prem2, target_prem1, perm_pred_1_2,perm_pred_1_1
+            # del target_prem2, target_prem1,perm_pred_1_1
+
         else:
             f1_perm_label_score = 0
             perm_classification_loss = torch.Tensor([0])
             perm_classification_loss = perm_classification_loss.to(device)
+         
         
-        
-
         if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
         else:
@@ -581,18 +613,19 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         accuracy = criterion_loss.item()
         f1_score = rank_loss
         
+        if model.use_auto_weight :  
 
-        if model.use_auto_weight:  
-            # sigma_squered = torch.pow(model.sigma,2)
+        # if model.use_auto_weight and is_worm_up:  
+            sigma_squered = torch.pow(model.sigma,2)
             # sigma1 = sigma_squered[0]
             # sigma2 =  sigma_squered[1]
             # sigma3 =  sigma_squered[2]
             sigma1 = model.sigma[0]
             sigma2 =  model.sigma[1]
             sigma3 =  model.sigma[2]
-            criterion_loss = criterion_loss/(sigma1*2) 
-            rank_loss = rank_loss/(sigma2*2)
-            perm_classification_loss = perm_classification_loss/(sigma3*2)
+            criterion_loss = criterion_loss/(sigma_squered[0]*2) 
+            rank_loss = rank_loss/(sigma_squered[1]*2)
+            perm_classification_loss = perm_classification_loss/(sigma_squered[2]*2)
             
             constarint_sigma1 = torch.log(1+sigma1)
             constarint_sigma1 = constarint_sigma1.to(device)
@@ -611,29 +644,26 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             
         if optimizer is not None:
             criterion_loss.backward()
-            debug_grad= False
+            debug_grad = False
             if debug_grad:
                 print_grad(model)
             
             # clip gradient between -1 to 1 
             for param in model.parameters():
                 if param.grad is not None:
-                    param.grad.data.clamp_(-0.75, 0.75)
+                    max_norm = 0.1
+                    max_norm2 = collect_grads(model)
+                    # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+                    param.grad.data.clamp_(-max_norm2, max_norm2)
+                    pass
                     
             optimizer.step()
-            # if hasattr(model, 'sigma'):
-            #     optimizer_sigma.step()
             model.sigma.data = torch.relu(model.sigma.data)
 
 
         _, predicted = None, None # for getting predictions class
         _, labels_target = None, None
         
-        # accuracy = 0
-        # representation_pred_1_2 = representation_pred_1_2.detach()
-        # representation_pred_2_1 = representation_pred_2_1.detach()
-        # representation_pred_1_1 = representation_pred_1_1.detach()
-        # representation_pred_2_2 = representation_pred_2_2.detach()
         del representation_pred_1_2, representation_pred_2_1
         del representation_pred_1_1, representation_pred_2_2
 
@@ -698,7 +728,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
     with tqdm(data_loader) as pbar:
         model.train()
         for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
-            batch_size = data_loader.batch_size
+            batch_size = target.shape[0]
 
             if idx >1 and debug:
                 break
@@ -713,18 +743,21 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             del data, target, perm_order , target_name
             # gc.collect()
             if not student is  None:
-                epoch_optimization_steps = data_loader.dataset.__len__()//batch_size+1
+                data_loader_batch_size = data_loader.batch_size
+
+                epoch_optimization_steps = data_loader.dataset.__len__()//data_loader_batch_size+1
                 current_steps = (epoch*epoch_optimization_steps+idx)
                 # if current_steps%50==0:
                 #     model.student_ema_updater.beta = 0
                 #     update_moving_average(model.student_ema_updater, student, model)
 
-                
+
                 beta = model.student_ema_updater.initial_beta
                 total_amount_of_steps =  epoch_optimization_steps*num_epochs
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
-                update_moving_average(model.student_ema_updater, student, model)
+                update_moving_average(model.student_ema_updater, student.backbone, model.backbone)
+                update_moving_average(model.student_ema_updater, student.REPRESENTATION_HEAD, model.REPRESENTATION_HEAD)
 
             
 
@@ -833,16 +866,15 @@ def save_training_summary_results(columns_list, model_path, results_list):
 
 
 
-
-
-
 def optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
                                  model_path, patience):
     
     if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
-        best_model_wts = copy.deepcopy(model.state_dict())
+        best_model_wts = model.state_dict()
         if model_path != '':
-            torch.save(best_model_wts, model_path)
+            # torch.save(best_model_wts, model_path)
+            torch.save(model, model_path)
+
         if current_val == best_model_score:
             patience -= 0.5
         else:
@@ -898,12 +930,22 @@ def update_ephoch_result(max_opt, val_classification_loss, val_f1_score):
         
 def main(model, student, optimizer, classification_criterion, ranking_criterion, accuracy_metric, perm_creterion,
              train_loader, val_loader, num_epochs, device, tb_writer = None, 
-         scheduler = None, model_path = '', max_opt = True):
+         scheduler = None, model_path = '', max_opt = True, scheduler_worm_up = None):
+    
+    def worm_lr_lambda(epoch, end_lr, worn_up_long):
+        factor = 0.1
+        if epoch < worn_up_long:
+            return end_lr*factor + (end_lr - end_lr*factor) * epoch / worn_up_long
+        return end_lr
+    
+    
     accuracy_train_list = []
     accuracy_validation_list = []
     loss_train_list = []
     loss_validation_list = []
     
+    initial_lr  = optimizer.param_groups[0]['lr']
+    # optimizer.param_groups[0]['lr'] = initial_lr*1e-1
     
     if hasattr(model, 'sigma'):
         optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-4)
@@ -922,12 +964,18 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     #     best_model_score = 1e5
     
     
+        
     max_patience, patience = set_early_stoping_parameters()
     best_model_wts = None
     # max_patience = 9
     # patience = 0
     for epoch in range(num_epochs):
+        
+        if epoch <= model.worm_up-1: 
+            optimizer.param_groups[0]['lr'] = worm_lr_lambda(epoch, initial_lr, model.worm_up)
+            
         # train
+        model.epoch = epoch
         train_accuracy, train_f1_score, train_classification_loss, \
         train_perm_classification_loss, train_f1_perm_score = \
             train(model, student, optimizer, optimizer_sigma, classification_criterion, 
@@ -956,7 +1004,9 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
         
         # update schedular
-        schedular_step(scheduler, val_classification_loss)
+        if epoch > model.worm_up-1: 
+            schedular_step(scheduler, val_classification_loss)
+
         
         
         # if not scheduler is None:
@@ -1013,10 +1063,11 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         # train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
         # csv_path =  change_file_ending(model_path, '.csv' )
         # train_results_df.to_csv(csv_path)
-        
-        best_model_wts, best_model_score, patience  = \
-             optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
-                                         model_path, patience)
+        if epoch > model.worm_up-1:
+            optimizer.param_groups[0]['lr'] = initial_lr
+            best_model_wts, best_model_score, patience  = \
+                 optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
+                                             model_path, patience)
              
         # if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
         #     best_model_wts = copy.deepcopy(model.state_dict())
@@ -1035,7 +1086,6 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
           #     print(f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
           # else:
           #     print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
-
           break
         
         if not tb_writer is None: 

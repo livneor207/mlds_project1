@@ -54,10 +54,14 @@ from model_builder import *
 import glob
 import argparse
 
-
+# rnn = nn.LSTM(5, 20, 2) # input size, hidden size, amount of LSTM units
+# input = torch.randn(7, 3, 5) # (batch size, amount of features, input history)
+# h0 = torch.randn(2, 3, 20) # (amount of LSTM layers,  amount of features, hidden size) 
+# # logical that hidden and cell mats will not contain history but summary of history using seq features
+# c0 = torch.randn(2, 3, 20) # (amount of LSTM layers,  amount of features, hidden size)
+# output, (hn, cn) = rnn(input, (h0, c0)) # (batch size,  amount of features, hidden size)
 
 plt.close('all')
-
 """
 server:~$ python -m spyder_kernels.console - matplotlib=’inline’    --ip=172.17.0.1 -f=./remotemachine.json
 python -m spyder_kernels.console --matplotlib='inline' --ip=172.17.0.1
@@ -111,15 +115,8 @@ tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_proje
 # Create an Argumenttraining_configuration object
 training_configuration = argparse.ArgumentParser(description='Simulation argument')
 # Add arguments to the parser
-training_configuration.add_argument('--ssl_model_name', type=str, default='ssl_model', help='Specify a sll model path')
-training_configuration.add_argument('--sup_ssl_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data with permutation')
-training_configuration.add_argument('--sup_ssl_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
-training_configuration.add_argument('--sup_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
-training_configuration.add_argument('--sup_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data without permutation')
 
-training_configuration.add_argument('--balance_factor', type=float, default = 1.0, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
-training_configuration.add_argument('--balance_factor2', type=float, default = 1.0, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
-training_configuration.add_argument('--batch_size', type=int, default = 256, help='Specify an batch size for training sould, ssl improve as batch size increases')
+
 """
 options
 task_name  = 'cat_dogs'
@@ -131,39 +128,79 @@ task_name  = 'OxfordIIITPet'
 !todo 
 max_allowed_permutation change
 """
+# path
 training_configuration.add_argument('--task_name', type=str, default = 'CIFAR10', help='Specify an task to work on')
+training_configuration.add_argument('--ssl_model_name', type=str, default='ssl_model', help='Specify a sll model path')
+training_configuration.add_argument('--sup_ssl_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data with permutation')
+training_configuration.add_argument('--sup_ssl_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
+training_configuration.add_argument('--sup_model_withoutperm_name', type=str, default='sup_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
+training_configuration.add_argument('--sup_model_withperm_name', type=str, default='sup_model_withperm', help='Specify model name for supervsied learning on data without permutation')
+
+# byol
 training_configuration.add_argument('--moving_average_decay', type=float, default = 0.996, help='Specify an factor of how to update target model, shold be greater the 0.9')
-training_configuration.add_argument('--max_allowed_permutation', type=int, default = 75, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
+
+# permutation
+training_configuration.add_argument('--max_allowed_permutation', type=int, default = 100, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
 training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
-training_configuration.add_argument('--weight_decay', type=float, default = 5e-2, help='Specify if to use weight decay regurelaization in optimizer')
 training_configuration.add_argument('--amount_of_patch', type=int, default = 4, help='Specify the grid size for permutation defenition')
-training_configuration.add_argument('--num_workers', type=int, default = 0, help='Specify the amount of worker for dataloader multiprocessing')
-training_configuration.add_argument('--max_opt', type=int, default = 0, help='Specify if optimization goal is maximization of minimuzation')
-training_configuration.add_argument('--optimizer_name', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
-training_configuration.add_argument('--epochs_count', type=int, default = 200, help='Specify the amount of apoch for optimization training')
-training_configuration.add_argument('--scheduler_name', type=str, default = 'ReduceLROnPlateau', help='Specify scheduler for optimization')
-training_configuration.add_argument('--learning_rate', type=float, default = 1e-4, help='Specify learning rate for optimization')
-training_configuration.add_argument('--learning_type', type=str, default = 'self_supervised', help='Specify optimization type between ssl to supervised learning')
-training_configuration.add_argument('--hidden_size', type=int, default = 512, help='Specify final projection size')
-training_configuration.add_argument('--loss_functions_name', type=str, default = 'ce', help='Specify final projection size')
 training_configuration.add_argument('--perm', type=str, default = 'perm', help='Specify use or not permutation augmentation')
-training_configuration.add_argument('--seed', type=int, default = 42, help='Specify random state')
+training_configuration.add_argument('--balance_factor', type=float, default = 1, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
+training_configuration.add_argument('--balance_factor2', type=float, default = 1, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
+
+# datapreperation
 training_configuration.add_argument('--val_split', type=float, default = 0.1, help='Specify validation size')
 training_configuration.add_argument('--image_dim', type=int, default = 128, help='Specify image size')
 training_configuration.add_argument('--train_split', type=float, default = 1, help='Specify amount of trainig data to be trained')
 training_configuration.add_argument('--rand_choise', type=int, default = 1, help='Specify use or not augmentation')
-training_configuration.add_argument('--classification_loss_name', type=str, default = 'ce', help='Specify classification loss name')
+training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
+
+# systems
+training_configuration.add_argument('--num_workers', type=int, default = 0, help='Specify the amount of worker for dataloader multiprocessing')
+training_configuration.add_argument('--seed', type=int, default = 42, help='Specify random state')
+training_configuration.add_argument('--googledrive', type=int, default=0, help='Specify classification loss name')
+
+# training
+training_configuration.add_argument('--batch_size', type=int, default = 256, help='Specify an batch size for training sould, ssl improve as batch size increases')
+training_configuration.add_argument('--max_opt', type=int, default = 0, help='Specify if optimization goal is maximization of minimuzation')
+training_configuration.add_argument('--epochs_count', type=int, default = 200, help='Specify the amount of apoch for optimization training')
+training_configuration.add_argument('--learning_type', type=str, default = 'self_supervised', help='Specify optimization type between ssl to supervised learning')
 training_configuration.add_argument('--ssl_training', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withoutperm', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withperm', type=int, default=1, help='Specify classification loss name')
+
+# loss
+training_configuration.add_argument('--loss_functions_name', type=str, default = 'ce', help='Specify final projection size')
+training_configuration.add_argument('--classification_loss_name', type=str, default = 'ce', help='Specify classification loss name')
+training_configuration.add_argument('--ranking_loss', type=str, default = 'CosineSimilarity', help='Specify classification loss name')
+training_configuration.add_argument('--representation_loss', type=str, default = 'CosineSimilarity', help='Specify classification loss name')
+
+# optimizer 
+training_configuration.add_argument('--optimizer_name', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
+training_configuration.add_argument('--weight_decay', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--learning_rate', type=float, default = 1e-4, help='Specify learning rate for optimization')
+training_configuration.add_argument('--scheduler_name', type=str, default = 'None', help='Specify scheduler for optimization')
+
+
+training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
+training_configuration.add_argument('--weight_decay_ssl', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--learning_rate_ssl', type=float, default = 1e-4, help='Specify learning rate for optimization')
+
+# training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'Lars', help='Specify optimizer name between adam and lion')
+# training_configuration.add_argument('--weight_decay_ssl', type=float, default = 0, help='Specify if to use weight decay regurelaization in optimizer')
+# training_configuration.add_argument('--learning_rate_ssl', type=float, default = 2e-1, help='Specify learning rate for optimization')
+
+# model
+training_configuration.add_argument('--hidden_size', type=int, default = 512, help='Specify final projection size')
 training_configuration.add_argument('--unfreeze', type=int, default=0, help='Specify classification loss name')
-training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--copy_weights', type=int, default=0, help='Specify classification loss name')
 training_configuration.add_argument('--update_student', type=int, default=1, help='Specify classification loss name')
-
 training_configuration.add_argument('--load_ssl', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--model_layer', type=int, default=7, help='Specify classification loss name')
+training_configuration.add_argument('--model_sub_layer', type=int, default=0, help='Specify classification loss name')
+training_configuration.add_argument('--pe_dim', type=int, default=512, help='Specify classification loss name')
+training_configuration.add_argument('--worm_up', type=int, default=-1, help='Specify classification loss name')
 
 
 
@@ -183,16 +220,16 @@ train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
 debug=  False
 if debug: 
-    train_split = 0.05
-    val_split = 0.01
+    train_split = 0.01
+    val_split = 0.001
     training_configuration.batch_size = 32
-    training_configuration.epochs_count = 32
+    training_configuration.epochs_count = 100
     
     training_configuration.ssl_training = 1
-    training_configuration.sup_ssl_withperm = 1
+    training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
-    training_configuration.sup_withperm = 0
+    training_configuration.sup_withperm = 1
     # training_configuration.unfreeze = 0
     
 
@@ -210,7 +247,12 @@ seed_everything(seed)
 	
 
 # set path's
-current_folder = os.getcwd()
+if not training_configuration.googledrive:
+    current_folder = os.getcwd()
+else:
+    current_folder = r'/content/gdrive/MyDrive/MLDS_project'
+    
+    
 data_folder = os.path.join(current_folder,  'expirements')
 if not os.path.exists(data_folder):
     os.makedirs(data_folder)
@@ -222,7 +264,7 @@ task_name  = training_configuration.task_name
 if task_name in ['CIFAR10', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
     test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False, current_folder = current_folder)
-elif task_name == 'OxfordIIITPet':
+elif task_name in ['OxfordIIITPet', 'FOOD101']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train='trainval', current_folder= current_folder)
     test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train='test', current_folder = current_folder)
 # parse train data
@@ -296,7 +338,12 @@ if training_configuration.ssl_training:
                   unfreeze = unfreeze)
     
     if load_ssl:
-        model.load_state_dict(torch.load(model_path))
+        # model.load_state_dict(torch.load(model_path))
+        # model = torch.load(model_path)
+        model = torch.load(model_path, map_location='cpu')
+        for name, param in model.named_parameters():
+            if param.device.type != 'cpu':
+                param.to('cpu')
 
         
     student = generate_student(model, 
@@ -317,7 +364,7 @@ if training_configuration.ssl_training:
         summary(student, (3,image_dim, image_dim))
     
     # set optimizer 
-    optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -327,14 +374,15 @@ if training_configuration.ssl_training:
     if training_configuration.learning_type == 'supervised':
         criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
     else:    
-        criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1)
+        criterion=  set_similiarities_loss(classification_loss_name = training_configuration.representation_loss, beta = 1)
     
-    ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+    ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
     # show example for data after transformations    
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
+    # torch.save(model, model_path)
 
     # im1 = image[0:3,0:3,:,:]
     # im2 = image[0:3,3::,:,:]
@@ -353,7 +401,7 @@ if training_configuration.ssl_training:
                             tb_writer=tb_writer, 
                             max_opt = training_configuration.max_opt, 
                             model_path = model_path, 
-                            scheduler = scheduler)
+                            scheduler = scheduler, scheduler_worm_up=scheduler_worm_up)
 
 
 
@@ -395,8 +443,15 @@ if training_configuration.sup_ssl_withperm:
     
     
     training_configuration.learning_type = 'supervised'
-    
-    model.load_state_dict(torch.load(model_load_path))
+    model = torch.load(model_load_path, map_location='cpu')
+    for name, param in model.named_parameters():
+        if param.device.type != 'cpu':
+            param.to('cpu')
+    # model = torch.load(model_load_path)
+    # model = model.to('cpu')
+    # model.load_state_dict(torch.load(model_load_path))
+    print('model sigma')
+    print(model.sigma)
     # model_path = os.path.join(data_folder,  'model2.pth')
     
     ssl_model =  SSLMODEL(model,
@@ -406,7 +461,7 @@ if training_configuration.sup_ssl_withperm:
                           model_name = 'resnet50')
     student= None
     ssl_model.learning_type = 'supervised'
-    ssl_model.to(device)
+    ssl_model = ssl_model.to(device)
     summary(ssl_model, (3,image_dim, image_dim))
     
     
@@ -435,7 +490,7 @@ if training_configuration.sup_ssl_withperm:
     print(f'Train length = {train_loader.dataset.data_df.shape[0]}, val length = {val_loader.dataset.data_df.shape[0]}, test length = {test_loader.dataset.data_df.shape[0]}')
     
     # set optimizer
-    optimizer, scheduler =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -445,8 +500,8 @@ if training_configuration.sup_ssl_withperm:
     if training_configuration.learning_type == 'supervised':
         criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
     else:
-        criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+        criterion=  set_similiarities_loss(classification_loss_name = training_configuration.representation_loss, beta = 1)
+    ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
     
@@ -520,7 +575,15 @@ if training_configuration.sup_ssl_withoutperm:
     
     student= None
     training_configuration.learning_type = 'supervised'
-    model.load_state_dict(torch.load(model_load_path))
+    # model.load_state_dict(torch.load(model_load_path))
+    # model = torch.load(model_load_path)
+    model = torch.load(model_load_path, map_location='cpu')
+    for name, param in model.named_parameters():
+        if param.device.type != 'cpu':
+            param.to('cpu')
+
+    print('model sigma')
+    print(model.sigma)
     
     ssl_model =  SSLMODEL(model,
                           num_classes=amount_of_class,
@@ -551,7 +614,7 @@ if training_configuration.sup_ssl_withoutperm:
     
     
     # set optimizer
-    optimizer, scheduler =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up =  set_optimizer(ssl_model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -561,8 +624,8 @@ if training_configuration.sup_ssl_withoutperm:
     if training_configuration.learning_type == 'supervised':
         criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
     else:
-        criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+        criterion=  set_similiarities_loss(classification_loss_name = training_configuration.representation_loss, beta = 1)
+    ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
     # show example for data after transformations
@@ -655,7 +718,7 @@ if training_configuration.sup_withoutperm:
     
     
     # set optimizer
-    optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -665,8 +728,8 @@ if training_configuration.sup_withoutperm:
     if training_configuration.learning_type == 'supervised':
         criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
     else:
-        criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+        criterion=  set_similiarities_loss(classification_loss_name = training_configuration.representation_loss, beta = 1)
+    ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
     # show example for data after transformations
@@ -680,7 +743,8 @@ if training_configuration.sup_withoutperm:
     train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
                             train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
                             tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
-                            model_path = model_path, scheduler = scheduler)
+                            model_path = model_path, scheduler = scheduler, 
+                            scheduler_worm_up= scheduler_worm_up)
 
 
 
@@ -763,7 +827,7 @@ if training_configuration.sup_withperm:
     
     
     # set optimizer
-    optimizer, scheduler =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -773,8 +837,8 @@ if training_configuration.sup_withperm:
     if training_configuration.learning_type == 'supervised':
         criterion =  set_classifcation_loss(training_configuration, alpha = alpha)
     else:
-        criterion=  set_similiarities_loss(classification_loss_name = 'CosineSimilarity')
-    ranking_criterion = set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta = 1)
+        criterion=  set_similiarities_loss(classification_loss_name = training_configuration.representation_loss, beta = 1)
+    ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
     # show example for data after transformations
@@ -788,7 +852,7 @@ if training_configuration.sup_withperm:
     train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
                             train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
                             tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
-                            model_path = model_path, scheduler = scheduler)
+                            model_path = model_path, scheduler = scheduler, scheduler_worm_up=scheduler_worm_up)
 
 
 

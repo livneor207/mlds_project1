@@ -83,7 +83,8 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
         # permutations = np.delete(permutations, current_permutation_index, axis=0)
         max_distance_permutations =  np.zeros((max_allowed_perm, amount_of_perm))
         max_distance_permutations[0,:] = single_perm
-    
+        perm_index_array  =  np.zeros((max_allowed_perm, 1))
+
         i = 1
         while i<max_allowed_perm:
             if i>max_allowed_perm :
@@ -98,20 +99,31 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
             current_permutation_index = random.choice(np.where(distances == np.max(distances))[0])
             
             single_perm = np.expand_dims(sample_permutations[current_permutation_index, :], axis = 0 )
-    
+            
+            t1 = time.time()
+            perm_index = calculate_permutation_position(sample_permutations[current_permutation_index, :])
+            t2 = time.time()-t1
             # permutations = np.delete(permutations, current_permutation_index, axis=0)
             row_exists = np.any(np.all(max_distance_permutations == single_perm, axis=1))
     
             if not row_exists:
                max_distance_permutations[i,:] = single_perm
+               perm_index_array[i,0] = perm_index
                i+=1
             else:
                a=5
     
         max_distance_permutations = max_distance_permutations[0:i, :]
+        perm_index_array = perm_index_array[0:i, :]
         sorted_indices = np.lexsort(max_distance_permutations.T[::-1])
         max_distance_permutations = np.int32(max_distance_permutations[sorted_indices])
-
+        
+    perm_index_list = []
+    for i_perm in max_distance_permutations:
+        perm_index = calculate_permutation_position(i_perm)
+        perm_index_list.append(perm_index)
+    
+    max_distance_permutations = zip(max_distance_permutations, perm_index_list)
     return max_distance_permutations
 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
@@ -167,6 +179,39 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
         data_df = pd.merge(data_df,class_name_df,  how = 'left', on = ['class_index'])
        
         data = data_set.data
+    
+    elif task_name == 'FOOD101':
+        
+        data_folder =  os.path.join(current_folder, 'food-101')
+
+
+        data_set = torchvision.datasets.Food101(current_folder, download= True)
+        
+        class_dict = data_set.class_to_idx
+        
+        # trainval
+        data_class_df =  pd.DataFrame(data_set.class_to_idx.items(), columns = ['class_name', 'class_index'])
+        
+        
+        folder_path  = os.path.join(data_folder, 'images')
+        
+        class_folder_list = os.listdir(folder_path)
+        
+        data_df = pd.DataFrame()
+        for i_folder in class_folder_list:
+            path_2_find = os.path.join(folder_path, i_folder, '*.jpg' )
+            images_path_list  = glob.glob(path_2_find)
+            class_idx = class_dict[i_folder]
+            
+            temp_class_df = pd.DataFrame(images_path_list, columns = ['image_path'])
+            temp_class_df['class_name'] = i_folder
+            temp_class_df['class_index'] = class_idx
+            
+            data_df  = pd.concat([data_df, temp_class_df])
+
+        data = None
+        data_df = data_df.sample(frac=1).reset_index(drop=True)
+        
     elif task_name == 'OxfordIIITPet':
         
         data_folder =  os.path.join(current_folder, 'Pets')
@@ -258,9 +303,11 @@ class MyDataset(Dataset):
                learning_type = 'supervised',
                data=None,
                all_permutation_option= None,
-               orig_pe = True):
-    
-    self.all_permutation_option = all_permutation_option.tolist()
+               orig_pe = True, pe_dim = 128):
+      
+   
+    self.pe_dim = pe_dim    
+    self.all_permutation_option = copy.deepcopy(all_permutation_option)
     self.taske_name = taske_name
     self.amount_of_patch = amount_of_patch
     self.means = means
@@ -271,6 +318,12 @@ class MyDataset(Dataset):
     self.train = train
     self.learning_type = learning_type
     self.orig_pe = orig_pe
+    self.max_sentence_lenth = max(10000, 10*math.factorial(amount_of_patch))
+    
+
+    
+    
+    # self.max_sentence_lenth = math.factorial(amount_of_patch)
     amount_of_sampels = data_df.shape[0]
     if index_list is None:
         index_list= np.arange(0, data_df.shape[0])
@@ -279,14 +332,20 @@ class MyDataset(Dataset):
 
     # r,z = np.unique(np.array(self.perm_order_list), return_counts= True, axis =0)
     # r,z2 = np.unique(np.array(self.perm_order_list2), return_counts= True, axis =0)
-    
-    amount_of_perm = len(self.all_permutation_option)
+    self.all_permutation_option = list(self.all_permutation_option).copy()
+    all_permutation_option_list, all_permutation_perm_index_list  = zip(*self.all_permutation_option)
+    all_permutation_option_list = np.array(all_permutation_option_list).tolist()
+    all_permutation_perm_index_list = np.array(all_permutation_perm_index_list).tolist()
+    self.all_permutation_perm_index_list = all_permutation_perm_index_list
+    self.all_permutation_option_list = all_permutation_option_list
+
+    amount_of_perm = len(all_permutation_option_list)
     frequency =  amount_of_sampels//amount_of_perm+1
     k = amount_of_perm * frequency
     weighted_list = [element for element in self.all_permutation_option for _ in range(frequency)]
     self.perm_order_list = random.sample(weighted_list, amount_of_sampels)
     self.perm_order_list2 = random.sample(weighted_list, amount_of_sampels)
-
+    a=5
     # self.perm_order_list = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
     # self.perm_order_list2 = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
     
@@ -303,6 +362,17 @@ class MyDataset(Dataset):
     else:
         self.transform = transform_test
     
+    self.transform_test = transform_test
+    self.color_transform = transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.4)], p=0.5)
+    self.tranform_totensor  = transforms.ToTensor()
+    self.transform_normelize = transforms.Normalize(means, stds)
+    
+    self.inverse_normalize = transforms.Compose([
+                                                    transforms.Normalize(mean=[-m/s for m, s in zip(means, stds)],
+                                                                         std=[1/s for s in stds])
+                                                ])
+    
+    
     self.data_name = data_name
     self.amount_of_class = class_df.shape[0]
     self.class_df =  class_df
@@ -316,12 +386,16 @@ class MyDataset(Dataset):
   
     
  
-  def getPositionEncoding(self, perm_order, d, n=10000):
+  def getPositionEncoding(self, perm_order, d, n=10000, perm_index = -1):
        # k = self.all_permutation_option.index(tuple(perm_order))
-       # k2 = calculate_permutation_position(tuple(perm_order))
-       k = self.all_permutation_option.index(perm_order)
-       k2 = k
-       amount_of_perm=  math.factorial(d)
+       perm_order = perm_order.tolist()
+       if perm_index == -1:
+           k2 = calculate_permutation_position(tuple(perm_order))
+       else:
+           k2 = perm_index
+       k = self.all_permutation_option_list.index(perm_order)
+       # k2 = k
+       # amount_of_perm=  math.factorial(d)
        perm_label =  np.zeros((1,self.all_permutation_option.__len__()))
 
        perm_label[0,k]  = 1
@@ -343,11 +417,12 @@ class MyDataset(Dataset):
   def permutatation_aug(self, image):
      
       transform_image =  self.transform(image)
-
+      # transform_image = image
       
 
       amount_of_patch = self.amount_of_patch
       dim_size = transform_image.shape[0]
+      
       
       amount_of_rows = int(amount_of_patch**0.5)
       is_devided =  dim_size%amount_of_rows != 0
@@ -360,12 +435,18 @@ class MyDataset(Dataset):
       # if self.train:
       #      perm_order  = random.choice(self.all_permutation_option)
       # else:
-      if self.image_idx == 1:
-            perm_order = self.perm_order_list[self.idx]
-      else:
-            perm_order = self.perm_order_list2[self.idx]
+      # random.shuffle(self.perm_order_list)
+      # random.shuffle(self.perm_order_list2)
 
-      
+
+      if self.image_idx == 1:
+            perm_order, perm_index = self.perm_order_list[self.idx]
+      else:
+            perm_order, perm_index = self.perm_order_list2[self.idx]
+            if np.array_equal(perm_order, self.perm_order_list[self.idx][0]):
+                perm_order, perm_index  = random.choice(self.perm_order_list2)
+
+      # transform_image = self.inverse_normalize(transform_image)
       new_image = torch.zeros_like(transform_image)
       row = 0
       col = 0
@@ -397,53 +478,83 @@ class MyDataset(Dataset):
           row_size, col_size = patch_image.shape[1::]
           # masked_patch = patch_image.copy()
           # masked_patch = patch_image.clone()
-
-          # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
-          padd_val = 0
           
+          # patch_image = self.color_transform(patch_image)
+          
+          # min_vals = image_tensor.min(dim=(2,3))[0]
+          # max_vals = image_tensor.max(dim=(2, 3))[0]
+          # t_norm = transforms.Normalize(self.means, self.stds)
+          # patch_image = t_norm(patch_image)
+          # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
+         
+          if index == 0:   
+              # padd_val = random.choice([transform_image.max().item(),transform_image.min().item(),0,2.65,-2.17])
+              # padd_val = random.choice([transform_image.max().item(),transform_image.min().item(),0.24, 2.65,-2.17])
+              padd_val = random.choice([0])
+              # padd_val = 2.67
+              new_image += padd_val
           if row ==0 :
              patch_image[:,0:border_size*2,:]  = padd_val
           else:
-              patch_image[:,0:border_size,:]  = padd_val
+              patch_image[:,0:border_size*2,:]  = padd_val
               
           if col == 0:
              # cols
-             patch_image[:,:,0:border_size*2]  = padd_val
+             patch_image[:,:,0:border_size]  = padd_val
           else:
-              patch_image[:,:,0:border_size]  = padd_val
+              patch_image[:,:,0:border_size]  =padd_val
           
           if  col == amount_of_rows-1 and is_devided:  
-              patch_image[:,:,col_size-border_size*2::]  =  padd_val
+              patch_image[:,:,col_size-border_size::]  =  padd_val
           else:
               patch_image[:,:,col_size-border_size::]  =  padd_val
               
           if  row == amount_of_rows-1 and is_devided:  
               patch_image[:,row_size-border_size*2::,:]  = padd_val
           else:
-              patch_image[:,row_size-border_size::,:]  = padd_val
+              patch_image[:,row_size-border_size*2::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
-          
           
           # new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = patch_image
 
-     
-      perm_order, perm_label = self.getPositionEncoding(perm_order, amount_of_patch, n=10000)
+      perm_order, perm_label = self.getPositionEncoding(perm_order, self.pe_dim, n=self.max_sentence_lenth, perm_index = perm_index)
+      # new_image = self.pill_transform(new_image)
+      # new_image = self.tranform_totensor(new_image)
+      # new_image = self.transform_normelize(new_image)
       
       return new_image, perm_order, perm_label
   
   def get_permutation_image(self, image):
-      if self.taske_name == 'perm':
+      #
+      if self.taske_name == 'perm' :
           start1 = time.time()
-          new_image, perm_order, perm_label = self.permutatation_aug(image)
+          if self.image_idx == 1 or 1:
+              new_image, perm_order, perm_label = self.permutatation_aug(image)
+          else:
+              transform_image =  self.transform(image)
+              # transform_image = self.inverse_normalize(transform_image)
+              # transform_image = self.color_transform(transform_image)
+              # transform_image = self.pill_transform(transform_image)
+              # transform_image = self.tranform_totensor(transform_image)
+              # transform_image = self.transform_normelize(transform_image)
+              # transform_image =  image
+              perm_order = torch.empty((1,self.pe_dim))
+              new_image = transform_image
+              perm_label = np.zeros((1,len(self.all_permutation_option_list)))
+              
           count_time = time.time()-start1
           # print(count_time)
           a=5 
       else:
+          # transform_image = self.transform_test(image)
           transform_image =  self.transform(image)
-          perm_order = torch.empty((1,self.amount_of_patch))
+         
+          # transform_image =  image
+
+          perm_order = torch.empty((1,self.pe_dim))
           new_image = transform_image
-          perm_label = np.zeros((1,1))
+          perm_label = np.zeros((1,len(self.all_permutation_option_list)))
       perm_order = torch.Tensor(perm_order)
       perm_label = torch.Tensor(perm_label)
 
@@ -509,6 +620,8 @@ class MyDataset(Dataset):
         desire_amount_of_images = 2
     t1 = time.time()
     self.image_idx = 1
+    # transform_image =  self.transform(image)
+
     new_image, perm_order,  perm_label = self.get_permutation_image(image)
     total =  t1 - time.time()
     self.image_idx += 1
@@ -559,19 +672,21 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     learning_type = training_configuration.learning_type
     num_workers = training_configuration.num_workers
     max_allowed_permutation = training_configuration.max_allowed_permutation
-    
+    pe_dim = training_configuration.pe_dim
+
     
     # all_permutation_option = list(permutations(range(0, amount_of_patch)))
     # all_permutation_option = [] 
     # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
     all_permutation_option = training_configuration.all_permutation_option
-
-          
+    # all_permutation_option = list(all_permutation_option).copy()
+    # all_permutation_option_list, all_permutation_perm_index_list  = zip(*all_permutation_option)
+    # all_permutation_option_list = np.array(all_permutation_option_list).tolist()
       
     #   return np.clip(output, clip_min, 1.)
     # # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
     # # 
-    # # position_embeding = getPositionEncoding(seq_len=len(all_permutation_option), d=24, n=10e3)
+    # # position_embeding = getPositionEncoding(seq_len=75, d=512, n=10000)
     # position_embeding = all_permutation_array
 
     # Create a sample NumPy array
@@ -615,8 +730,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # adjacency_matrix = squareform(distances)
     
     
-    # distances = cdist(position_embeding, position_embeding, metric='cityblock')
-
+    # distances = cdist(position_embeding, position_embeding, metric='cosine')
+    # distances2 = cdist(position_embeding, position_embeding, metric='euclidean')
 
     
     # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
@@ -642,26 +757,48 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
     resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BICUBIC )
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.LANCZOS )
-
-    
-    if taske_name == 'perm':
-        min_scale = 0.5
-    else:
-        min_scale = 0.5
-
+  
+    transformations = []
     if rand_choise:
-        transformations = [
-            transforms.RandomApply(
-            [transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.8),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomApply(
-                [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],
-                p = 0.5
-            ),
-            transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
-            transforms.RandomGrayscale(p=0.2)
-            ]
+        
+        if taske_name == 'perm':
+            min_scale = 0.4
+            transformations  = [
+                                transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.9),
+                                transforms.RandomHorizontalFlip(p=0.5),
+                                # torchvision.transforms.RandomVerticalFlip(p=0.5),
+                                transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
+                                transforms.RandomGrayscale(p=0.5),
+                                transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.25)   
+                                ]
+        else:
+            min_scale = 0.2
+        
+            transformations  = [transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+                                transforms.RandomHorizontalFlip(p=0.5),
+                                # torchvision.transforms.RandomVerticalFlip(p=0.5),
+                                transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
+                                transforms.RandomGrayscale(p=0.2),
+                                transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
+                                ]
             
+            
+        # transformations = [
+        #                    transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.5)
+        #                     ]
+        # transformations = [
+        #     transforms.RandomApply(
+        #     [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+        #     transforms.RandomHorizontalFlip(),
+        #     # transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
+        #     transforms.RandomGrayscale(p=0.2)
+        #     # transforms.RandomApply(
+        #     #     [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],
+        #     #     p = 0.5
+        #     # )
+        #     ]
+        # transformations += additinal_aug
+    
             
         # transformations = [     transforms.RandomHorizontalFlip(p=p),
         #                         transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25)]
@@ -680,7 +817,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                                                 resize_transforms,
                                                 # resize_transforms,
                                                 transforms.ToTensor(),
-                                                transforms.Normalize(means, stds)])
+                                                transforms.Normalize(means, stds)
+                                                ])
     elif taske_name == 'no_perm':
         data_transforms =   transforms.Compose([
                                                 rand_choise,
@@ -688,7 +826,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                                                 # transforms.CenterCrop((center_crop_size,center_crop_size)),
                                                 # resize_transforms,
                                                 transforms.ToTensor(),
-                                                transforms.Normalize(means, stds)])
+                                                transforms.Normalize(means, stds)
+                                                ])
     
     test_transforms =  transforms.Compose([ resize_transforms,
                                             transforms.ToTensor(),
@@ -717,13 +856,13 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     
     X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 
                         train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data,
-                        all_permutation_option=all_permutation_option, orig_pe = orig_pe)
+                        all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
     X_val = MyDataset(all_train_df,class_df, data_transforms, test_transforms ,index_list = val_index, amount_of_patch=amount_of_patch, 
                       train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data, 
-                      all_permutation_option=all_permutation_option, orig_pe = orig_pe)
+                      all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
     X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = None, amount_of_patch=amount_of_patch,
                        train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, 
-                       all_permutation_option=all_permutation_option, orig_pe = orig_pe)
+                       all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
