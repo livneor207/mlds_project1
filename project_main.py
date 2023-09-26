@@ -225,10 +225,10 @@ if debug:
     training_configuration.batch_size = 32
     training_configuration.epochs_count = 100
     
-    training_configuration.ssl_training = 1
+    training_configuration.ssl_training = 0
     training_configuration.sup_ssl_withperm = 0
-    training_configuration.sup_ssl_withoutperm = 1
-    training_configuration.sup_withoutperm = 1
+    training_configuration.sup_ssl_withoutperm = 0
+    training_configuration.sup_withoutperm = 0
     training_configuration.sup_withperm = 1
     # training_configuration.unfreeze = 0
     

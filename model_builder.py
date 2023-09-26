@@ -292,8 +292,8 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
     flatten_size = np.prod(list(shape_size))
     
     # set regression head
-    hidden_size = int(flatten_size*0.75)
-    
+    hidden_size = int(flatten_size*0.5)
+    hidden_size2 = int(hidden_size*0.75)
     if hidden_size//4 < num_classes:
         assert False, 'needed to change classifier hidden size due amount of class'
    
@@ -302,10 +302,10 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
                                 nn.Linear(flatten_size, hidden_size),
                                 nn.ReLU(inplace = True),
                                 nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size, int(hidden_size*0.75)),
+                                nn.Linear(hidden_size, hidden_size2),
                                 nn.ReLU(inplace = True),
                                 nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size,num_classes)
+                                nn.Linear(hidden_size2,num_classes)
                                 )
 
     if model_name.find('resnet') != -1:
