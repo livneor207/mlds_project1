@@ -149,7 +149,7 @@ training_configuration.add_argument('--balance_factor2', type=float, default = 1
 
 # datapreperation
 training_configuration.add_argument('--val_split', type=float, default = 0.1, help='Specify validation size')
-training_configuration.add_argument('--image_dim', type=int, default = 128, help='Specify image size')
+training_configuration.add_argument('--image_dim', type=int, default = 224, help='Specify image size')
 training_configuration.add_argument('--train_split', type=float, default = 1, help='Specify amount of trainig data to be trained')
 training_configuration.add_argument('--rand_choise', type=int, default = 1, help='Specify use or not augmentation')
 training_configuration.add_argument('--pin_memory', type=int, default=1, help='Specify classification loss name')
@@ -178,13 +178,13 @@ training_configuration.add_argument('--representation_loss', type=str, default =
 
 # optimizer 
 training_configuration.add_argument('--optimizer_name', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
-training_configuration.add_argument('--weight_decay', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--weight_decay', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
 training_configuration.add_argument('--learning_rate', type=float, default = 1e-4, help='Specify learning rate for optimization')
 training_configuration.add_argument('--scheduler_name', type=str, default = 'None', help='Specify scheduler for optimization')
 
 
 training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
-training_configuration.add_argument('--weight_decay_ssl', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--weight_decay_ssl', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
 training_configuration.add_argument('--learning_rate_ssl', type=float, default = 1e-4, help='Specify learning rate for optimization')
 
 # training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'Lars', help='Specify optimizer name between adam and lion')
@@ -222,7 +222,7 @@ debug=  False
 if debug: 
     train_split = 0.01
     val_split = 0.001
-    training_configuration.batch_size = 32
+    training_configuration.batch_size = 8
     training_configuration.epochs_count = 100
     
     training_configuration.ssl_training = 1

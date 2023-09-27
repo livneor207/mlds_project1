@@ -193,7 +193,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
              print(param[0])
          # if param[0].find(last_layer_name) !=-1 :
 
-         if (param[0].find('layer4') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
+         if (param[0].find('layer4') !=-1 :
          # if (param[0].find('layer4') !=-1 or param[0].find('layer3') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if (param[0].find('layer4.2') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1:
@@ -691,6 +691,8 @@ class CNN(nn.Module):
                                     model_name=model_name,
                                     weights=weights)
         
+        # backbone.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+
         backbone.model_layer = model_layer
         backbone.model_sub_layer = model_sub_layer
 
@@ -704,7 +706,7 @@ class CNN(nn.Module):
                                unfreeze=unfreeze)
         
         def getge_output_shape(model, image_dim):
-            return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2] ))).data.shape
+            return model.avgpool(torch.rand((1,image_dim[0],image_dim[1], image_dim[2]))).data.shape
         # get shapes 
         channel, height, width = image_dim
                 

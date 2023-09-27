@@ -484,7 +484,7 @@ class MyDataset(Dataset):
                             
           except:
               a=5 
-          border_size = 0
+          border_size = 1
           row_size, col_size = patch_image.shape[1::]
           # masked_patch = patch_image.copy()
           # masked_patch = patch_image.clone()
@@ -504,9 +504,9 @@ class MyDataset(Dataset):
               # padd_val = 2.67
               new_image += padd_val
           if row ==0 :
-             patch_image[:,0:border_size*2,:]  = padd_val
+             patch_image[:,0:border_size,:]  = padd_val
           else:
-              patch_image[:,0:border_size*2,:]  = padd_val
+              patch_image[:,0:border_size,:]  = padd_val
               
           if col == 0:
              # cols
@@ -520,9 +520,9 @@ class MyDataset(Dataset):
               patch_image[:,:,col_size-border_size::]  =  padd_val
               
           if  row == amount_of_rows-1 and is_devided:  
-              patch_image[:,row_size-border_size*2::,:]  = padd_val
+              patch_image[:,row_size-border_size::,:]  = padd_val
           else:
-              patch_image[:,row_size-border_size*2::,:]  = padd_val
+              patch_image[:,row_size-border_size::,:]  = padd_val
           # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
           # new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
@@ -772,13 +772,13 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     if rand_choise:
         
         if taske_name == 'perm':
-            min_scale = 0.4
+            min_scale = 0.85
             transformations  = [
-                                transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.9),
+                                transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.8),
                                 transforms.RandomHorizontalFlip(p=0.5),
                                 # torchvision.transforms.RandomVerticalFlip(p=0.5),
                                 transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
-                                transforms.RandomGrayscale(p=0.5),
+                                transforms.RandomGrayscale(p=0.2),
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.25)   
                                 ]
         else:
