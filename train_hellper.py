@@ -876,7 +876,8 @@ def optimization_improve_checker(best_model_score, current_val, max_opt, model,b
             torch.save(model, model_path)
 
         if current_val == best_model_score:
-            patience -= 0.5
+            # patience -= 0.5
+            pass
         else:
             patience = 0
         best_model_score = current_val

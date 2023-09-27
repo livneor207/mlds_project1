@@ -333,12 +333,13 @@ class MyDataset(Dataset):
     
     
     # self.max_sentence_lenth = math.factorial(amount_of_patch)
-    amount_of_sampels = data_df.shape[0]
     if index_list is None:
         index_list= np.arange(0, data_df.shape[0])
     self.index_list = index_list
-    self.pill_transform = transforms.ToPILImage()
+    
+    amount_of_sampels = index_list.size
 
+    self.pill_transform = transforms.ToPILImage()
     # r,z = np.unique(np.array(self.perm_order_list), return_counts= True, axis =0)
     # r,z2 = np.unique(np.array(self.perm_order_list2), return_counts= True, axis =0)
     self.all_permutation_option = list(self.all_permutation_option).copy()
@@ -764,7 +765,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     center_crop_size = int(0.9*image_size)
 
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
-    resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BICUBIC )
+    resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR  )
     # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.LANCZOS )
   
     transformations = []
