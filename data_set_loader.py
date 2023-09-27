@@ -179,7 +179,16 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
         data_df = pd.merge(data_df,class_name_df,  how = 'left', on = ['class_index'])
        
         data = data_set.data
-    
+    elif task_name == 'CIFAR100':
+         
+        data_set = torchvision.datasets.CIFAR100('./', train=train, download=True)
+        # trainval
+        class_name_df =  pd.DataFrame(data_set.classes, columns = ['class_name'])
+        class_name_df['class_index'] = np.arange(class_name_df.shape[0])
+        data_df = pd.DataFrame(data_set.targets, columns = ['class_index'])
+        data_df = pd.merge(data_df,class_name_df,  how = 'left', on = ['class_index'])
+       
+        data = data_set.data
     elif task_name == 'FOOD101':
         
         data_folder =  os.path.join(current_folder, 'food-101')

@@ -648,14 +648,14 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             if debug_grad:
                 print_grad(model)
             
-            # clip gradient between -1 to 1 
-            for param in model.parameters():
-                if param.grad is not None:
-                    max_norm = 0.1
-                    max_norm2 = collect_grads(model)
-                    # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
-                    param.grad.data.clamp_(-max_norm2, max_norm2)
-                    pass
+            # # clip gradient between -1 to 1 
+            # for param in model.parameters():
+            #     if param.grad is not None:
+            #         max_norm = 0.1
+            #         max_norm2 = collect_grads(model)
+            #         # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            #         param.grad.data.clamp_(-max_norm2, max_norm2)
+            #         pass
                     
             optimizer.step()
             model.sigma.data = torch.relu(model.sigma.data)

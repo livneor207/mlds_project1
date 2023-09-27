@@ -129,7 +129,7 @@ task_name  = 'OxfordIIITPet'
 max_allowed_permutation change
 """
 # path
-training_configuration.add_argument('--task_name', type=str, default = 'CIFAR10', help='Specify an task to work on')
+training_configuration.add_argument('--task_name', type=str, default = 'CIFAR100', help='Specify an task to work on')
 training_configuration.add_argument('--ssl_model_name', type=str, default='ssl_model', help='Specify a sll model path')
 training_configuration.add_argument('--sup_ssl_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data with permutation')
 training_configuration.add_argument('--sup_ssl_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
@@ -225,7 +225,7 @@ if debug:
     training_configuration.batch_size = 32
     training_configuration.epochs_count = 100
     
-    training_configuration.ssl_training = 0
+    training_configuration.ssl_training = 1
     training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 0
     training_configuration.sup_withoutperm = 0
@@ -261,7 +261,7 @@ train_folder_path = os.path.join(data_folder,  'train', 'train')
 
 task_name  = training_configuration.task_name
 
-if task_name in ['CIFAR10', 'cat_dogs']:
+if task_name in ['CIFAR10','CIFAR100', 'cat_dogs']:
     train_df, train_data= parse_train_data(task_name  =task_name, folder_path =train_folder_path, train=True, current_folder= current_folder)
     test_df, test_data = parse_train_data(task_name=task_name, folder_path =test_folder_path, train=False, current_folder = current_folder)
 elif task_name in ['OxfordIIITPet', 'FOOD101']:
@@ -388,9 +388,7 @@ if training_configuration.ssl_training:
     # im2 = image[0:3,3::,:,:]
     # representation_pred_1, perm_pred_1, perm_label_pred_1 =  model(im1)
     # representation_pred_2, perm_pred_2, perm_label_pred_2 = student(im2)
-    # representation_pred_2 = torch.flip(representation_pred_2, dims=[0])
-
-    
+    # representation_pred_2 = torch.flip(representation_pred_2, dims=[0])    
     # ranking_criterion(representation_pred_1, representation_pred_2)
     
     train_results_df = main(model, student, optimizer, criterion,

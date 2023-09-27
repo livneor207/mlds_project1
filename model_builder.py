@@ -193,11 +193,11 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
              print(param[0])
          # if param[0].find(last_layer_name) !=-1 :
 
-         # if (param[0].find('layer4') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
+         if (param[0].find('layer4') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if (param[0].find('layer4') !=-1 or param[0].find('layer3') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if (param[0].find('layer4.2') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
-         if param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1:
-             # if param[0].find('layer4') !=-1 :
+         # if param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1:
+         # if param[0].find('layer4') !=-1 :
             param[1].requires_grad = True
             # print(param[0])
          else:
