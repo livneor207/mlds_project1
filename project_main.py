@@ -188,7 +188,7 @@ training_configuration.add_argument('--weight_decay_ssl', type=float, default = 
 training_configuration.add_argument('--learning_rate_ssl', type=float, default = 1e-4, help='Specify learning rate for optimization')
 
 # training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'Lars', help='Specify optimizer name between adam and lion')
-# training_configuration.add_argument('--weight_decay_ssl', type=float, default = 0, help='Specify if to use weight decay regurelaization in optimizer')
+# training_configuration.add_argument('--weight_decay_ssl', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
 # training_configuration.add_argument('--learning_rate_ssl', type=float, default = 2e-1, help='Specify learning rate for optimization')
 
 # model
@@ -225,11 +225,11 @@ if debug:
     training_configuration.batch_size = 8
     training_configuration.epochs_count = 100
     
-    training_configuration.ssl_training = 1
+    training_configuration.ssl_training = 0
     training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 0
-    training_configuration.sup_withoutperm = 0
-    training_configuration.sup_withperm = 1
+    training_configuration.sup_withoutperm = 1
+    training_configuration.sup_withperm = 0
     # training_configuration.unfreeze = 0
     
 
@@ -436,7 +436,8 @@ if training_configuration.sup_ssl_withperm:
                  image_dim = (3,image_dim, image_dim),
                 freeze_all = False,
                 model_name = 'resnet50',
-                weights = 'IMAGENET1K_V1')
+                weights = 'IMAGENET1K_V1',
+                unfreeze = unfreeze)
     
     
     
@@ -568,7 +569,8 @@ if training_configuration.sup_ssl_withoutperm:
                  image_dim = (3,image_dim, image_dim),
                  freeze_all = False,
                  model_name = 'resnet50',
-                 weights = 'IMAGENET1K_V1')
+                 weights = 'IMAGENET1K_V1',
+                 unfreeze = unfreeze)
     
     
     student= None
@@ -590,6 +592,8 @@ if training_configuration.sup_ssl_withoutperm:
                           model_name = 'resnet50')
     ssl_model.to(device)
     student= None
+    summary(ssl_model, (3,image_dim, image_dim))
+
     
     # define  loaders 
     
@@ -688,14 +692,16 @@ if training_configuration.sup_withoutperm:
                  image_dim = (3,image_dim, image_dim),
                  freeze_all = False,
                  model_name = 'resnet50',
-                 weights = 'IMAGENET1K_V1')
+                 weights = 'IMAGENET1K_V1',
+                 unfreeze = unfreeze)
     
     
     student= None
     
   
     model.to(device)
-    
+    summary(model, (3,image_dim, image_dim))
+
     # define  loaders 
     
     train_loader, val_loader, test_loader, debug_loader = \
@@ -730,6 +736,9 @@ if training_configuration.sup_withoutperm:
     ranking_criterion = set_rank_loss(loss_name = training_configuration.ranking_loss, margin = 1, num_labels = 1, beta = 1)
     perm_creterion = nn.CrossEntropyLoss()
     
+
+
+
     # show example for data after transformations
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
@@ -796,14 +805,16 @@ if training_configuration.sup_withperm:
                  image_dim = (3,image_dim, image_dim),
                  freeze_all = False,
                  model_name = 'resnet50',
-                 weights = 'IMAGENET1K_V1')
+                 weights = 'IMAGENET1K_V1',
+                 unfreeze = unfreeze)
     
     
     student= None
     
   
     model.to(device)
-    
+    summary(model, (3,image_dim, image_dim))
+
     # define  loaders 
     
     train_loader, val_loader, test_loader, debug_loader = \

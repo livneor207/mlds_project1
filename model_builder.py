@@ -193,7 +193,7 @@ def freeze_resnet_layers(model, model_name = 'resnet50'):
              print(param[0])
          # if param[0].find(last_layer_name) !=-1 :
 
-         if (param[0].find('layer4') !=-1 :
+         if param[0].find('layer4') !=-1 :
          # if (param[0].find('layer4') !=-1 or param[0].find('layer3') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if (param[0].find('layer4.2') !=-1 or  isinstance(param_module, (nn.BatchNorm2d, nn.BatchNorm1d))):
          # if param[0].find('layer4') !=-1 or  param[0].find('bn') !=-1:
@@ -298,14 +298,14 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
         assert False, 'needed to change classifier hidden size due amount of class'
    
     HEAD = torch.nn.Sequential(
-                                nn.Dropout(p=0.3),
-                                nn.Linear(flatten_size, hidden_size),
-                                nn.ReLU(inplace = True),
                                 nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size, hidden_size2),
-                                nn.ReLU(inplace = True),
-                                nn.Dropout(p=0.25),
-                                nn.Linear(hidden_size2,num_classes)
+                                nn.Linear(flatten_size, num_classes)
+                                # nn.ReLU(inplace = True),
+                                # nn.Dropout(p=0.25),
+                                # nn.Linear(hidden_size, hidden_size2),
+                                # nn.ReLU(inplace = True),
+                                # nn.Dropout(p=0.25),
+                                # nn.Linear(hidden_size2,num_classes)
                                 )
 
     if model_name.find('resnet') != -1:

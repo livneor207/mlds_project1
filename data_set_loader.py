@@ -784,7 +784,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         else:
             min_scale = 0.2
         
-            transformations  = [transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            transformations  = [transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.8),
                                 transforms.RandomHorizontalFlip(p=0.5),
                                 # torchvision.transforms.RandomVerticalFlip(p=0.5),
                                 transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
