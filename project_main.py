@@ -129,7 +129,7 @@ task_name  = 'OxfordIIITPet'
 max_allowed_permutation change
 """
 # path
-training_configuration.add_argument('--task_name', type=str, default = 'CIFAR100', help='Specify an task to work on')
+training_configuration.add_argument('--task_name', type=str, default = 'CIFAR10', help='Specify an task to work on')
 training_configuration.add_argument('--ssl_model_name', type=str, default='ssl_model', help='Specify a sll model path')
 training_configuration.add_argument('--sup_ssl_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data with permutation')
 training_configuration.add_argument('--sup_ssl_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
@@ -183,13 +183,13 @@ training_configuration.add_argument('--learning_rate', type=float, default = 1e-
 training_configuration.add_argument('--scheduler_name', type=str, default = 'None', help='Specify scheduler for optimization')
 
 
-training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
-training_configuration.add_argument('--weight_decay_ssl', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
-training_configuration.add_argument('--learning_rate_ssl', type=float, default = 1e-4, help='Specify learning rate for optimization')
+# training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
+# training_configuration.add_argument('--weight_decay_ssl', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
+# training_configuration.add_argument('--learning_rate_ssl', type=float, default = 1e-4, help='Specify learning rate for optimization')
 
-# training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'Lars', help='Specify optimizer name between adam and lion')
-# training_configuration.add_argument('--weight_decay_ssl', type=float, default = 1e-4, help='Specify if to use weight decay regurelaization in optimizer')
-# training_configuration.add_argument('--learning_rate_ssl', type=float, default = 2e-1, help='Specify learning rate for optimization')
+training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'Lars', help='Specify optimizer name between adam and lion')
+training_configuration.add_argument('--weight_decay_ssl', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
+training_configuration.add_argument('--learning_rate_ssl', type=float, default = 2e-1, help='Specify learning rate for optimization')
 
 # model
 training_configuration.add_argument('--hidden_size', type=int, default = 512, help='Specify final projection size')
@@ -227,7 +227,7 @@ if debug:
     
     training_configuration.ssl_training = 0
     training_configuration.sup_ssl_withperm = 0
-    training_configuration.sup_ssl_withoutperm = 0
+    training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 0
     # training_configuration.unfreeze = 0
@@ -351,7 +351,7 @@ if training_configuration.ssl_training:
                                 image_dim, 
                                 amount_of_class,
                                 model_name = 'resnet50',
-                                weights = None,
+                                weights = 'IMAGENET1K_V1',
                                 unfreeze = unfreeze,
                                 copy_weights = copy_weights,
                                 update_student = update_student)

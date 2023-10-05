@@ -55,13 +55,14 @@ def update_moving_average(ema_updater, student_model, teacher_model):
                 student_var =  student_module.running_var
                 
                 
-                
-                if up_weight.requires_grad :
-                    student_module.running_mean.data = ema_updater.update_average(student_mean.data, teacher_mean.data)
-                    student_module.running_var.data = ema_updater.update_average(student_var.data, teacher_var.data)
-                else:
-                    student_module.running_mean.data = teacher_mean.data
-                    student_module.running_var.data = teacher_var.data
+                student_module.running_mean.data = teacher_mean.data
+                student_module.running_var.data = teacher_var.data
+                # if up_weight.requires_grad and 0:
+                #     student_module.running_mean.data = ema_updater.update_average(student_mean.data, teacher_mean.data)
+                #     student_module.running_var.data = ema_updater.update_average(student_var.data, teacher_var.data)
+                # else:
+                #     student_module.running_mean.data = teacher_mean.data
+                #     student_module.running_var.data = teacher_var.data
                     
                 
                 # student_params[1].data = up_weight
@@ -362,7 +363,7 @@ def generate_student(teacher, training_configuration, image_dim,
         old_beta = teacher.student_ema_updater.beta 
         if update_student:
             # teacher.student_ema_updater.beta = 1 - old_beta/2 # update
-            teacher.student_ema_updater.beta = 0
+            teacher.student_ema_updater.beta = 0 # update (forget random initlization)
 
         else:
             teacher.student_ema_updater.beta = 1 # not update

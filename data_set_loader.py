@@ -772,21 +772,22 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     if rand_choise:
         
         if taske_name == 'perm':
-            min_scale = 0.85
+            min_scale = 0.6
             transformations  = [
-                                transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.8),
+                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
                                 transforms.RandomHorizontalFlip(p=0.5),
-                                # torchvision.transforms.RandomVerticalFlip(p=0.5),
+                                transforms.RandomApply([transforms.RandomResizedCrop(size = (96, 96), scale=(min_scale, 1.0))], p=1),
                                 transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
                                 transforms.RandomGrayscale(p=0.2),
-                                transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.25)   
+                                transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
                                 ]
         else:
             min_scale = 0.2
         
-            transformations  = [transforms.RandomApply([transforms.ColorJitter(0.5, 0.5, 0.5, 0.1)], p=0.8),
+            transformations  = [
+                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
                                 transforms.RandomHorizontalFlip(p=0.5),
-                                # torchvision.transforms.RandomVerticalFlip(p=0.5),
+                                transforms.RandomApply([transforms.RandomResizedCrop(size = (96, 96), scale=(min_scale, 1.0))], p=1),
                                 transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
                                 transforms.RandomGrayscale(p=0.2),
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
@@ -823,7 +824,8 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     else:
         rand_choise = transforms.RandomChoice( [transforms.RandomHorizontalFlip(p=0)])
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([rand_choise,
+        data_transforms =   transforms.Compose([resize_transforms,
+                                                rand_choise,
                                                 resize_transforms,
                                                 # resize_transforms,
                                                 transforms.ToTensor(),
