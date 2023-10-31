@@ -404,6 +404,8 @@ class MyDataset(Dataset):
        else:
            k2 = perm_index
        k = self.all_permutation_option_list.index(perm_order)
+       k2 = k
+
        # k2 = k
        # amount_of_perm=  math.factorial(d)
        perm_label =  np.zeros((1,self.all_permutation_option.__len__()))
