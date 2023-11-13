@@ -29,6 +29,50 @@ from functools import partial
 #         # update student weights
 #         student_params.data = ema_updater.update_average(old_weight, up_weight)
 
+def get_model_results(model, student, model_path, criterion,
+                      ranking_criterion, accuracy_metric, perm_creterion,
+                      train_loader, val_loader, test_loader, device,
+                      train_val_test_summary):
+    model = load_model(model_path)
+    model = model.to(device)
+
+    a=5
+    test_accuracy, test_f1_score, \
+    test_classification_loss, test_perm_classification_loss, \
+    test_f1_perm_score = eval_model(model, student, criterion,
+                                     ranking_criterion, accuracy_metric, perm_creterion,
+                                     test_loader, device)
+
+
+    # train
+    train_accuracy, train_f1_score, \
+    train_classification_loss, train_perm_classification_loss, \
+    train_f1_perm_score = eval_model(model, student, criterion,
+                                     ranking_criterion, accuracy_metric, perm_creterion,
+                                     train_loader, device)
+
+    # val
+    val_accuracy, val_f1_score, \
+    val_classification_loss, val_perm_classification_loss, \
+    val_f1_perm_score = eval_model(model, student, criterion,
+                                     ranking_criterion, accuracy_metric, perm_creterion,
+                                     val_loader, device)
+    # test
+
+
+    columns_list = ['train_accuracy', 'train_f1_score',
+                    'val_accuracy', 'val_f1_score',
+                    'test_accuracy', 'test_f1_score']
+
+
+    resluts_list = [[train_accuracy, train_f1_score,
+                    val_accuracy, val_f1_score,
+                    test_accuracy, test_f1_score]]
+
+    result_df = pd.DataFrame(resluts_list, columns= columns_list)
+    result_df.to_csv(train_val_test_summary)
+    return result_df
+
 
 
 def argparser_validation(argparser):
@@ -44,7 +88,7 @@ def argparser_validation(argparser):
         argparser.max_allowed_permutation =  argparser.amount_of_perm
     if perm != 'perm':
         argparser.balance_factor2 = argparser.balance_factor = 0
-    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 5000)
+    all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 50000)
     argparser.all_permutation_option = all_permutation_option
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     argparser.device = device
@@ -167,7 +211,7 @@ class TrainingConfiguration:
             self.max_allowed_permutation =  self.amount_of_perm
         if perm != 'perm':
             self.balance_factor2 = self.balance_factor = 0
-        all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 5000)
+        all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 500000)
         self.all_permutation_option = all_permutation_option
         
         

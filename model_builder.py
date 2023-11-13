@@ -4,6 +4,23 @@ from torchsummary import summary
 import torch 
 import numpy as np
 import copy
+import os 
+
+
+
+def load_model(model_load_path, learning_type = 'supervised', device = 'cpu'):
+    if os.path.exists(model_load_path):
+        model = torch.load(model_load_path, map_location='cpu')
+        for name, param in model.named_parameters():
+            if param.device.type != 'cpu':
+                param.to('cpu')
+        if learning_type  != 'supervised':
+            print('model sigma')
+            print(model.sigma)
+    else:
+        print('can not load model because file is not exists')
+    return model
+
 
 
 # for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.named_parameters(), student_model.named_parameters())):

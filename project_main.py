@@ -140,7 +140,7 @@ training_configuration.add_argument('--sup_model_withperm_name', type=str, defau
 training_configuration.add_argument('--moving_average_decay', type=float, default = 0.996, help='Specify an factor of how to update target model, shold be greater the 0.9')
 
 # permutation
-training_configuration.add_argument('--max_allowed_permutation', type=int, default = 100, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
+training_configuration.add_argument('--max_allowed_permutation', type=int, default = 24, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
 training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
 training_configuration.add_argument('--amount_of_patch', type=int, default = 4, help='Specify the grid size for permutation defenition')
 training_configuration.add_argument('--perm', type=str, default = 'perm', help='Specify use or not permutation augmentation')
@@ -169,6 +169,8 @@ training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, h
 training_configuration.add_argument('--sup_ssl_withoutperm', type=int, default =1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withoutperm', type=int, default=1, help='Specify classification loss name')
 training_configuration.add_argument('--sup_withperm', type=int, default=1, help='Specify classification loss name')
+training_configuration.add_argument('--train_model', type=int, default=1, help='Specify classification loss name')
+
 
 # loss
 training_configuration.add_argument('--loss_functions_name', type=str, default = 'ce', help='Specify final projection size')
@@ -230,6 +232,7 @@ if debug:
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 0
+    training_configuration.train_model = 0
     # training_configuration.unfreeze = 0
     
 
@@ -323,9 +326,9 @@ if training_configuration.ssl_training:
                                 pin_memory = pin_memory)
         
     # print size of data-sets
-    print(f'Train length = {train_loader.dataset.data_df.shape[0]}, \
-          val length = {val_loader.dataset.data_df.shape[0]},  \
-          test length = {test_loader.dataset.data_df.shape[0]}')
+    print(f'Train length = {train_loader.dataset.__len__()}, \
+          val length = {val_loader.dataset.__len__()},  \
+          test length = {test_loader.dataset.__len__()}')
     
     
     # generate model
@@ -340,10 +343,7 @@ if training_configuration.ssl_training:
     if load_ssl:
         # model.load_state_dict(torch.load(model_path))
         # model = torch.load(model_path)
-        model = torch.load(model_path, map_location='cpu')
-        for name, param in model.named_parameters():
-            if param.device.type != 'cpu':
-                param.to('cpu')
+        model = load_model(model_path, learning_type = training_configuration.learning_type)
 
         
     student = generate_student(model, 
@@ -414,7 +414,8 @@ if training_configuration.sup_ssl_withperm:
     
     model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '.pth')
     model_path = os.path.join(data_folder, sim_name  + '.pth')
-    
+    train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
+
     log_dir = os.path.join(data_folder,  training_configuration.sup_ssl_model_withperm_name)
 
     log_dir = tb_writer = SummaryWriter(
@@ -440,18 +441,10 @@ if training_configuration.sup_ssl_withperm:
                 unfreeze = unfreeze)
     
     
-    
+    model = load_model(model_load_path, learning_type = training_configuration.learning_type)
+
     training_configuration.learning_type = 'supervised'
-    model = torch.load(model_load_path, map_location='cpu')
-    for name, param in model.named_parameters():
-        if param.device.type != 'cpu':
-            param.to('cpu')
-    # model = torch.load(model_load_path)
-    # model = model.to('cpu')
-    # model.load_state_dict(torch.load(model_load_path))
-    print('model sigma')
-    print(model.sigma)
-    # model_path = os.path.join(data_folder,  'model2.pth')
+    
     
     ssl_model =  SSLMODEL(model,
                           num_classes=amount_of_class,
@@ -509,13 +502,18 @@ if training_configuration.sup_ssl_withperm:
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
     
+    if training_configuration.train_model:
+        train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
+                                train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
+                                tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, 
+                                scheduler = scheduler)
+        
     
-    train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
-                            train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device, 
-                            tb_writer=tb_writer, max_opt = training_configuration.max_opt, model_path = model_path, 
-                            scheduler = scheduler)
 
-
+    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+                                  ranking_criterion, accuracy_metric, perm_creterion,
+                                  train_loader,val_loader,test_loader, device,
+                                  train_val_test_summary)
 
 # # ######### end few shot learning with perm ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -531,6 +529,8 @@ if training_configuration.sup_ssl_withoutperm:
     
     model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '.pth')
     model_path = os.path.join(data_folder, sim_name  + '.pth')
+    train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
+
     
     log_dir = os.path.join(data_folder,  training_configuration.sup_ssl_model_withoutperm_name)
 
@@ -543,14 +543,6 @@ if training_configuration.sup_ssl_withoutperm:
     training_configuration.perm = 'no_perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
-    
-    # training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-    #                                       learning_type='supervised', batch_size= 16, 
-    #                                       scheduler_name = 'None', max_opt = True,
-    #                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
-    #                                       max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-    #                                       amount_of_patch = 9, moving_average_decay = 0.996,
-    #                                       optimizer_name = 'adam')
     
     
     device = training_configuration.device
@@ -574,17 +566,13 @@ if training_configuration.sup_ssl_withoutperm:
     
     
     student= None
-    training_configuration.learning_type = 'supervised'
     # model.load_state_dict(torch.load(model_load_path))
     # model = torch.load(model_load_path)
-    model = torch.load(model_load_path, map_location='cpu')
-    for name, param in model.named_parameters():
-        if param.device.type != 'cpu':
-            param.to('cpu')
-
-    print('model sigma')
-    print(model.sigma)
     
+    
+    model = load_model(model_load_path, learning_type = training_configuration.learning_type)
+    training_configuration.learning_type = 'supervised'
+
     ssl_model =  SSLMODEL(model,
                           num_classes=amount_of_class,
                           image_dim=(3,image_dim, image_dim),
@@ -637,12 +625,19 @@ if training_configuration.sup_ssl_withoutperm:
     
     
     gc.collect()
-    
-    train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
-                            train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
-                            tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
-                            model_path = model_path, scheduler = scheduler)
+    if training_configuration.train_model:
+        train_results_df = main(ssl_model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
+                                train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
+                                tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
+                                model_path = model_path, scheduler = scheduler)
 
+    
+    
+    
+    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+                                  ranking_criterion, accuracy_metric, perm_creterion,
+                                  train_loader,val_loader,test_loader, device,
+                                  train_val_test_summary)
 
 
 if training_configuration.sup_withoutperm:
@@ -654,6 +649,7 @@ if training_configuration.sup_withoutperm:
     print('simulation '  +sim_name + ' has been started' )
     
     model_path = os.path.join(data_folder,  sim_name + '.pth')
+    train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
 
     log_dir = os.path.join(data_folder,  sim_name)
 
@@ -667,13 +663,6 @@ if training_configuration.sup_withoutperm:
     training_configuration.max_opt = True
     training_configuration.learning_type = 'supervised'
     
-    # training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-    #                                       learning_type='supervised', batch_size= 16, 
-    #                                       scheduler_name = 'None', max_opt = True,
-    #                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
-    #                                       max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-    #                                       amount_of_patch = 9, moving_average_decay = 0.996,
-    #                                       optimizer_name = 'adam')
     
     
     device = training_configuration.device
@@ -737,22 +726,25 @@ if training_configuration.sup_withoutperm:
     perm_creterion = nn.CrossEntropyLoss()
     
 
-
-
     # show example for data after transformations
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
     
     
-    
     gc.collect()
+    if training_configuration.train_model:
+        train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
+                                train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
+                                tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
+                                model_path = model_path, scheduler = scheduler, 
+                                scheduler_worm_up= scheduler_worm_up)
+        
+        
+    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+                                  ranking_criterion, accuracy_metric, perm_creterion,
+                                  train_loader,val_loader,test_loader, device,
+                                  train_val_test_summary)
     
-    train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
-                            train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
-                            tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
-                            model_path = model_path, scheduler = scheduler, 
-                            scheduler_worm_up= scheduler_worm_up)
-
 
 
 # # ######### end few shot learning with perm ##########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -769,7 +761,8 @@ if training_configuration.sup_withperm:
     print('simulation '  +sim_name + ' has been started' )
     model_path = os.path.join(data_folder, sim_name  + '.pth')
     log_dir = os.path.join(data_folder,  sim_name)
-    
+    train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
+
     log_dir = tb_writer = SummaryWriter(
         log_dir = log_dir,
         comment = "TensorBoard in PyTorch")
@@ -779,14 +772,6 @@ if training_configuration.sup_withperm:
     training_configuration.perm = 'perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'supervised'
-    
-    # training_configuration.update_merics(loss_functions_name = 'ce', learning_rate = 1e-3,
-    #                                       learning_type='supervised', batch_size= 16, 
-    #                                       scheduler_name = 'None', max_opt = True,
-    #                                       epochs_count = 50, perm= 'perm', num_workers = 0, 
-    #                                       max_lr = 5e-3, hidden_size = 512, balance_factor = 1,
-    #                                       amount_of_patch = 9, moving_average_decay = 0.996,
-    #                                       optimizer_name = 'adam')
     
     
     device = training_configuration.device
@@ -836,7 +821,9 @@ if training_configuration.sup_withperm:
     
     
     # set optimizer
-    optimizer, scheduler, scheduler_worm_up =  set_optimizer(model, training_configuration, train_loader, amount_of_class = amount_of_class, alpha = alpha)
+    optimizer, scheduler, scheduler_worm_up = \
+        set_optimizer(model, training_configuration, train_loader, 
+                      amount_of_class = amount_of_class, alpha = alpha)
     
     # set accuracy metrics
     accuracy_metric  = set_metric(training_configuration, amount_of_class = amount_of_class, metric_name = 'accuracy')
@@ -857,13 +844,16 @@ if training_configuration.sup_withperm:
     
     
     gc.collect()
-    
-    train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
-                            train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
-                            tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
-                            model_path = model_path, scheduler = scheduler, scheduler_worm_up=scheduler_worm_up)
+    if training_configuration.train_model:
+        train_results_df = main(model, student, optimizer, criterion, ranking_criterion, accuracy_metric , perm_creterion,
+                                train_loader, val_loader, num_epochs=training_configuration.epochs_count, device=device,
+                                tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
+                                model_path = model_path, scheduler = scheduler, scheduler_worm_up=scheduler_worm_up)
 
-
+    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+                                  ranking_criterion, accuracy_metric, perm_creterion,
+                                  train_loader,val_loader,test_loader, device,
+                                  train_val_test_summary)
 
 
 

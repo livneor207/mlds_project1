@@ -94,9 +94,9 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
             sample_permutations = np.array([np.random.permutation(single_perm[0,:]) for _ in range(amount_of_perm_to_generate)])
             
             # Compute Hamming distances
-            distances = cdist(sample_permutations,single_perm, metric='hamming')
+            distances = cdist(sample_permutations,single_perm, metric='cosine')
            
-            current_permutation_index = random.choice(np.where(distances == np.max(distances))[0])
+            current_permutation_index = random.choice(np.where(distances == np.min(distances))[0])
             
             single_perm = np.expand_dims(sample_permutations[current_permutation_index, :], axis = 0 )
             
@@ -486,7 +486,7 @@ class MyDataset(Dataset):
                             
           except:
               a=5 
-          border_size = 1
+          border_size = 0
           row_size, col_size = patch_image.shape[1::]
           # masked_patch = patch_image.copy()
           # masked_patch = patch_image.clone()
@@ -612,7 +612,7 @@ class MyDataset(Dataset):
     else:
         image = self.data[self.index_list[idx]]
         image = self.pill_transform(image)
-    if self.data_name in ['train', 'val']:
+    if self.data_name in ['train', 'val', 'test']:
         label_target = data_df_row['class_index']
         label_name = data_df_row['class_name']
     else:
@@ -671,6 +671,28 @@ class MyDataset(Dataset):
 
 
     return sample
+
+def split_into_train_testval(all_train_df, test_df, random_state, val_split):
+    try:
+        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
+    except:
+        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+        
+    test_index = np.arange(test_df.shape[0])
+
+    if train_split!=1:
+        try:
+            train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
+            test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+
+        except:
+            train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
+            test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state)
+
+
+
+    
+    return train_index, val_index, test_index
 
 
 def initialize_dataloaders(all_train_df,  test_df, training_configuration, amount_of_patch = 4 ,batch_size=8, val_split=0.1, debug_batch_size=8, random_state=1001,
@@ -852,18 +874,9 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     class_df =  class_df.drop_duplicates(subset=['class_name'])
     
     # targets =  train_dataset.targets
-    try:
-        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
-    except:
-        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+    
 
-    if train_split!=1:
-        try:
-            train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
-        except:
-            train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
-
-
+    train_index, val_index, test_index= split_into_train_testval(all_train_df,test_df, random_state, val_split*2)
 
     # train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)
 
@@ -874,14 +887,14 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     X_val = MyDataset(all_train_df,class_df, data_transforms, test_transforms ,index_list = val_index, amount_of_patch=amount_of_patch, 
                       train = False, data_name = 'val', taske_name = taske_name, learning_type = learning_type, data=train_data, 
                       all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
-    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = None, amount_of_patch=amount_of_patch,
+    X_test = MyDataset(test_df, class_df, data_transforms, test_transforms , index_list = test_index, amount_of_patch=amount_of_patch,
                        train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, 
                        all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
 
        
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
     val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=False)
+    test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
     debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=False)
     # if not tb_writer is None and 0:
     #     add_data_embedings(val_loader, tb_writer, n=300)
