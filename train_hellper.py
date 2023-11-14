@@ -71,6 +71,7 @@ def get_model_results(model, student, model_path, criterion,
 
     result_df = pd.DataFrame(resluts_list, columns= columns_list)
     result_df.to_csv(train_val_test_summary)
+    print(result_df)
     return result_df
 
 
@@ -496,6 +497,20 @@ def calculate_rank_loss(ranking_criterion, target, pred):
     elif isinstance(ranking_criterion, torch.nn.HingeEmbeddingLoss) :
         ranking_loss = ranking_criterion(projection1_normelized, projection2_normelized)
     return ranking_loss
+
+
+def clip_gradient(model):
+    # clip gradient between -1 to 1 
+    for param in model.parameters():
+        if param.grad is not None:
+            max_norm = 0.1
+            max_norm2 = collect_grads(model)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+            param.grad.data.clamp_(-max_norm2, max_norm2)
+            pass
+        
+        
+        
 def step(model, student, data, labels, criterion, ranking_criterion,  
          accuracy_metric, perm_creterion = None, 
          perm_order = None, perm_label = None,  
@@ -691,16 +706,8 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             debug_grad = False
             if debug_grad:
                 print_grad(model)
-            
-            # # clip gradient between -1 to 1 
-            # for param in model.parameters():
-            #     if param.grad is not None:
-            #         max_norm = 0.1
-            #         max_norm2 = collect_grads(model)
-            #         # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
-            #         param.grad.data.clamp_(-max_norm2, max_norm2)
-            #         pass
-                    
+            #clip_gradient(model)
+                        
             optimizer.step()
             model.sigma.data = torch.relu(model.sigma.data)
 

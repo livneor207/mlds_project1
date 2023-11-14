@@ -227,7 +227,7 @@ if debug:
     training_configuration.batch_size = 8
     training_configuration.epochs_count = 100
     
-    training_configuration.ssl_training = 0
+    training_configuration.ssl_training = 1
     training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
@@ -341,8 +341,6 @@ if training_configuration.ssl_training:
                   unfreeze = unfreeze)
     
     if load_ssl:
-        # model.load_state_dict(torch.load(model_path))
-        # model = torch.load(model_path)
         model = load_model(model_path, learning_type = training_configuration.learning_type)
 
         
@@ -382,14 +380,7 @@ if training_configuration.ssl_training:
     # show example for data after transformations    
     # generate data generation example
     image, label, perm_order, class_name, perm_label = generate_input_generation_examples(debug_loader)
-    # torch.save(model, model_path)
 
-    # im1 = image[0:3,0:3,:,:]
-    # im2 = image[0:3,3::,:,:]
-    # representation_pred_1, perm_pred_1, perm_label_pred_1 =  model(im1)
-    # representation_pred_2, perm_pred_2, perm_label_pred_2 = student(im2)
-    # representation_pred_2 = torch.flip(representation_pred_2, dims=[0])    
-    # ranking_criterion(representation_pred_1, representation_pred_2)
     
     train_results_df = main(model, student, optimizer, criterion,
                             ranking_criterion, accuracy_metric , perm_creterion,

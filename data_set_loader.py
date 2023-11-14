@@ -29,26 +29,6 @@ import random
 import itertools
 import sys
 from scipy.spatial.distance import pdist, squareform,cdist
-# def generate_max_hamming_permutations(amount_of_perm=4, max_allowed_perm=1000):
-#     permutations = np.zeros((max_allowed_perm, amount_of_perm + 1), dtype=np.int32)
-#     current_permutation = np.arange(amount_of_perm)
-
-#     permutations[0, :-1] = current_permutation
-#     i = 1
-
-#     while i < max_allowed_perm and amount_of_perm > 1:
-#         distances = np.count_nonzero(permutations[:i, :-1] != current_permutation, axis=1)
-#         max_distance_index = np.argmax(distances)
-
-#         available_indices = np.concatenate((current_permutation[:max_distance_index],
-#                                              current_permutation[max_distance_index+1:]))
-#         amount_of_perm -= 1
-
-#         current_permutation = np.random.permutation(available_indices)
-#         permutations[i, :-1] = current_permutation
-#         i += 1
-
-#     return permutations[:i, :-1]
 
 
 def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 1000, amount_of_perm_to_generate = 100):
@@ -60,20 +40,20 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
         ‘sokalmichener’, ‘sokalsneath’, ‘sqeuclidean’, ‘yule’.
     2. amount of perm to generate - 
     """
-    # all_permutation_option = list(permutations(range(0, amount_of_perm)))
-    # permutations = np.array(list(itertools.permutations(range(amount_of_perm))))
-    # random.shuffle(permutations)
+    """
+    generate subgroup of pemutation base there distance from each other, the
+    output is list in predefined size of permutation
+    """
     
-    
+    # amount of permutation that can be generated 
     amount_of_permutation =  math.factorial(amount_of_perm)
+    
+    # if this number is greater the amount of posible permutation to generate generate all  
     if max_allowed_perm>= amount_of_permutation:
         max_distance_permutations = np.array(list(permutations(range(0, amount_of_perm))))
-        # np.random.shuffle(max_distance_permutations)
 
     else:
-        # amount_of_perm_to_generate = 10
-        # Generate the first permutation
-        
+
         # generate first fermutation
         single_perm = np.arange(amount_of_perm)
         
@@ -84,7 +64,8 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
         max_distance_permutations =  np.zeros((max_allowed_perm, amount_of_perm))
         max_distance_permutations[0,:] = single_perm
         perm_index_array  =  np.zeros((max_allowed_perm, 1))
-
+        # each time add new permutation which is most similar to last permutation, with the 
+        # goal that the semantic info will be not loss from last choosen permutation 
         i = 1
         while i<max_allowed_perm:
             if i>max_allowed_perm :
@@ -96,23 +77,28 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
             # Compute Hamming distances
             distances = cdist(sample_permutations,single_perm, metric='cosine')
            
+            # choose next permutation base on min distance
             current_permutation_index = random.choice(np.where(distances == np.min(distances))[0])
             
+            # expand dimentions of choosen permutatino 
             single_perm = np.expand_dims(sample_permutations[current_permutation_index, :], axis = 0 )
             
             t1 = time.time()
+            # calculate permutation index 
             perm_index = calculate_permutation_position(sample_permutations[current_permutation_index, :])
             t2 = time.time()-t1
-            # permutations = np.delete(permutations, current_permutation_index, axis=0)
+            
+            # check if permutation was choosen before
             row_exists = np.any(np.all(max_distance_permutations == single_perm, axis=1))
-    
+            
+            # add permutation 
             if not row_exists:
                max_distance_permutations[i,:] = single_perm
                perm_index_array[i,0] = perm_index
                i+=1
             else:
                a=5
-    
+       
         max_distance_permutations = max_distance_permutations[0:i, :]
         perm_index_array = perm_index_array[0:i, :]
         sorted_indices = np.lexsort(max_distance_permutations.T[::-1])
@@ -127,11 +113,17 @@ def generate_max_hamming_permutations(amount_of_perm = 4, max_allowed_perm = 100
     return max_distance_permutations
 
 def get_statistic_from_stistic_dataframe(train_statistic_df):
+    """
+    get amount of class and thire ratios
+    """
     class_ratios = train_statistic_df['alpha'].to_numpy()
     amount_of_class = train_statistic_df.shape[0] 
     return class_ratios, amount_of_class
 
 def data_statistics(train_df):
+    """
+    generate statistic connect to the class balance 
+    """
     counts_df = train_df[['class_name']].copy()
     counts_df =  counts_df.drop_duplicates(subset=['class_name'])
     unisque_index , counts  = np.unique(train_df['class_name'], return_counts= True)
@@ -143,6 +135,10 @@ def data_statistics(train_df):
     return train_statistic_df, alpha
 
 def change_file_ending(file_path, new_file_extension ):
+    """
+    change file ending if needed 
+    """
+    
     # Remove the old file extension
     file_name = os.path.splitext(file_path)[0]
     
@@ -154,6 +150,21 @@ def change_file_ending(file_path, new_file_extension ):
 
 
 def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, current_folder = ''):
+    """
+    
+
+    Parameters
+    ----------
+    task_name : dataset name 
+    folder_path : if download dataset where to puthim
+    train : load train\test dataset
+    current_folder : only for dog & cats data set the data is download before
+    Returns
+    -------
+    data_df : data frame of file path, with class per row, and label index 
+    data : data if exist (CIFAR)
+
+    """
     if task_name == 'cat_dogs':
         
         # get all files names 
@@ -252,29 +263,19 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
 
 
 def parse_test_data(images_path_list):
+    """
+    generate dataframe base list of file path 
+    """
+    
     test_df = pd.DataFrame()
     test_df['image_path'] = images_path_list
     return test_df
 
-def gen_matrix_order(n):
-     # n = 4
-     grid = np.zeros((n, n))
-     
-     for i in range(n):
-         for j in range(n):
-             distances = []
-             for k in range(n):
-                 for l in range(n):
-                     distance = np.sqrt((k - i)**2 + (l - j)**2)
-                     distances.append(distance)
-             distances.remove(0)
-             weight = sum([1/d for d in distances])
-             grid[i, j] = weight + (i% n+  n*j)*0.1
-     # matrix_order = grid/grid.max()
-     matrix_order = grid
-     # print(matrix_order)
-     return matrix_order
 def getPositionEncoding(seq_len, d, n=10000):
+      """
+      generate postion embedding vec
+
+      """
       P = np.zeros((seq_len, d))
       for k in range(seq_len):
           for i in np.arange(int(d/2)):
@@ -287,6 +288,14 @@ def getPositionEncoding(seq_len, d, n=10000):
     
 
 def calculate_permutation_position(permutation):
+    """
+    Parameters
+    ----------
+    permutation : permutation vec 
+    Returns
+    -------
+    position : for given permutation return the permutation index 
+    """
     n = len(permutation)
     position = 0
     for i, num in enumerate(permutation):
@@ -295,6 +304,9 @@ def calculate_permutation_position(permutation):
     return position 
 
 class MyDataset(Dataset):
+  """
+    generate custom dataset
+  """
 
   def __init__(self, data_df,  
                class_df,  
@@ -315,6 +327,8 @@ class MyDataset(Dataset):
                orig_pe = True, pe_dim = 128):
       
    
+    
+    # initiate dataset parameters 
     self.pe_dim = pe_dim    
     self.all_permutation_option = copy.deepcopy(all_permutation_option)
     self.taske_name = taske_name
@@ -328,90 +342,116 @@ class MyDataset(Dataset):
     self.learning_type = learning_type
     self.orig_pe = orig_pe
     self.max_sentence_lenth = max(10000, 10*math.factorial(amount_of_patch))
-    
-
-    
-    
-    # self.max_sentence_lenth = math.factorial(amount_of_patch)
-    if index_list is None:
-        index_list= np.arange(0, data_df.shape[0])
-    self.index_list = index_list
-    
-    amount_of_sampels = index_list.size
-
-    self.pill_transform = transforms.ToPILImage()
-    # r,z = np.unique(np.array(self.perm_order_list), return_counts= True, axis =0)
-    # r,z2 = np.unique(np.array(self.perm_order_list2), return_counts= True, axis =0)
-    self.all_permutation_option = list(self.all_permutation_option).copy()
-    all_permutation_option_list, all_permutation_perm_index_list  = zip(*self.all_permutation_option)
-    all_permutation_option_list = np.array(all_permutation_option_list).tolist()
-    all_permutation_perm_index_list = np.array(all_permutation_perm_index_list).tolist()
-    self.all_permutation_perm_index_list = all_permutation_perm_index_list
-    self.all_permutation_option_list = all_permutation_option_list
-
-    amount_of_perm = len(all_permutation_option_list)
-    frequency =  amount_of_sampels//amount_of_perm+1
-    k = amount_of_perm * frequency
-    weighted_list = [element for element in self.all_permutation_option for _ in range(frequency)]
-    self.perm_order_list = random.sample(weighted_list, amount_of_sampels)
-    self.perm_order_list2 = random.sample(weighted_list, amount_of_sampels)
-    a=5
-    # self.perm_order_list = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
-    # self.perm_order_list2 = [random.choice(self.all_permutation_option) for _ in range(amount_of_sampels)]
-    
-
-    
-    if data is None:
-        read_image = True
-    else:
-        read_image = False
-    self.read_image= read_image
-    self.data =  data
-    if train :
-        self.transform = transform_train
-    else:
-        self.transform = transform_test
-    
-    self.transform_test = transform_test
-    self.color_transform = transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.4)], p=0.5)
-    self.tranform_totensor  = transforms.ToTensor()
-    self.transform_normelize = transforms.Normalize(means, stds)
-    
-    self.inverse_normalize = transforms.Compose([
-                                                    transforms.Normalize(mean=[-m/s for m, s in zip(means, stds)],
-                                                                         std=[1/s for s in stds])
-                                                ])
-    
-    
     self.data_name = data_name
     self.amount_of_class = class_df.shape[0]
     self.class_df =  class_df
     self.class_list = self.class_df['class_name'].to_list()
     self.data_df  = data_df
     self.image_file_type = '.jpg'
+    self.data =  data
+        
+    # self.max_sentence_lenth = math.factorial(amount_of_patch)
+    if index_list is None:
+        index_list= np.arange(0, data_df.shape[0])
+        
+    # set sample index list 
+    self.index_list = index_list
     
+    # amount of sample
+    amount_of_sampels = index_list.size
+
+    # manually transformation 
+    self.pill_transform = transforms.ToPILImage()
+    self.transform_test = transform_test
+    self.color_transform = transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.4)], p=0.5)
+    self.tranform_totensor  = transforms.ToTensor()
+    self.transform_normelize = transforms.Normalize(means, stds)
+    self.inverse_normalize = transforms.Compose([
+                                                    transforms.Normalize(mean=[-m/s for m, s in zip(means, stds)],
+                                                                         std=[1/s for s in stds])
+                                                ])
+    
+    
+    
+    # get all permutation options
+    self.all_permutation_option = list(self.all_permutation_option).copy()
+    
+    # generate all permutation list and all permutation concat with permutation index 
+    all_permutation_option_list, all_permutation_perm_index_list  = zip(*self.all_permutation_option)
+    all_permutation_option_list = np.array(all_permutation_option_list).tolist()
+    all_permutation_perm_index_list = np.array(all_permutation_perm_index_list).tolist()
+    self.all_permutation_perm_index_list = all_permutation_perm_index_list
+    self.all_permutation_option_list = all_permutation_option_list
+    
+    # amount of permutation 
+    amount_of_perm = len(all_permutation_option_list)
+    
+    # freq to generate balance permutation distrebutions 
+    frequency =  amount_of_sampels//amount_of_perm+1
+    weighted_list = [element for element in self.all_permutation_option for _ in range(frequency)]
+    
+    # generate 2 list of permutation for ssl task when reauire to generate image with 2 different augmentation
+    # the permutation augmentation is chosen uniformaly 
+    self.perm_order_list = random.sample(weighted_list, amount_of_sampels)
+    self.perm_order_list2 = random.sample(weighted_list, amount_of_sampels)
+    
+    # check if require to read image of sellect from data object      
+    if data is None:
+        read_image = True
+    else:
+        read_image = False
+    self.read_image= read_image
+    
+    # set train and test augmentation
+    if train :
+        self.transform = transform_train
+    else:
+        self.transform = transform_test    
     
   def __len__(self):
+    # get dataset size
     return self.index_list.size
   
     
  
   def getPositionEncoding(self, perm_order, d, n=10000, perm_index = -1):
-       # k = self.all_permutation_option.index(tuple(perm_order))
+       """
+    
+          Parameters
+          ----------
+          perm_order : permutation order
+          d : vecor dimetion
+          n : nominator for postion embedding equation 
+          perm_index : perm index 
+    
+          Returns
+          -------
+          P : postion embedding vec 
+          perm_label : onehotencoding for permutation 
+
+       """
+       
+       # convert permutation into list 
        perm_order = perm_order.tolist()
+       
+       # get pemutation index  
        if perm_index == -1:
            k2 = calculate_permutation_position(tuple(perm_order))
        else:
            k2 = perm_index
+           
+       # get index of permutation 
        k = self.all_permutation_option_list.index(perm_order)
        k2 = k
 
-       # k2 = k
-       # amount_of_perm=  math.factorial(d)
+        # generate postion embedding vec that will be filled 
        perm_label =  np.zeros((1,self.all_permutation_option.__len__()))
-
+       
+       # generate onehotencoding vec 
        perm_label[0,k]  = 1
        
+       
+       # generate postion embedding vec 
        P = np.zeros((1, d))
        if not self.orig_pe:
            P[0,:] = perm_order
@@ -427,57 +467,75 @@ class MyDataset(Dataset):
    
     
   def permutatation_aug(self, image):
-     
-      transform_image =  self.transform(image)
-      # transform_image = image
+      """
       
 
+      Parameters
+      ----------
+      image : image before any aumgnetation 
+      Returns
+      -------
+      new_image : image after pemrutation augmnetation 
+      perm_order : postion embedding vector 
+      perm_label : permutation index 
+
+      """
+      
+      # aaply augmentation 
+      transform_image =  self.transform(image)
+      
+      # get amount of patch 
       amount_of_patch = self.amount_of_patch
+      
+      # get image size 
       dim_size = transform_image.shape[0]
       
-      
+      # get grid size 
       amount_of_rows = int(amount_of_patch**0.5)
+      
+      # check if grid is a divided of image size  
       is_devided =  dim_size%amount_of_rows != 0
-
-      matrix_order = gen_matrix_order(amount_of_rows)
-
+      
+      # calculate patch size 
       patch_row_size, patch_col_size = transform_image.shape[1]//amount_of_rows, transform_image.shape[2]//amount_of_rows
-      # patch_array = patchify(transform_image.numpy(), (dim_size, patch_row_size, patch_col_size), patch_row_size)
-      # # np_transform_image= transform_image.numpy()
-      # if self.train:
-      #      perm_order  = random.choice(self.all_permutation_option)
-      # else:
-      # random.shuffle(self.perm_order_list)
-      # random.shuffle(self.perm_order_list2)
-
-
+     
+      # choose from first permutation list 
       if self.image_idx == 1:
             perm_order, perm_index = self.perm_order_list[self.idx]
+      # choose from secound permutation list 
       else:
             perm_order, perm_index = self.perm_order_list2[self.idx]
+            # validate that pemutation of image1 is not equal of image2
             if np.array_equal(perm_order, self.perm_order_list[self.idx][0]):
                 perm_order, perm_index  = random.choice(self.perm_order_list2)
 
-      # transform_image = self.inverse_normalize(transform_image)
+      
+      # generate empty image 
       new_image = torch.zeros_like(transform_image)
+      
+      # initiate pointer for fiiling empty image 
       row = 0
       col = 0
+      
+      # this loop wiil fill empy image each time slice patch from the tranformed image and insert base the pointers 
       for index, i_perm in enumerate(perm_order):
+          
+          # sellect patch to silce pointers 
           i_permutation_row = i_perm//amount_of_rows
           i_permutation_col = i_perm%amount_of_rows
           
           row = index//amount_of_rows
           col = index%amount_of_rows
           
+          # calculate where to put the patch 
           from_row = row*patch_row_size
           to_row = (row+1)*patch_row_size
           from_col = col*patch_col_size
           to_col =  (col+1)*patch_col_size
           
-          # perm_order[index] = matrix_order[i_permutation_row, i_permutation_col]
+          # slice patch 
           try:
-          
-              # patch_image = patch_array[0][i_permutation_row, i_permutation_col]
+              
               from_row_perm = i_permutation_row*patch_row_size
               to_row_perm = (i_permutation_row+1)*patch_row_size
               from_col_perm = i_permutation_col*patch_col_size
@@ -486,24 +544,16 @@ class MyDataset(Dataset):
                             
           except:
               a=5 
+              
+          # set border size 
           border_size = 0
+          
+          # patch size 
           row_size, col_size = patch_image.shape[1::]
-          # masked_patch = patch_image.copy()
-          # masked_patch = patch_image.clone()
-          
-          # patch_image = self.color_transform(patch_image)
-          
-          # min_vals = image_tensor.min(dim=(2,3))[0]
-          # max_vals = image_tensor.max(dim=(2, 3))[0]
-          # t_norm = transforms.Normalize(self.means, self.stds)
-          # patch_image = t_norm(patch_image)
-          # padd_val = (np.array([[self.means]])*np.array([[self.stds]])).transpose(2,0,1)
-         
+
+          # handling borders 
           if index == 0:   
-              # padd_val = random.choice([transform_image.max().item(),transform_image.min().item(),0,2.65,-2.17])
-              # padd_val = random.choice([transform_image.max().item(),transform_image.min().item(),0.24, 2.65,-2.17])
               padd_val = random.choice([0])
-              # padd_val = 2.67
               new_image += padd_val
           if row ==0 :
              patch_image[:,0:border_size,:]  = padd_val
@@ -525,58 +575,79 @@ class MyDataset(Dataset):
               patch_image[:,row_size-border_size::,:]  = padd_val
           else:
               patch_image[:,row_size-border_size::,:]  = padd_val
-          # patch_image2 = cv2.resize(cv2.copyMakeBorder(patch_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, None, value = 0), dsize = patch_image.shape[1::], interpolation = cv2.INTER_AREA) 
           
-          # new_image[0:dim_size, from_row:to_row, from_col:to_col] = torch.Tensor(masked_patch)
+          # put patch base pointer 
           new_image[0:dim_size, from_row:to_row, from_col:to_col] = patch_image
 
-      perm_order, perm_label = self.getPositionEncoding(perm_order, self.pe_dim, n=self.max_sentence_lenth, perm_index = perm_index)
-      # new_image = self.pill_transform(new_image)
-      # new_image = self.tranform_totensor(new_image)
-      # new_image = self.transform_normelize(new_image)
       
+      # base perm index generated postion embedding vector and permutation onehotvector 
+      perm_order, perm_label = self.getPositionEncoding(perm_order, self.pe_dim, n=self.max_sentence_lenth, perm_index = perm_index)
+
       return new_image, perm_order, perm_label
   
   def get_permutation_image(self, image):
-      #
-      if self.taske_name == 'perm' :
-          start1 = time.time()
-          if self.image_idx == 1 or 1:
-              new_image, perm_order, perm_label = self.permutatation_aug(image)
-          else:
-              transform_image =  self.transform(image)
-              # transform_image = self.inverse_normalize(transform_image)
-              # transform_image = self.color_transform(transform_image)
-              # transform_image = self.pill_transform(transform_image)
-              # transform_image = self.tranform_totensor(transform_image)
-              # transform_image = self.transform_normelize(transform_image)
-              # transform_image =  image
-              perm_order = torch.empty((1,self.pe_dim))
-              new_image = transform_image
-              perm_label = np.zeros((1,len(self.all_permutation_option_list)))
-              
-          count_time = time.time()-start1
-          # print(count_time)
-          a=5 
-      else:
-          # transform_image = self.transform_test(image)
-          transform_image =  self.transform(image)
-         
-          # transform_image =  image
+      """
+      
 
+      Parameters
+      ----------
+      image : image before any augmentaion
+
+      Returns
+      -------
+      new_image : image after augmentation (permutation and aug) 
+      perm_order : position embedding vec base permutation index 
+      perm_label : onehotencodoing base permutation index 
+      """
+      
+      # apply permutation aug and regular augmentation 
+      if self.taske_name == 'perm' :
+          new_image, perm_order, perm_label = self.permutatation_aug(image)              
+      
+      # apply regular augmentation without pemtuation augmentation  
+      else:
+          transform_image =  self.transform(image)
+          
+          # generate postion embedding and permutation label with dummy content
           perm_order = torch.empty((1,self.pe_dim))
           new_image = transform_image
           perm_label = np.zeros((1,len(self.all_permutation_option_list)))
+      
+      # convert to tensor 
       perm_order = torch.Tensor(perm_order)
       perm_label = torch.Tensor(perm_label)
 
       return new_image, perm_order, perm_label
   def generate_original_image_plot(self, image, axarr):
+      """
+      Parameters
+      ----------
+      image : image in float 
+      axarr : figure index 
+      Returns
+      -------
+      image figure 
+
+      """
       np_image_0_1 =  np.array(image)
       np_image_0_1 = np_image_0_1.astype(np.uint8)
       axarr[0].imshow(np_image_0_1)
       axarr[0].title.set_text('image before transformation')
   def generate_transformed_image_plot(self, np_transform_image_0_1, axarr, image_index = 1):
+      """
+      
+
+      Parameters
+      ----------
+      np_transform_image_0_1 : normelized image
+      axarr : plot index 
+      image_index : image index
+
+      Returns
+      -------
+      plot image in axarr index after converting image into range 0-255
+
+      """
       np_transform_image_0_1 *= np.array(self.stds)
       np_transform_image_0_1 += np.array(self.means)
       np_transform_image_0_1*=255
@@ -586,11 +657,30 @@ class MyDataset(Dataset):
       
     
   def __getitem__(self, idx):
+    """
+      Parameters
+      ----------
+      idx : sample index, base on this sample index collect info about 
+            sample data, and apply transformation on sample data. 
+
+      Returns
+      -------
+      sample : sample of data consist of 
+      1) transform_image - tensor of image after transformation 
+      2) label - for supervised task 
+      3) perm_order - postion embedding base of permutation index 
+      4) label_name - the name of label 
+      5) perm_label - onthotencoding base permutation index  
+
+
+    """
     # get image
-    
     data_df_row = self.data_df.iloc[self.index_list[idx]]
+    # update index 
     self.idx = idx
+    # get file name 
     label_file_name = data_df_row['class_index']
+    # read image 
     if self.read_image:
         image_path = data_df_row['image_path']
         try:
@@ -608,48 +698,55 @@ class MyDataset(Dataset):
                 except:
                     pass
                 tries_index += 1
-
+    # sellect image from dataset 
     else:
         image = self.data[self.index_list[idx]]
         image = self.pill_transform(image)
+    
+    # get label name and index 
     if self.data_name in ['train', 'val', 'test']:
         label_target = data_df_row['class_index']
         label_name = data_df_row['class_name']
     else:
         label_target = -1
         label_name = 'unknon'
-        
+    
+    # generate onehotencoding base label index 
     label =  np.zeros(( self.amount_of_class))
     label[label_target] = 1
     label =  torch.Tensor(label)
     label = label.to(torch.float)
     
-    # transform_image =  self.transform(image)
-    
+    # for supervised task require to generate single image, while in ssl 2 images
     if self.learning_type == 'supervised':
         desire_amount_of_images = 1
     else:
         desire_amount_of_images = 2
-    t1 = time.time()
+    
+    # initiate generated image index 
     self.image_idx = 1
-    # transform_image =  self.transform(image)
-
+    
+    # generate first image 
     new_image, perm_order,  perm_label = self.get_permutation_image(image)
-    total =  t1 - time.time()
+    
+    # increase generated image counter  
     self.image_idx += 1
+    
+    # check if require to generate the secound image for ssl case 
     if desire_amount_of_images > 1:
-        # transform_image =  self.transform(image)
-
+        # generate another image and collect them tothther 
         new_image2, prem_order2, perm_label2= self.get_permutation_image(image)
         new_image = torch.concatenate([new_image, new_image2])
         perm_order = torch.concatenate([perm_order, prem_order2])
         perm_label = torch.concatenate([perm_label, perm_label2])
 
-        
+    # set that new imasge is the image afer transformation 
     transform_image = new_image
-    # set sample
+    
+    # define  sample
     sample = (transform_image, label, torch.Tensor(perm_order), label_name, perm_label)
     
+    # generate deubg images 
     if self.debug:
       
         np_transform_image_0_1 =  transform_image.numpy()
@@ -663,16 +760,27 @@ class MyDataset(Dataset):
         self.generate_transformed_image_plot(np_transform_image_0_1[:,:,0:3], axarr, image_index = 1)
         if desire_amount_of_images>1:
             self.generate_transformed_image_plot(np_transform_image_0_1[:,:,3::], axarr, image_index = 2)
-
-        
-      
             
         f.suptitle(f'Class is {label_name}') # or plt.suptitle('Main title')
 
 
     return sample
 
-def split_into_train_testval(all_train_df, test_df, random_state, val_split):
+def split_into_train_testval(all_train_df, test_df, random_state, val_split, train_split):
+    """
+    Parameters
+    ----------
+    all_train_df : trian dataframe 
+    test_df : trian dataframe
+    random_state : set random state
+    val_split : define split of train data into train and validation 
+    train_split : decrease amount of training data 
+
+    Returns
+    -------
+    index list for each data set for train\test\validation
+
+    """
     try:
         train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
     except:
@@ -683,15 +791,11 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split):
     if train_split!=1:
         try:
             train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
-            test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+            # test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
 
         except:
             train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
-            test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state)
-
-
-
-    
+            # test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state)    
     return train_index, val_index, test_index
 
 
@@ -700,6 +804,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                            learning_type = 'supervised', num_workers = 2, train_data = None, test_data = None, rand_choise = True,
                            pin_memory=False, orig_pe = True, train_split = 1):
     
+    # parse parameters 
     batch_size = training_configuration.batch_size
     amount_of_patch = training_configuration.amount_of_patch
     taske_name = training_configuration.perm
@@ -709,92 +814,26 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     pe_dim = training_configuration.pe_dim
 
     
-    # all_permutation_option = list(permutations(range(0, amount_of_patch)))
-    # all_permutation_option = [] 
-    # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
+    # get permutations 
     all_permutation_option = training_configuration.all_permutation_option
-    # all_permutation_option = list(all_permutation_option).copy()
-    # all_permutation_option_list, all_permutation_perm_index_list  = zip(*all_permutation_option)
-    # all_permutation_option_list = np.array(all_permutation_option_list).tolist()
-      
-    #   return np.clip(output, clip_min, 1.)
-    # # all_permutation_option = np.array(list(permutations(range(0, amount_of_patch))))
-    # # 
-    # # position_embeding = getPositionEncoding(seq_len=75, d=512, n=10000)
-    # position_embeding = all_permutation_array
-
-    # Create a sample NumPy array
-   
-    # def position_encoding(max_length, d_model):
-    #     positions = np.arange(max_length)[:, np.newaxis]
-    #     indices = np.arange(d_model)[np.newaxis, :]
-    #     angles = positions / np.power(10000, 2 * (indices // 2) / d_model)
-    #     sin_values = np.sin(angles[:, 0::2])
-    #     cos_values = np.cos(angles[:, 1::2])
-    #     position_encodings = np.concatenate([sin_values, cos_values], axis=-1)
-    #     return position_encodings
     
-   
-    
-    
-
-    # position_embeding = position_encoding(24, 24)
-    # position_embeding =  position_embeding[:,0:4]
-    # # Calculate pairwise KLD between rows
-    # from scipy.special import kl_div
-    # softmax_array = np.exp(position_embeding) / np.exp(position_embeding).sum(axis=1, keepdims=True)
-
-    # klds = np.zeros((softmax_array.shape[0], softmax_array.shape[0]))
-    
-    # for i in range(softmax_array.shape[0]-1):
-    #     kld = kl_div(softmax_array[i+1:], softmax_array[i]).sum(axis=1)
-    #     klds[i, i+1:] = kld
-    #     klds[i+1:, i] = kld
-    
-    # # Print the adjacency matrix
-    # print(klds)
-    
-    
-    # from scipy.spatial.distance import pdist, squareform,cdist
-
-    # # # # Calculate pairwise distances between rows
-    # distances = pdist(position_embeding)
-    
-    # # # #Convert the condensed distance matrix to a square matrix
-    # adjacency_matrix = squareform(distances)
-    
-    
-    # distances = cdist(position_embeding, position_embeding, metric='cosine')
-    # distances2 = cdist(position_embeding, position_embeding, metric='euclidean')
-
-    
-    # permutation_dictionary = dict(zip(all_permutation_option, position_embeding))
-    
-    # np.linalg.norm(position_embeding[0] - position_embeding[100],1)
-    # all_permutation_option[0]
-    # all_permutation_option[20000]
-
-    # permutation_dictionary[tuple(perm_order)]
-    
-    
-    
+    # valid task list
     tasks_list = ['perm', 'no_perm']
+    
+    # validate that task is valid 
     if not taske_name in  tasks_list:
         assert False, 'task not defined'
-        
-    if learning_type == 'supervised':
-        p = 0.33
-    else:
-        p = 1
-    center_crop_size = int(0.9*image_size)
-
-    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.NEAREST_EXACT)\
+    
+    
+    # set resize transform
     resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.BILINEAR  )
-    # resize_transforms = transforms.Resize((image_size,image_size), interpolation = transforms.InterpolationMode.LANCZOS )
-  
+    
+    # initiate transformation list  
     transformations = []
+    
+    # use augmetation 
     if rand_choise:
-        
+        # if use permutation
         if taske_name == 'perm':
             min_scale = 0.6
             transformations  = [
@@ -805,6 +844,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                                 transforms.RandomGrayscale(p=0.2),
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
                                 ]
+        # if do not use permutation
         else:
             min_scale = 0.2
         
@@ -817,41 +857,18 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
                                 ]
             
-            
-        # transformations = [
-        #                    transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.5)
-        #                     ]
-        # transformations = [
-        #     transforms.RandomApply(
-        #     [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
-        #     transforms.RandomHorizontalFlip(),
-        #     # transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
-        #     transforms.RandomGrayscale(p=0.2)
-        #     # transforms.RandomApply(
-        #     #     [transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],
-        #     #     p = 0.5
-        #     # )
-        #     ]
-        # transformations += additinal_aug
-    
-            
-        # transformations = [     transforms.RandomHorizontalFlip(p=p),
-        #                         transforms.ColorJitter(brightness=.25, hue=.25,saturation = 0.25, contrast = 0.25)]
-        #                         # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-        #                         # transforms.RandomCrop(size=(center_crop_size, center_crop_size))]
-                            
-        if not taske_name == 'perm':
-            # transformations += [transforms.RandomCrop(size=(center_crop_size, center_crop_size)),
-            #                     transforms.RandomHorizontalFlip(p=p)]
-            pass
+        # choose on aumgetation randomly base transformation list 
         rand_choise = transforms.RandomChoice(transformations)
+    # dont use aumgentation
     else:
+        # non augmnetation 
         rand_choise = transforms.RandomChoice( [transforms.RandomHorizontalFlip(p=0)])
+    
+    # define train transformation for the case of permutation and non-pemutation case  
     if taske_name == 'perm':
         data_transforms =   transforms.Compose([resize_transforms,
                                                 rand_choise,
                                                 resize_transforms,
-                                                # resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)
                                                 ])
@@ -859,12 +876,11 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
         data_transforms =   transforms.Compose([
                                                 rand_choise,
                                                 resize_transforms,
-                                                # transforms.CenterCrop((center_crop_size,center_crop_size)),
-                                                # resize_transforms,
                                                 transforms.ToTensor(),
                                                 transforms.Normalize(means, stds)
                                                 ])
     
+    # define test transformation 
     test_transforms =  transforms.Compose([ resize_transforms,
                                             transforms.ToTensor(),
                                             transforms.Normalize(means, stds)])
@@ -872,15 +888,11 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # get amount of class
     class_df =  all_train_df[['class_name', 'class_index']]
     class_df =  class_df.drop_duplicates(subset=['class_name'])
-    
-    # targets =  train_dataset.targets
-    
 
-    train_index, val_index, test_index= split_into_train_testval(all_train_df,test_df, random_state, val_split*2)
+    # split data into train test and validation sample index 
+    train_index, val_index, test_index= split_into_train_testval(all_train_df,test_df, random_state, val_split, train_split)
 
-    # train_df, val_df = train_test_split(all_train_df, stratify = all_train_df['class_name'],  test_size=val_split, random_state=random_state)
-
-    
+    # set 3 DataSets fpr train\test\validation     
     X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 
                         train = True, data_name = 'train', taske_name = taske_name, learning_type = learning_type, data=train_data,
                         all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
@@ -891,12 +903,10 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
                        train = False, data_name = 'test', taske_name = taske_name, learning_type = learning_type, data=test_data, 
                        all_permutation_option=all_permutation_option, orig_pe = orig_pe, pe_dim=pe_dim)
 
-       
+    # set 3 dataloader to each dataset
     train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size,shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
     val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
     test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
     debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=False)
-    # if not tb_writer is None and 0:
-    #     add_data_embedings(val_loader, tb_writer, n=300)
 
     return train_loader, val_loader, test_loader, debug_loader
