@@ -908,5 +908,11 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size,shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
     test_loader = torch.utils.data.DataLoader(X_test, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
     debug_loader = torch.utils.data.DataLoader(copy.deepcopy(X_train), batch_size=debug_batch_size, shuffle=True, pin_memory=False)
-
+    
+    # print size of data-sets
+    print(f'Train length = {train_loader.dataset.__len__()}, \
+          val length = {val_loader.dataset.__len__()},  \
+          test length = {test_loader.dataset.__len__()}')
+          
+          
     return train_loader, val_loader, test_loader, debug_loader

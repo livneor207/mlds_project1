@@ -19,24 +19,76 @@ from data_set_loader import *
 from torch.optim.lr_scheduler import LambdaLR
 from functools import partial
 
-# def update_moving_average(ema_updater, student_model, teacher_model):
-#     max_update_size = list(student_model.parameters()).__len__()-1
-#     for idx, (teacher_params, student_params) in enumerate(zip(teacher_model.parameters(), student_model.parameters())):
-#         # print(idx)
-#         # get current weights
-#         old_weight, up_weight = student_params.data, teacher_params.data
+
+
+def sellect_rows_contain_substring_in_col(df, substring, column):
+    """  
+    slice row from dataframe contain in specific columns the following substring
+    """
+    filtered_df = simulation_summary[simulation_summary[column].str.contains(substring, case=False)]
+    return filtered_df
+
+
+
+def collect_train_csv_summary(csv_folder_path, substring):
+    """
+    collect all csv file contain in specific folder the following substring
+    """
+    file_type_to_find =  os.path.join(csv_folder_path, '*'+ substring + '.csv')
+    all_csv_path = glob.glob(file_type_to_find)
+    if substring.find('ephocs')!=-1:
+        results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss']
+
+    elif substring.find('summary')!=-1:
+        results_columns = ['sim_name','train_accuracy', 'train_f1_score',
+                            'val_accuracy', 'val_f1_score',
+                            'test_accuracy', 'test_f1_score']
+    else:
+        print('substring to find is not defined')
+        return
+    if len(all_csv_path):
+        result_collector = []
+        for i_path in  all_csv_path:
+            i_df =  pd.read_csv(i_path)
+            sim_name = os.path.basename(i_path)
+            i_df_columns = i_df.columns.tolist()
+            if 'val_f1_permutation_score' in i_df_columns:
+                continue
+            else:
+                if substring.find('ephocs')!=-1:
+                    train_accuracy = i_df['train_accuracy'].max()
+                    train_f_score = i_df['train_f_score'].max()
+                    val_accuracy = i_df['val_accuracy'].max()
+                    val_f_score = i_df['val_f_score_loss'].max()
+                    i_results = [sim_name, train_accuracy, train_f_score, val_accuracy, val_f_score]
+                else:
+                    i_results = [sim_name] + i_df.values.tolist()[0]
+
+                result_collector.append(i_results)
+        simulation_summary = pd.DataFrame(result_collector, columns = results_columns)  
+    else:
+        print('no csv file has been find to find is not defined')
         
-#         # update student weights
-#         student_params.data = ema_updater.update_average(old_weight, up_weight)
+        
+        
+
 
 def get_model_results(model, student, model_path, criterion,
                       ranking_criterion, accuracy_metric, perm_creterion,
                       train_loader, val_loader, test_loader, device,
                       train_val_test_summary):
+    
+    """ 
+    load model best path, and run on all datasets in order to validate your model results 
+    """
+    
+    # load model
     model = load_model(model_path)
+    
+    # send to device 
     model = model.to(device)
 
-    a=5
+    # run on test 
     test_accuracy, test_f1_score, \
     test_classification_loss, test_perm_classification_loss, \
     test_f1_perm_score = eval_model(model, student, criterion,
@@ -44,22 +96,22 @@ def get_model_results(model, student, model_path, criterion,
                                      test_loader, device)
 
 
-    # train
+    # run on train
     train_accuracy, train_f1_score, \
     train_classification_loss, train_perm_classification_loss, \
     train_f1_perm_score = eval_model(model, student, criterion,
                                      ranking_criterion, accuracy_metric, perm_creterion,
                                      train_loader, device)
 
-    # val
+    # run on val
     val_accuracy, val_f1_score, \
     val_classification_loss, val_perm_classification_loss, \
     val_f1_perm_score = eval_model(model, student, criterion,
                                      ranking_criterion, accuracy_metric, perm_creterion,
                                      val_loader, device)
-    # test
+    
 
-
+    # collect model results into dataframe and write to disk
     columns_list = ['train_accuracy', 'train_f1_score',
                     'val_accuracy', 'val_f1_score',
                     'test_accuracy', 'test_f1_score']
@@ -77,26 +129,39 @@ def get_model_results(model, student, model_path, criterion,
 
 
 def argparser_validation(argparser):
-    
+    """ 
+    validate that the input to argparser are validate
+    """
     max_allowed_permutation = argparser.max_allowed_permutation
     amount_of_patch = argparser.amount_of_patch
     perm = argparser.perm 
+    
+    # get amount of permutation 
     argparser.amount_of_perm = math.factorial(argparser.amount_of_patch) 
     
+    # require to choose subgroup of permutation 
     if argparser.max_allowed_permutation <= argparser.amount_of_perm:
         argparser.max_allowed_permutation = max_allowed_permutation
+    # amount of permutation is smaller than max allowed perm
     else:
         argparser.max_allowed_permutation =  argparser.amount_of_perm
+    # if dont use permutation no need addition head factor 
     if perm != 'perm':
         argparser.balance_factor2 = argparser.balance_factor = 0
+    
+    # generate once permutations data
     all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 50000)
     argparser.all_permutation_option = all_permutation_option
+    
+    # get available device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     argparser.device = device
     
-    
+    # get grid size 
     argparser.grid_size = np.sqrt(argparser.amount_of_patch)
     mode_image_gridsize = argparser.image_dim%argparser.grid_size
+    
+    # fix case where defult image size is in dividable to grid size --> require correction to image size in order that image size will be dividable repect to grid size 
     if mode_image_gridsize != 0:
         addition_2_dim = int(argparser.grid_size-mode_image_gridsize)
         argparser.image_dim +=  addition_2_dim
@@ -111,6 +176,10 @@ def update_merics(training_configuration, loss_functions_name = 'CE', learning_r
                   balance_factor2 = 1, amount_of_patch = 9, moving_average_decay = 0.996,
                   weight_decay = 1e-5, optimizer_name = 'adam', max_allowed_permutation = 75,
                   use_auto_weight = False):
+    
+    """ 
+    update 
+    """
     training_configuration.loss_functions_name = loss_functions_name
     training_configuration.learning_rate = learning_rate
     training_configuration.learning_type = learning_type
@@ -132,14 +201,16 @@ def update_merics(training_configuration, loss_functions_name = 'CE', learning_r
     training_configuration.amount_of_perm = math.factorial(training_configuration.amount_of_patch) 
     training_configuration.use_auto_weight = use_auto_weight
     
+    # require to choosesubgroup of permutation 
     if max_allowed_permutation <= training_configuration.amount_of_perm:
         training_configuration.max_allowed_permutation = max_allowed_permutation
+    # amount of permutation is smaller than max allowed perm
     else:
         training_configuration.max_allowed_permutation =  training_configuration.amount_of_perm
+    # if dont use permutation no need addition head factor 
     if perm != 'perm':
         training_configuration.balance_factor2 = training_configuration.balance_factor = 0
-    # all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 100)
-    # self.all_permutation_option = all_permutation_option
+ 
     
     
 class TrainingConfiguration:
@@ -185,6 +256,13 @@ class TrainingConfiguration:
                       balance_factor2 = 1, amount_of_patch = 9, moving_average_decay = 0.996,
                       weight_decay = 1e-5, optimizer_name = 'adam', max_allowed_permutation = 75,
                       use_auto_weight = False):
+        
+        
+        """
+        
+        
+        """
+        # update parameters 
         self.loss_functions_name = loss_functions_name
         self.learning_rate = learning_rate
         self.learning_type = learning_type
@@ -206,26 +284,24 @@ class TrainingConfiguration:
         self.amount_of_perm = math.factorial(self.amount_of_patch) 
         self.use_auto_weight = use_auto_weight
         
+        # check i amount of permutation is greater than allowed  otherwise choose subgroup
         if max_allowed_permutation <= self.amount_of_perm:
             self.max_allowed_permutation = max_allowed_permutation
+        # use all permutation 
         else:
             self.max_allowed_permutation =  self.amount_of_perm
+        # for non permutation aug --> do not use addition head factors
         if perm != 'perm':
             self.balance_factor2 = self.balance_factor = 0
+        
+        # generate list of permutation 
         all_permutation_option = generate_max_hamming_permutations(amount_of_perm = amount_of_patch, max_allowed_perm = max_allowed_permutation, amount_of_perm_to_generate = 500000)
         self.all_permutation_option = all_permutation_option
         
         
 def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
     """
-    example
-    from torchmetrics.regression import KendallRankCorrCoef
-    preds = torch.tensor([[17, 15], [15, 17]], requires_grad=True)
-    target = torch.tensor([[0, 1], [1, 0]])
-
-
-    kendall = KendallRankCorrCoef(num_outputs=2)
-    kendall(preds, target)
+    sey ranking metric (no grad)
     """
     if metric_name == 'KendallRankCorrCoef':
         from torchmetrics.regression import KendallRankCorrCoef
@@ -252,29 +328,10 @@ def set_rank_metrics(metric_name = 'KendallRankCorrCoef', num_outputs = 2):
 
     return rank_metric
 
-def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1, beta=1):
+def set_rank_loss(loss_name = 'CosineSimilarity', margin = 1, num_labels = 1, beta=1):
     """
-    example
-    target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-    pred =  torch.tensor([[700,500,3,10,5], [2,40,3,5,0], [1000,701,500000,2000,704]],requires_grad = True, dtype = torch.float)
-    target_argsort = torch.argsort(target, dim=1)
-    pred_argsort = torch.argsort(pred, dim=1)
-    
-    pred, target  = pred.to(torch.float), target.to(torch.float)
-    pred_norm = LA.norm(pred, 2)
-    target_norm = LA.norm(target, 2)
-    
-    target_normelized = (target-target.mean())/target_norm
-    pred_normelized = (pred-pred.mean())/pred_norm
-
-    target_normelized = convert_2_float_and_require_grad(target_normelized)
-    pred_normelized = convert_2_float_and_require_grad(pred_normelized)
-    target = (target_argsort-pred_argsort).sign()
-    ranking_criterion = torch.nn.MarginRankingLoss()
-
-    loss = ranking_criterion(target_normelized, pred_normelized, target)
-
-    loss.backward()
+    set postion embedding loss (with grad)
+    mostly using cosin
     """
    
     if loss_name == 'MarginRankingLoss':
@@ -283,12 +340,6 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1, 
         ranking_criterion = nn.HingeEmbeddingLoss()
     elif loss_name == 'KLDivLoss':
         ranking_criterion = nn.KLDivLoss(reduction="batchmean")
-        
-        # target = torch.tensor([[2,1,3,4,5], [2,1,3,4,5], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-        # pred =  torch.tensor([[2,1,5,3,4], [2,4,3,4,1], [2,1,3,4,5]],requires_grad = True, dtype = torch.float)
-        # pred = F.log_softmax(pred, dim=1)
-        # target = F.softmax(target, dim=1)
-        # output = kl_loss(pred, target)
     elif loss_name == 'MSE':
          ranking_criterion = torch.nn.MSELoss()
     elif loss_name == 'L1Loss':
@@ -303,22 +354,31 @@ def set_rank_loss(loss_name = 'HingeEmbeddingLoss', margin = 1, num_labels = 1, 
 
 
 def calculate_rank_loss(pred, target):
+    """
+    prepare vector to ranking loss    
+    """
     target_argsort = torch.argsort(target, dim=1)
     pred_argsort = torch.argsort(pred, dim=1)
     target_argsort = convert_2_float_and_require_grad(target_argsort)
     pred_argsort = convert_2_float_and_require_grad(pred_argsort)
-    # target = (target_argsort-torch.arange(0,target.shape[1])).sign()
     index = (target_argsort-pred_argsort).sign()
     loss_val = loss(target_argsort, pred_argsort, index)
     return loss_val
 
 
 def convert_2_float_and_require_grad(tensor):
+    """ 
+    convert vector into float in order to get grad 
+    """
     tensor = tensor.to(torch.float)
     return tensor
 
 
 def set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta = 1):
+    """ 
+    loss for measure how good representation we have 
+    ussaly cosin
+    """
     loss_name = classification_loss_name 
     
     loss_bank = ['CosineSimilarity', 'MSE', 'L1Loss', 'SmoothL1Loss']
@@ -337,6 +397,10 @@ def set_similiarities_loss(classification_loss_name = 'CosineSimilarity', beta =
 
 
 def set_classifcation_loss(training_configuration, alpha = None):
+    
+    """ 
+    set loss for classification usually cros entropy
+    """
     loss_name = training_configuration.classification_loss_name 
     learning_rate = training_configuration.learning_rate
     device = training_configuration.device
@@ -359,6 +423,14 @@ def set_classifcation_loss(training_configuration, alpha = None):
     return criterion
 
 def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = 'LambdaLR'):
+    """ 
+    set scheduler for optimizer 
+       
+    worm-up is when we wish to start at very low learning rate in order to set good direction at the start of training,
+    and as the trainig goes on the learning rate is increased 
+    
+    cooling up is the regular schedular
+    """
     worm_up = training_configuration.worm_up
     learning_rate = training_configuration.learning_rate
 
@@ -376,7 +448,6 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
         max_lr = training_configuration.max_lr
         steps_per_epoch = len(data_loader)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=max_lr, steps_per_epoch=steps_per_epoch, epochs=epochs_count)
-        # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, steps_per_epoch=len(data_loader_train), epochs=args.epochs, pct_start=0.2)
 
     elif scheduler_name == 'ReduceLROnPlateau':
         factor = 0.5  # reduce by factor 0.5
@@ -387,22 +458,16 @@ def sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_
     elif scheduler_name == 'None':
         scheduler = None
     elif scheduler_name == 'worm_up' :  
-        # def lr_lambda(epoch, end_lr, worn_up_long):
-        #     if epoch < worn_up_long:
-        #         return end_lr + (end_lr/2 - end_lr) * epoch / worn_up_long
-        #     return end_lr
-        # # Partially apply lr_lambda with fixed parameters
-        # custom_lr_lambda = partial(lr_lambda, end_lr=learning_rate, warm_up_epochs=worm_up)
-        
-        # # Define a lambda scheduler with your custom learning rate function
-        # scheduler = LambdaLR(optimizer, lr_lambda=custom_lr_lambda)
         scheduler = None
-        # scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: lr_lambda(epoch, learning_rate, worm_up))
 
     return scheduler
 
 
 def set_optimizer(model, training_configuration, data_loader, amount_of_class = 13, alpha = None):
+    """
+    for supervised learning usallly using AdamW
+    for ssl using Lars\AdamW (base paper )
+    """
     loss_name = training_configuration.loss_functions_name 
     
     if model.learning_type == 'self_supervised':
@@ -437,13 +502,15 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     # Scheduler
     scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = scheduler_name)
     
+    # warm up scheduler 
     worm_up_scheduler =  sellect_scheduler(optimizer, training_configuration, data_loader, scheduler_name = 'worm_up')
-
-    
     
     return optimizer, scheduler, worm_up_scheduler
 
 def set_metric(training_configuration, amount_of_class = 13, metric_name = 'accuracy'):
+    """ 
+    set metric for accuracy\f-score from library
+    """
     loss_name = training_configuration.loss_functions_name 
     learning_rate = training_configuration.learning_rate
     device = training_configuration.device
@@ -451,9 +518,10 @@ def set_metric(training_configuration, amount_of_class = 13, metric_name = 'accu
     metric_bank = ['f_score','accuracy']
     if not metric_name in metric_bank:
         assert False, 'metric is not defined '
-    if metric_name == 'f_score':
-        # f-score
+    # f-score
+    if metric_name == 'f_score':   
         accuracy_metric = F1Score(task="multiclass", num_classes=amount_of_class, average =  'weighted')
+    # accuracy 
     elif metric_name == 'accuracy':
         from torchmetrics.classification import MulticlassF1Score
         accuracy_metric =  MulticlassF1Score(num_classes=amount_of_class, average  = 'weighted')
@@ -462,6 +530,9 @@ def set_metric(training_configuration, amount_of_class = 13, metric_name = 'accu
 
 
 def prepare_for_rank_cretertion(target, pred):
+    """ 
+    prepare to ranking loss
+    """
     target_argsort = torch.argsort(target, dim=1)
     pred_argsort = torch.argsort(pred, dim=1)
     
@@ -480,6 +551,9 @@ def prepare_for_rank_cretertion(target, pred):
 
 
 def calculate_rank_loss(ranking_criterion, target, pred):
+    """
+    calculate postion embedding loss --> usually cosin 
+    """
     if isinstance(ranking_criterion, torch.nn.MarginRankingLoss):
         target, target_normelized, pred_normelized = prepare_for_rank_cretertion(target, pred)
 
@@ -500,6 +574,9 @@ def calculate_rank_loss(ranking_criterion, target, pred):
 
 
 def clip_gradient(model):
+    """ 
+    clip model graidint between 2 numbers 
+    """
     # clip gradient between -1 to 1 
     for param in model.parameters():
         if param.grad is not None:
@@ -515,166 +592,206 @@ def step(model, student, data, labels, criterion, ranking_criterion,
          accuracy_metric, perm_creterion = None, 
          perm_order = None, perm_label = None,  
          optimizer=None, optimizer_sigma = None):
+    
+    """ 
+    
+    """
+    # initlized postion embedding and perm label prediction scores
     perm_classification_loss = torch.Tensor([0])
     f1_perm_label_score = 0
+    
+    # is supervised task
     if data.shape[1]<=3:
         learning_type = 'supervised'
+        # set softmax unit
         m = torch.nn.Softmax(dim=1)
+        
+        """
+        forward step
+        """
+        # is not training step
         if optimizer is  None:
+          # forward without gradient 
           with torch.no_grad():
             classification_pred = model(data)
+        # training step
         else:
             classification_pred = model(data)
+        
+        # classification loss 
         criterion_loss = criterion(m(classification_pred), labels.argmax(1))
         
+        # from probability prediction class 
         _, predicted = torch.max(classification_pred.data, 1) # for getting predictions class
         _, labels_target = torch.max(labels.data, 1) # for getting predictions class
+        
+        # calculate f-score 
         f1_score = accuracy_metric(predicted, labels_target)
-
+        
+        # calculate accuracy 
         accuracy = (predicted == labels_target).sum().item()/labels.shape[0] # get accuracy val
 
+        # training phase 
         if optimizer is not None:
+            
+            # driviate 
             criterion_loss.backward()
             debug_grad= False
             if debug_grad:
                 print_grad(model)
+                
+            # optimization step
             optimizer.step()
+            
+        # del variable in order 
         del classification_pred, data, labels_target
-
+    # ssl 
     else:
         learning_type = 'self_supervised'
+        
+        # get image1\2
         data2 = data[:,3::,:,:]
         data1 = data[:,0:3,:,:]
-        # data = data.detach()
+        
+        # get permutation index target  
         prems_size  =  perm_order.shape[1]
-        
-        target_prem1 = perm_order[:,0,:]
-        target_prem2 = perm_order[:,1,:]
-        # perm_order = perm_order.detach()
-        
         target_prem_label = perm_label[:,0,:]
         target_prem_label2 = perm_label[:,1,:]
-        # perm_label = perm_label.detach()
+        
+        # get position embedding target
+        target_prem1 = perm_order[:,0,:]
+        target_prem2 = perm_order[:,1,:]
+        
+        # del from memory issue         
         del perm_label, perm_order, data
       
+        # forward in non training phsase 
         if optimizer is  None:
-         with torch.no_grad():
-            representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-            torch.cuda.empty_cache()
-         with torch.no_grad():
-            representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            torch.cuda.empty_cache()
-         # data1 = data1.detach()
-         with torch.no_grad():
-            representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
-            torch.cuda.empty_cache()
-         with torch.no_grad():
-            representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
-            torch.cuda.empty_cache()
-         # data2 = data2.detach()
-            
+             #  online model get image 1
+             with torch.no_grad():
+                representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
+                torch.cuda.empty_cache()
+             #  offline model get image 1
+             with torch.no_grad():
+                representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
+                torch.cuda.empty_cache()
+             #  offline model get image 2
+             with torch.no_grad():
+                representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
+                torch.cuda.empty_cache()
+             #  online model get image 2
+             with torch.no_grad():
+                representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
+                torch.cuda.empty_cache()
+        # forward in training phsase 
         else:
+            #  online model get image 1
             representation_pred_1_1, perm_pred_1_1, perm_label_pred_1_1 = model(data1)
-
             torch.cuda.empty_cache()
+            #  offline model get image 1 (no need grad)
             with torch.no_grad():
                 representation_pred_2_1, perm_pred_2_1, dummy = student(data1)
-            # data1 = data1.detach()
             torch.cuda.empty_cache()
-
+            #  offline model get image 2 (no need grad)
             with torch.no_grad():
                 representation_pred_2_2, perm_pred_2_2, dummy = student(data2)
             torch.cuda.empty_cache()
-
+            #  online model get image 2
             representation_pred_1_2, perm_pred_1_2, perm_label_pred_1_2 = model(data2)
             torch.cuda.empty_cache()
-
-            # data2 = data2.detach()
+        
+        # from memory issue 
         del data1, data2
         gc.collect()
-        torch.cuda.empty_cache()
-
-        # ranking_loss_2_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_2_1)
+        
+        # check if is worming up
         is_worm_up = model.epoch > model.worm_up-1
-        if is_worm_up or 1:
+        # is worm up --> start optimize addition head 
+        if is_worm_up :
             balance_factor = model.balance_factor
             balance_factor2 = model.balance_factor2
+        # is not worm up --> do not optimize addition head 
         else:
             balance_factor = balance_factor2 = 0
+        # get device 
         device = model.device
+        
+        # optmize postion embedding head 
         if balance_factor != 0:
+            # calculate the ability of projected representation to predict the poation embedding 
             ranking_loss_1_1 = calculate_rank_loss(ranking_criterion, target_prem1, perm_pred_1_1)
             ranking_loss_1_2 = calculate_rank_loss(ranking_criterion, target_prem2, perm_pred_1_2)
             
-            # rank_loss = ranking_loss_1_1 
+            # sum the loss
             rank_loss = ranking_loss_1_1 + ranking_loss_1_2
-# 
-
+            
+        # no need to optimize postion embedding head 
         else:
             rank_loss = torch.Tensor([0])
             rank_loss = rank_loss.to(device)
-            
+        # optmize pemutation index prediction 
         if balance_factor2 != 0:
             m = torch.nn.Softmax(dim=1)
+            # calculate cross entropy 
             perm_classification_loss1 = perm_creterion(m(perm_label_pred_1_1), target_prem_label.argmax(1))
             perm_classification_loss2 = perm_creterion(m(perm_label_pred_1_2), target_prem_label2.argmax(1))
         
-        
-            # perm_classification_loss =  perm_classification_loss1
+            # summed the losses        
             perm_classification_loss = perm_classification_loss2 + perm_classification_loss1
-
+            
+            # from probability into prediction 
             _, perm_label_pred_1_1 = torch.max(perm_label_pred_1_1.data, 1) # for getting predictions class
             _, perm_label_pred_1_2 = torch.max(perm_label_pred_1_2.data, 1) # for getting predictions class
             _, target_prem_label = torch.max(target_prem_label.data, 1) # for getting predictions class
             _, target_prem_label2 = torch.max(target_prem_label2.data, 1) # for getting predictions class
         
-    
+            # calcualte accuracy in predcting premutation index  
             f1_perm_label_score1 = (perm_label_pred_1_1 == target_prem_label).sum().item()/target_prem_label.shape[0] # get accuracy val
             f1_perm_label_score2 = (perm_label_pred_1_2 == target_prem_label2).sum().item()/target_prem_label.shape[0] # get accuracy val
-
+            
+            # average the score for both images (1\2)
             f1_perm_label_score = (f1_perm_label_score1 + f1_perm_label_score2)/2
-            # f1_perm_label_score = f1_perm_label_score1 
 
-            # del perm_label_pred_1_1, target_prem_label,target_prem_label2
             del perm_label_pred_1_1, perm_label_pred_1_2, target_prem_label,target_prem_label2
-
             del target_prem2, target_prem1, perm_pred_1_2,perm_pred_1_1
-            # del target_prem2, target_prem1,perm_pred_1_1
-
+        # no need to optimize permutation index prediction head
         else:
             f1_perm_label_score = 0
             perm_classification_loss = torch.Tensor([0])
             perm_classification_loss = perm_classification_loss.to(device)
          
-        
+        # calulate representation loss 
+        # if loss is cosin
         if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_1, representation_pred_2_2))
+        # dist loss
         else:
             similiarities_loss = criterion(representation_pred_1_1, representation_pred_2_2)
 
         criterion_loss1 = similiarities_loss
-        
-        # similiarities_loss = criterion(representation_pred_1_2_normelized, representation_pred_2_1_normelized)
+        # if loss is cosin
         if isinstance(criterion, torch.nn.CosineSimilarity):
             similiarities_loss =  torch.mean(2-2*criterion(representation_pred_1_2, representation_pred_2_1))
+        # dist loss
         else:
             similiarities_loss = criterion(representation_pred_1_2, representation_pred_2_1)
 
         criterion_loss2 = similiarities_loss
 
-
+        # summed loss 
         criterion_loss = criterion_loss1 + criterion_loss2
-    
+        
+        # multi by head factors
         rank_loss *= balance_factor
         perm_classification_loss *= balance_factor2
 
-        
+        # get representation loss val
         accuracy = criterion_loss.item()
+        # update postion embedding loss 
         f1_score = rank_loss
-        
+        # use auto weight optimization
         if model.use_auto_weight :  
 
-        # if model.use_auto_weight and is_worm_up:  
             sigma_squered = torch.pow(model.sigma,2)
             # sigma1 = sigma_squered[0]
             # sigma2 =  sigma_squered[1]
@@ -694,21 +811,24 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             constarint_sigma3 = constarint_sigma3.to(device)
             criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
         
+        # optimize postion embedding head 
         if balance_factor != 0:    
-            # criterion_loss = torch.add(criterion_loss, rank_loss)
             criterion_loss += rank_loss
-        if balance_factor2 != 0:    
-            # criterion_loss = torch.add(criterion_loss, perm_classification_loss)
-            criterion_loss += perm_classification_loss
             
+        # optimize permutation indx prediction 
+        if balance_factor2 != 0:    
+            criterion_loss += perm_classification_loss
+        
+        # in training phase --> deriative             
         if optimizer is not None:
             criterion_loss.backward()
             debug_grad = False
             if debug_grad:
                 print_grad(model)
             #clip_gradient(model)
-                        
+            # optimize step
             optimizer.step()
+            # validate that in auto task optimization weight are positive 
             model.sigma.data = torch.relu(model.sigma.data)
 
 
@@ -723,6 +843,11 @@ def step(model, student, data, labels, criterion, ranking_criterion,
 
 
 def eval_model(model, student, classification_criterion, ranking_criterion, accuracy_metric,perm_creterion, data_loader, device):
+    """ 
+    run model on all data
+    """
+    
+    # initlized scores 
     total_accuracy = 0.
     total_f1_score = 0.
     total_classification_loss = 0.
@@ -730,13 +855,18 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
     total_perm_classification_loss = 0.
     
     debug = False
+    
+    # move into eval mode
     model.eval()
+    
+    # run on all data 
     for idx, (data, target, perm_order, target_name, perm_label) in enumerate(data_loader):
         batch_size = target.shape[0]
-        # torch.cuda.empty_cache()
-        # gc.collect()
+
         if idx>1 and debug:
             break
+        
+        # forward step 
         classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss =  \
             step(model, student,  data.to(device), target.to(device), classification_criterion.to(device),
                  ranking_criterion.to(device), accuracy_metric.to(device), perm_creterion.to(device), 
@@ -744,6 +874,7 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
         del data, target, perm_order , target_name
         # gc.collect()
         
+        # append results 
         total_f1_perm_score += f1_perm_label_score*batch_size
         total_perm_classification_loss += perm_classification_loss*batch_size
         total_accuracy += accuracy*batch_size
@@ -763,6 +894,15 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
 def train(model, student, optimizer, optimizer_sigma, classification_criterion,
           ranking_criterion, accuracy_metric, perm_creterion,  data_loader, 
           device, scheduler= None, epoch= 1, num_epochs=1):
+    
+    """ 
+    training step
+    
+    
+    
+    """
+    
+    # intilized score 
     total_accuracy = 0.
     total_f1_score = 0
     total_classification_loss = 0
@@ -771,6 +911,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
 
     
     debug = False
+    # set training log for supervised and for ssl 
     if model.learning_type == 'supervised':
         message = 'accuracy {}, f1-score {}, classification loss {}'
     else:
@@ -779,13 +920,16 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
     with tqdm(data_loader) as pbar:
         model.train()
         for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
+            # get batch size 
             batch_size = target.shape[0]
 
             if idx >1 and debug:
                 break
+            
+            # initlized gradient 
             optimizer.zero_grad()
-            # if hasattr(model, 'sigma'):
-            #     optimizer_sigma.zero_grad()
+            
+            # forward and optimize 
             classification_loss, accuracy, f1_score, f1_perm_label_score, perm_classification_loss \
                 = step(model,student, data.to(device), target.to(device), 
                         classification_criterion.to(device), ranking_criterion.to(device), 
@@ -794,24 +938,20 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             del data, target, perm_order , target_name
             # gc.collect()
             if not student is  None:
+                # in ssl learning update beta (increase --> memory less)
                 data_loader_batch_size = data_loader.batch_size
-
                 epoch_optimization_steps = data_loader.dataset.__len__()//data_loader_batch_size+1
                 current_steps = (epoch*epoch_optimization_steps+idx)
-                # if current_steps%50==0:
-                #     model.student_ema_updater.beta = 0
-                #     update_moving_average(model.student_ema_updater, student, model)
-
-
                 beta = model.student_ema_updater.initial_beta
                 total_amount_of_steps =  epoch_optimization_steps*num_epochs
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
+                
+                # update backbone and representation head 
                 update_moving_average(model.student_ema_updater, student.backbone, model.backbone)
                 update_moving_average(model.student_ema_updater, student.REPRESENTATION_HEAD, model.REPRESENTATION_HEAD)
 
-            
-
+            # append results
             total_f1_perm_score += f1_perm_label_score*batch_size
             total_perm_classification_loss += perm_classification_loss*batch_size
             total_accuracy += accuracy*batch_size
@@ -824,7 +964,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
                                                 np.round(f1_perm_label_score,3)))
             pbar.update()
            
-    # gc.collect()     
+    # summary all batch results     
     total_accuracy =  np.round(total_accuracy /  data_loader.dataset.__len__(),3)
     total_f1_score =  np.round(total_f1_score.item() /  data_loader.dataset.__len__(),3)
     total_classification_loss =  np.round(total_classification_loss.item() / data_loader.dataset.__len__(),3)
@@ -834,6 +974,9 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
 
 
 def generate_summary_columns(model):
+    """
+    generate summary of training per ephoch for supervised and ssl 
+    """
     if model.learning_type == 'supervised':
         columns_list = ['train_accuracy', 'train_f_score', 'train_classification_loss',
                         'val_accuracy', 'val_f_score_loss', 'val_classification_loss']
@@ -847,11 +990,17 @@ def generate_summary_columns(model):
     return columns_list
 
 def set_early_stoping_parameters():
+    """ 
+    set early stoping codition 
+    """
     max_patience = 9
     patience = 0
     return max_patience, patience
 
 def initilizied_best_result(max_opt):
+    """ 
+    initlized best score for maximization and minimization task
+    """
     if max_opt:
         best_model_score = 0
     else:
@@ -861,6 +1010,10 @@ def initilizied_best_result(max_opt):
 def print_epoch_results(epoch, model, train_accuracy, train_classification_loss, train_f1_permutation_score,
                         train_f1_score, train_permutation_classification_loss, val_accuracy, val_classification_loss,
                         val_f1_permutation_score, val_f1_score, val_permutation_classification_loss):
+    
+    """ 
+    prnit log using model results 
+    """
     if model.learning_type == 'supervised':
         print(7 * '' + f'Epoch Summary {epoch}:\n' + \
               f'1) Train: f1-score {train_f1_score}, ' + \
@@ -888,6 +1041,10 @@ def print_epoch_results(epoch, model, train_accuracy, train_classification_loss,
 def add_apoch_results(model, results_list, train_accuracy, train_classification_loss, train_f1_permutation_score,
                       train_f1_score, train_permutation_classification_loss, val_accuracy, val_classification_loss,
                       val_f1_permutation_score, val_f1_score, val_permutation_classification_loss):
+    
+    """ 
+    add apoch result for supervised and ssl 
+    """
     if model.learning_type == 'supervised':
         results = [train_accuracy, train_f1_score, train_classification_loss,
                    val_accuracy, val_f1_score, val_classification_loss]
@@ -902,6 +1059,9 @@ def add_apoch_results(model, results_list, train_accuracy, train_classification_
     return results_list
 
 def declare_early_stopping_condition(max_patience, model):
+    """ 
+    decalere early stoping condition is achieved 
+    """
     if model.learning_type == 'supervised':
         print(
             f'validation f1 score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
@@ -909,6 +1069,9 @@ def declare_early_stopping_condition(max_patience, model):
         print(
             f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
 def save_training_summary_results(columns_list, model_path, results_list):
+    """ 
+    save training summary to disk 
+    """
     train_results_df = pd.DataFrame(results_list, columns=columns_list)
     train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
     csv_path = change_file_ending(model_path, '.csv')
@@ -919,11 +1082,15 @@ def save_training_summary_results(columns_list, model_path, results_list):
 
 def optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
                                  model_path, patience):
-    
+    """ 
+    check if model was improved in this ephoc 
+    """
+    # maximization\minimization and validation score was improved 
     if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
+        # update weights 
         best_model_wts = model.state_dict()
         if model_path != '':
-            # torch.save(best_model_wts, model_path)
+            # save model 
             torch.save(model, model_path)
 
         if current_val == best_model_score:
@@ -965,6 +1132,9 @@ def write_final_results_to_tensorboard(device, epoch, model, tb_writer, train_lo
         
 
 def schedular_step(scheduler, val_classification_loss):
+    """ 
+    apply schedular step
+    """
     if not scheduler is None:
         if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
             scheduler.step(val_classification_loss)
@@ -972,6 +1142,9 @@ def schedular_step(scheduler, val_classification_loss):
             scheduler.step()
             
 def update_ephoch_result(max_opt, val_classification_loss, val_f1_score):
+    """ 
+    in maximization our focous on accuracy while in minimization on loss (ssl)
+    """
     if max_opt:
         current_val = val_f1_score
     else:
@@ -990,44 +1163,38 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
             return end_lr*factor + (end_lr - end_lr*factor) * epoch / worn_up_long
         return end_lr
     
-    
+    # initilized list 
     accuracy_train_list = []
     accuracy_validation_list = []
     loss_train_list = []
     loss_validation_list = []
     
     initial_lr  = optimizer.param_groups[0]['lr']
-    # optimizer.param_groups[0]['lr'] = initial_lr*1e-1
-    
+    # set optimizer for sigma parameters     
     if hasattr(model, 'sigma'):
         optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-4)
     else:
         optimizer_sigma =   None
     
-    
+    # generate summary columns 
     columns_list = generate_summary_columns(model)
-
     results_list = []
-    
     best_model_score = initilizied_best_result(max_opt)
-    # if max_opt:
-    #     best_model_score  = 0
-    # else:
-    #     best_model_score = 1e5
     
-    
-        
+    # set early stoping condition     
     max_patience, patience = set_early_stoping_parameters()
     best_model_wts = None
-    # max_patience = 9
-    # patience = 0
+    
+    # run for predefined amount of ephoch
     for epoch in range(num_epochs):
         
+        # worm up if needed learning rate 
         if epoch <= model.worm_up-1: 
             optimizer.param_groups[0]['lr'] = worm_lr_lambda(epoch, initial_lr, model.worm_up)
             
         # train
         model.epoch = epoch
+        # run train step 
         train_accuracy, train_f1_score, train_classification_loss, \
         train_perm_classification_loss, train_f1_perm_score = \
             train(model, student, optimizer, optimizer_sigma, classification_criterion, 
@@ -1035,7 +1202,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
                   scheduler=scheduler, epoch = epoch, num_epochs=num_epochs )
         
         
-        # validation 
+        # run validation step  
         val_accuracy, val_f1_score, \
         val_classification_loss, val_perm_classification_loss, \
         val_f1_perm_score = eval_model(model, student, classification_criterion,
@@ -1044,94 +1211,40 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
         
         
+        # update model score base optimization task 
         current_val = update_ephoch_result(max_opt, val_classification_loss, val_f1_score)
-
+        
+        # suffle permutation per image for image1\2
         random.shuffle(train_loader.dataset.perm_order_list)
         random.shuffle(train_loader.dataset.perm_order_list2)
-
-        # if max_opt:
-        #     current_val = val_f1_score
-        # else:
-        #     current_val = val_classification_loss
-        
         
         # update schedular
         if epoch > model.worm_up-1: 
             schedular_step(scheduler, val_classification_loss)
-
-        
-        
-        # if not scheduler is None:
-        #    if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-        #         scheduler.step(val_classification_loss)
-        #    else:
-        #        scheduler.step()  
             
         # print current results
         print_epoch_results(epoch, model, train_accuracy, train_classification_loss, train_f1_perm_score,
                                 train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
                                 val_f1_perm_score, val_f1_score, val_perm_classification_loss)
-        # if model.learning_type == 'supervised':
-        #     print(7*''+f'Epoch Summary {epoch}:\n'+\
-        #           f'1) Train: f1-score {train_f1_score}, '+ \
-        #           f'classification_loss {train_classification_loss}, '+ \
-        #           f'Accuracy {train_accuracy}\n' + \
-        #           f'2) Validation: f1-score {val_f1_score}, '+ \
-        #           f'classification_loss {val_classification_loss}, '+\
-        #           f'val acc {val_accuracy}')
-        # else:
-        #     print(7*''+f'Epoch Summary {epoch}:\n'+\
-        #           f'1) Train: postion embedding loss {train_f1_score}, '+ \
-        #           f'embeddding loss {train_accuracy}, ' + \
-        #           f'total loss {train_classification_loss}'+ \
-        #           f'perm accuracy {train_f1_perm_score} '+\
-        #           f'perm classification loss {train_perm_classification_loss}\n'
-        #           f'2) Validation: postion embedding loss {val_f1_score}, '+ \
-        #           f'embedding loss {val_accuracy}, ' + \
-        #           f'total loss {val_classification_loss}, '+ \
-        #           f'perm accuracy {val_f1_perm_score}, '+\
-        #           f'perm classification loss {val_perm_classification_loss}\n')
+
         
-        
+        # add apoch results 
         results_list = add_apoch_results(model, results_list, train_accuracy, train_classification_loss, train_f1_perm_score,
                               train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
                               val_f1_perm_score, val_f1_score, val_perm_classification_loss)
         
         
-        # if model.learning_type == 'supervised':
-        #     results = [train_accuracy, train_f1_score, train_classification_loss,
-        #                val_accuracy, val_f1_score, val_classification_loss]
-        # else:
-
-        #     results = [train_accuracy, train_f1_score, train_classification_loss, 
-        #                train_perm_classification_loss, train_f1_perm_score,
-        #                val_accuracy, val_f1_score,  val_classification_loss, 
-        #                val_perm_classification_loss, val_f1_perm_score]
-        # results_list.append(results)
-        
+        # save model result 
         train_results_df = save_training_summary_results(columns_list, model_path, results_list)
 
-        # train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-        # train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-        # csv_path =  change_file_ending(model_path, '.csv' )
-        # train_results_df.to_csv(csv_path)
+        # worm up step 
         if epoch > model.worm_up-1:
             optimizer.param_groups[0]['lr'] = initial_lr
             best_model_wts, best_model_score, patience  = \
                  optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
                                              model_path, patience)
              
-        # if (max_opt and current_val >= best_model_score) or (not max_opt and current_val <= best_model_score):
-        #     best_model_wts = copy.deepcopy(model.state_dict())
-        #     if model_path!= '':
-        #         torch.save(best_model_wts, model_path)
-
-        #     best_model_score = current_val
-        #     patience = 0
-        # patience += 1
-        
-        
-        
+        # is passs early stoping condition 
         if patience>max_patience:
           declare_early_stopping_condition(max_patience, model)
           # if model.learning_type == 'supervised':
@@ -1139,7 +1252,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
           # else:
           #     print(f'validation total loss score does not improve for {max_patience} epoch, therefore optimization is stop due early stoping condition')
           break
-        
+        # tensor board     
         if not tb_writer is None: 
             # add scalar (loss/accuracy) to tensorboard
             # write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
@@ -1163,8 +1276,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
        
             
-    # load best model
-    model.load_state_dict(best_model_wts)
+    
     if not tb_writer is None and train_loader.dataset.learning_type == 'supervised':
         # add pr curves to tensor board
         # add_pr_curves_to_tensorboard(model, val_loader, 
@@ -1174,13 +1286,12 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         # add_wrong_prediction_to_tensorboard(model, val_loader, device, tb_writer, 
         #                                     1, tag='Wrong_Predections', max_images=50)
         pass
-    
+    # save model results 
     train_results_df = save_training_summary_results(columns_list, model_path, results_list)
-    # train_results_df =  pd.DataFrame(results_list, columns = columns_list)
-    # train_results_df['ephoch_index'] = np.arange(train_results_df.shape[0])
-    # csv_path =  change_file_ending(model_path, '.csv' )
-    # train_results_df.to_csv(csv_path)
-
+    
+    # load best model
+    model.load_state_dict(best_model_wts)
+    
     
     return train_results_df
 
