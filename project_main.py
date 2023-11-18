@@ -137,7 +137,7 @@ training_configuration.add_argument('--load_ssl', type=int, default=0, help='Spe
 training_configuration.add_argument('--model_layer', type=int, default=7, help='Specify from which layer to take output at loop forward')
 training_configuration.add_argument('--model_sub_layer', type=int, default=0, help='Specify from which sublayer to take output at loop forward')
 training_configuration.add_argument('--pe_dim', type=int, default=512, help='Specify postion embedding vector size ')
-training_configuration.add_argument('--worm_up', type=int, default=-1, help='Specify amount of epoch to perfrom worm up')
+training_configuration.add_argument('--worm_up', type=int, default=0, help='Specify amount of epoch to perfrom worm up')
 
 # Parse the command-line arguments
 training_configuration = training_configuration.parse_args()
@@ -155,7 +155,7 @@ train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
 debug=  False
 if debug: 
-    train_split = 0.01
+    train_split = 0.001
     val_split = 0.001
     training_configuration.batch_size = 8
     training_configuration.epochs_count = 100
@@ -165,7 +165,9 @@ if debug:
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 0
-    training_configuration.train_model = 0
+    training_configuration.train_model = 1
+    training_configuration.worm_up = 1
+    argparser_validation(training_configuration)
     # training_configuration.unfreeze = 0
     
 # seed all
@@ -330,7 +332,7 @@ if training_configuration.sup_ssl_withperm:
     print('simulation '  +sim_name + ' has been started' )
     
     # define path's
-    model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '.pth')
+    model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '_epochs.pth')
     model_path = os.path.join(data_folder, sim_name  + '_epochs.pth')
     train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
     
@@ -442,7 +444,7 @@ if training_configuration.sup_ssl_withoutperm:
     print('simulation '  +sim_name + ' has been started' )
     
     # set path's
-    model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '.pth')
+    model_load_path =  os.path.join(data_folder, training_configuration.ssl_model_name  + '_epochs.pth')
     model_path = os.path.join(data_folder, sim_name  + '_epochs.pth')
     train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
 

@@ -293,10 +293,6 @@ def update_classifier_head(backbone, image_dim, num_classes, model_name = 'effic
     shape_size = get_output_shape(backbone, image_dim)
     flatten_size = np.prod(list(shape_size))
     
-
-    if hidden_size//4 < num_classes:
-        assert False, 'needed to change classifier hidden size due amount of class'
-   
     HEAD = torch.nn.Sequential(
                                 nn.Dropout(p=0.25),
                                 nn.Linear(flatten_size, num_classes)
@@ -532,7 +528,8 @@ class SSLMODEL(nn.Module):
         self.target_encoder = None
         self.student_ema_updater = EMA(moving_average_decay)
         self.worm_up = -1
-        
+        self.is_worm_up = False
+
 
     def forward(self, images):
         
@@ -661,6 +658,13 @@ class CNN(nn.Module):
         self.pe_dim = pe_dim
         self.device = device
         self.use_auto_weight = use_auto_weight
+        self.is_worm_up = False
+        """ 
+        sigma is coefficient for the improtance of task
+        1) greater --> less improtant 
+        2) smaller --> more importante
+    
+        """
         self.sigma = nn.Parameter(torch.ones(3))
         # self.sigma.data[1:3] = 0.5
         self.student = False
@@ -685,21 +689,20 @@ class CNN(nn.Module):
         else:
             
             projection_output = self.backbone(images)
-            #projection_output, geometric_output = forward_using_loop(self, images)
-                           
+         
             representation_pred = self.REPRESENTATION_HEAD(projection_output)
             
             balance_factor = self.balance_factor
             balance_factor2 = self.balance_factor2
             # forward
-            if not self.student or balance_factor !=0:
+            if not self.student or (balance_factor !=0 and self.is_worm_up ):
                 perm_pred = self.PERM_HEAD(representation_pred)
 
             else:
                 perm_pred = None
             
             # forward 
-            if not self.student or balance_factor2 !=0:
+            if not self.student or (balance_factor2 !=0 and self.is_worm_up):
                 perm_label_pred = self.PERM_LABEL_HEAD(representation_pred)
             else:
                 perm_label_pred = None

@@ -165,6 +165,19 @@ def argparser_validation(argparser):
     if mode_image_gridsize != 0:
         addition_2_dim = int(argparser.grid_size-mode_image_gridsize)
         argparser.image_dim +=  addition_2_dim
+        
+    #  worm up condition
+    if argparser.worm_up:
+        if argparser.max_opt:
+            argparser.worm_up = 0.75
+        else:
+            argparser.worm_up = 0.25
+    # is worm up
+    else:
+        if argparser.max_opt:
+            argparser.worm_up = 0
+        else:
+            argparser.worm_up = 1000000000000000000000
 
     
 
@@ -664,7 +677,17 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         
         # del from memory issue         
         del perm_label, perm_order, data
-      
+        # check if is worming up
+        is_worm_up = model.is_worm_up
+        # is worm up --> start optimize addition head 
+        if is_worm_up :
+            balance_factor = model.balance_factor
+            balance_factor2 = model.balance_factor2
+        # is not worm up --> do not optimize addition head 
+        else:
+            balance_factor = balance_factor2 = 0
+            
+            
         # forward in non training phsase 
         if optimizer is  None:
              #  online model get image 1
@@ -704,15 +727,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         del data1, data2
         gc.collect()
         
-        # check if is worming up
-        is_worm_up = model.epoch > model.worm_up-1
-        # is worm up --> start optimize addition head 
-        if is_worm_up :
-            balance_factor = model.balance_factor
-            balance_factor2 = model.balance_factor2
-        # is not worm up --> do not optimize addition head 
-        else:
-            balance_factor = balance_factor2 = 0
+        
         # get device 
         device = model.device
         
@@ -790,7 +805,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         # update postion embedding loss 
         f1_score = rank_loss
         # use auto weight optimization
-        if model.use_auto_weight :  
+        if model.use_auto_weight and is_worm_up:  
 
             sigma_squered = torch.pow(model.sigma,2)
             # sigma1 = sigma_squered[0]
@@ -803,11 +818,11 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             rank_loss = rank_loss/(sigma_squered[1]*2)
             perm_classification_loss = perm_classification_loss/(sigma_squered[2]*2)
             
-            constarint_sigma1 = torch.log(1+sigma1)
+            constarint_sigma1 = torch.log(1+sigma_squered[1])
             constarint_sigma1 = constarint_sigma1.to(device)
-            constarint_sigma2 = torch.log(1+sigma2)
+            constarint_sigma2 = torch.log(1+sigma_squered[2])
             constarint_sigma2 = constarint_sigma2.to(device)
-            constarint_sigma3 = torch.log(1+sigma3)
+            constarint_sigma3 = torch.log(1+sigma_squered[3])
             constarint_sigma3 = constarint_sigma3.to(device)
             criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
         
@@ -830,6 +845,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             optimizer.step()
             # validate that in auto task optimization weight are positive 
             model.sigma.data = torch.relu(model.sigma.data)
+            print(model.sigma)
 
 
         _, predicted = None, None # for getting predictions class
@@ -862,7 +878,8 @@ def eval_model(model, student, classification_criterion, ranking_criterion, accu
     # run on all data 
     for idx, (data, target, perm_order, target_name, perm_label) in enumerate(data_loader):
         batch_size = target.shape[0]
-
+        if batch_size == 1:
+            continue
         if idx>1 and debug:
             break
         
@@ -922,7 +939,8 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
         for idx, (data, target, perm_order , target_name, perm_label)  in enumerate(pbar):
             # get batch size 
             batch_size = target.shape[0]
-
+            if batch_size == 1:
+                continue
             if idx >1 and debug:
                 break
             
@@ -1081,7 +1099,7 @@ def save_training_summary_results(columns_list, model_path, results_list):
 
 
 def optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
-                                 model_path, patience):
+                                 model_path, patience, is_worm_up):
     """ 
     check if model was improved in this ephoc 
     """
@@ -1099,8 +1117,8 @@ def optimization_improve_checker(best_model_score, current_val, max_opt, model,b
         else:
             patience = 0
         best_model_score = current_val
-        
-    patience += 1
+    if is_worm_up:  
+        patience += 1
     return best_model_wts, best_model_score, patience
 
 def write_scalar_2_tensorboard(epoch, tb_writer, train_accuracy, train_classification_loss, train_f1_score,
@@ -1157,7 +1175,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
              train_loader, val_loader, num_epochs, device, tb_writer = None, 
          scheduler = None, model_path = '', max_opt = True, scheduler_worm_up = None):
     
-    def worm_lr_lambda(epoch, end_lr, worn_up_long):
+    def worm_lr_lambda(epoch, end_lr, worn_up_long = 20):
         factor = 0.1
         if epoch < worn_up_long:
             return end_lr*factor + (end_lr - end_lr*factor) * epoch / worn_up_long
@@ -1184,13 +1202,19 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     # set early stoping condition     
     max_patience, patience = set_early_stoping_parameters()
     best_model_wts = None
+    # model.is_worm_up = False
+    
     
     # run for predefined amount of ephoch
     for epoch in range(num_epochs):
         
         # worm up if needed learning rate 
-        if epoch <= model.worm_up-1: 
-            optimizer.param_groups[0]['lr'] = worm_lr_lambda(epoch, initial_lr, model.worm_up)
+        # if not model.is_worm_up:
+        #     is_worm_up = (best_model_score >= model.worm_up and max_opt) or (best_model_score <= model.worm_up and not max_opt)
+        #     model.is_worm_up = is_worm_up
+        # if not is_worm_up and 0: 
+        #     worn_up_long = 20
+        #     optimizer.param_groups[0]['lr'] = worm_lr_lambda(epoch, initial_lr, worn_up_long = worn_up_long)
             
         # train
         model.epoch = epoch
@@ -1218,10 +1242,6 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         random.shuffle(train_loader.dataset.perm_order_list)
         random.shuffle(train_loader.dataset.perm_order_list2)
         
-        # update schedular
-        if epoch > model.worm_up-1: 
-            schedular_step(scheduler, val_classification_loss)
-            
         # print current results
         print_epoch_results(epoch, model, train_accuracy, train_classification_loss, train_f1_perm_score,
                                 train_f1_score, train_perm_classification_loss, val_accuracy, val_classification_loss,
@@ -1238,12 +1258,26 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         train_results_df = save_training_summary_results(columns_list, model_path, results_list)
 
         # worm up step 
-        if epoch > model.worm_up-1:
-            optimizer.param_groups[0]['lr'] = initial_lr
-            best_model_wts, best_model_score, patience  = \
-                 optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
-                                             model_path, patience)
+        
+        # optimizer.param_groups[0]['lr'] = initial_lr
+        best_model_wts, best_model_score, patience  = \
+             optimization_improve_checker(best_model_score, current_val, max_opt, model,best_model_wts,
+                                         model_path, patience, model.is_worm_up)
              
+        # if is not worm up check if worm in last epoch
+        if not model.is_worm_up:
+            # check 
+            is_worm_up = (best_model_score >= model.worm_up and max_opt) or (best_model_score <= model.worm_up and not max_opt)
+        
+        # check if there is change in worm up
+        if is_worm_up != model.is_worm_up:
+            best_model_score = initilizied_best_result(max_opt)
+            
+            # update if model is wormed
+            model.is_worm_up = is_worm_up
+            
+        if is_worm_up: 
+            schedular_step(scheduler, val_classification_loss)
         # is passs early stoping condition 
         if patience>max_patience:
           declare_early_stopping_condition(max_patience, model)
