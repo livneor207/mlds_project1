@@ -73,7 +73,7 @@ def collect_train_csv_summary(csv_folder_path, substring):
         
 
 
-def get_model_results(model, student, model_path, criterion,
+def get_model_results(model, student, training_configuration, model_path, criterion,
                       ranking_criterion, accuracy_metric, perm_creterion,
                       train_loader, val_loader, test_loader, device,
                       train_val_test_summary):
@@ -83,7 +83,7 @@ def get_model_results(model, student, model_path, criterion,
     """
     
     # load model
-    model = load_model(model_path)
+    model = load_model(model_path, training_configuration)
     
     # send to device 
     model = model.to(device)
@@ -497,19 +497,21 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     scheduler_name = training_configuration.scheduler_name
     
     optimizer_bank = ['adam', 'lion', 'AdamW', 'Lars']
+    include_params = [param for name, param in model.named_parameters() if 'sigma' not in name]
+
     if not optimizer_name in optimizer_bank:
        assert False, 'needed to add optimizer'
     # optimizer settings 
     if optimizer_name == 'adam':
       # model_parameters = [p for p in model.parameters()][1::] # remove sigma parameters
-      optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
+      optimizer = torch.optim.Adam(include_params, lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'lion':
-      optimizer = Lion(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
+      optimizer = Lion(include_params, lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'AdamW':
         # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay, betas=(0.9, 0.99), eps=1e-06)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
+        optimizer = torch.optim.AdamW(include_params, lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'Lars':
-        optimizer = LARS(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay= weight_decay)
+        optimizer = LARS(include_params, lr=learning_rate, momentum=0.9, weight_decay= weight_decay)
 
 
     # Scheduler
@@ -796,9 +798,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         # summed loss 
         criterion_loss = criterion_loss1 + criterion_loss2
         
-        # multi by head factors
-        rank_loss *= balance_factor
-        perm_classification_loss *= balance_factor2
+        
 
         # get representation loss val
         accuracy = criterion_loss.item()
@@ -818,14 +818,19 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             rank_loss = rank_loss/(sigma_squered[1]*2)
             perm_classification_loss = perm_classification_loss/(sigma_squered[2]*2)
             
-            constarint_sigma1 = torch.log(1+sigma_squered[1])
+            constarint_sigma1 = torch.log(1+sigma_squered[0])
             constarint_sigma1 = constarint_sigma1.to(device)
-            constarint_sigma2 = torch.log(1+sigma_squered[2])
+            constarint_sigma2 = torch.log(1+sigma_squered[1])
             constarint_sigma2 = constarint_sigma2.to(device)
-            constarint_sigma3 = torch.log(1+sigma_squered[3])
+            constarint_sigma3 = torch.log(1+sigma_squered[2])
             constarint_sigma3 = constarint_sigma3.to(device)
             criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
-        
+        else:
+            # multi by head factors
+            rank_loss *= balance_factor
+            perm_classification_loss *= balance_factor2
+            
+            
         # optimize postion embedding head 
         if balance_factor != 0:    
             criterion_loss += rank_loss
@@ -843,9 +848,12 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             #clip_gradient(model)
             # optimize step
             optimizer.step()
+            
+            if not optimizer_sigma is None and model.use_auto_weight:
+                optimizer_sigma.step()
             # validate that in auto task optimization weight are positive 
             model.sigma.data = torch.relu(model.sigma.data)
-            print(model.sigma)
+            # print(model.sigma)
 
 
         _, predicted = None, None # for getting predictions class
@@ -944,6 +952,9 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
             if idx >1 and debug:
                 break
             
+            if not optimizer_sigma is None:
+                optimizer_sigma.zero_grad()
+
             # initlized gradient 
             optimizer.zero_grad()
             
@@ -1204,7 +1215,8 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     best_model_wts = None
     # model.is_worm_up = False
     
-    
+    is_worm_up = (best_model_score >= model.worm_up and max_opt) or (best_model_score <= model.worm_up and not max_opt)
+    model.is_worm_up = is_worm_up
     # run for predefined amount of ephoch
     for epoch in range(num_epochs):
         

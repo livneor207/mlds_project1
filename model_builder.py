@@ -8,7 +8,7 @@ import os
 
 
 
-def load_model(model_load_path, learning_type = 'supervised', device = 'cpu'):
+def load_model(model_load_path, training_configuration):
     """
     
 
@@ -21,12 +21,19 @@ def load_model(model_load_path, learning_type = 'supervised', device = 'cpu'):
     -------
     model : loaded model after load to device 
     """
+    learning_type = training_configuration.learning_type
+    device = training_configuration.device
+    balance_factor = training_configuration.balance_factor
+    balance_factor2 = training_configuration.balance_factor2
+
     if os.path.exists(model_load_path):
         model = torch.load(model_load_path, map_location='cpu')
         for name, param in model.named_parameters():
             if param.device.type != 'cpu':
                 param.to('cpu')
         if learning_type  != 'supervised':
+            model.sigma.data = torch.Tensor([1,balance_factor,balance_factor2])
+
             print('model sigma')
             print(model.sigma)
     else:
@@ -527,9 +534,9 @@ class SSLMODEL(nn.Module):
         self.use_momentum = use_momentum
         self.target_encoder = None
         self.student_ema_updater = EMA(moving_average_decay)
-        self.worm_up = -1
-        self.is_worm_up = False
-
+        self.worm_up = 0
+        self.is_worm_up = True
+        
 
     def forward(self, images):
         
@@ -658,7 +665,7 @@ class CNN(nn.Module):
         self.pe_dim = pe_dim
         self.device = device
         self.use_auto_weight = use_auto_weight
-        self.is_worm_up = False
+        self.is_worm_up = True
         """ 
         sigma is coefficient for the improtance of task
         1) greater --> less improtant 

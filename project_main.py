@@ -166,8 +166,10 @@ if debug:
     training_configuration.sup_withoutperm = 1
     training_configuration.sup_withperm = 0
     training_configuration.train_model = 1
-    training_configuration.worm_up = 1
+    training_configuration.worm_up = 0
+    training_configuration.load_ssl = 1
     argparser_validation(training_configuration)
+    
     # training_configuration.unfreeze = 0
     
 # seed all
@@ -262,7 +264,7 @@ if training_configuration.ssl_training:
     
     # start from last traind ssl model 
     if load_ssl:
-        model = load_model(model_path, learning_type = training_configuration.learning_type)
+        model = load_model(model_path, training_configuration)
 
     # generate student model
     student = generate_student(model, 
@@ -360,7 +362,7 @@ if training_configuration.sup_ssl_withperm:
                 unfreeze = unfreeze)
     
     # load ssl model 
-    model = load_model(model_load_path, learning_type = training_configuration.learning_type)
+    model = load_model(model_load_path, training_configuration)
     
     # set learning type 
     training_configuration.learning_type = 'supervised'
@@ -429,7 +431,7 @@ if training_configuration.sup_ssl_withperm:
         
     
     # run model to evaluate preformance 
-    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+    summary_modelresult_df = get_model_results(model, student, training_configuration, model_path, criterion,
                                   ranking_criterion, accuracy_metric, perm_creterion,
                                   train_loader,val_loader,test_loader, device,
                                   train_val_test_summary)
@@ -476,7 +478,7 @@ if training_configuration.sup_ssl_withoutperm:
     student= None
  
     # load ssl model 
-    model = load_model(model_load_path, learning_type = training_configuration.learning_type)
+    model = load_model(model_load_path, training_configuration)
     
     # set learning type 
     training_configuration.learning_type = 'supervised'
@@ -548,7 +550,7 @@ if training_configuration.sup_ssl_withoutperm:
     
     
     # evaluate model on train\test\val
-    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+    summary_modelresult_df = get_model_results(model, student,training_configuration,  model_path, criterion,
                                   ranking_criterion, accuracy_metric, perm_creterion,
                                   train_loader,val_loader,test_loader, device,
                                   train_val_test_summary)
@@ -647,7 +649,7 @@ if training_configuration.sup_withoutperm:
                                 scheduler_worm_up= scheduler_worm_up)
         
     # EVALUATE MODEL
-    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+    summary_modelresult_df = get_model_results(model, student, training_configuration, model_path, criterion,
                                   ranking_criterion, accuracy_metric, perm_creterion,
                                   train_loader,val_loader,test_loader, device,
                                   train_val_test_summary)
@@ -752,7 +754,7 @@ if training_configuration.sup_withperm:
                                 tb_writer=tb_writer, max_opt = training_configuration.max_opt, 
                                 model_path = model_path, scheduler = scheduler, scheduler_worm_up=scheduler_worm_up)
     # evaluate model 
-    summary_modelresult_df = get_model_results(model, student, model_path, criterion,
+    summary_modelresult_df = get_model_results(model, student, training_configuration, model_path, criterion,
                                   ranking_criterion, accuracy_metric, perm_creterion,
                                   train_loader,val_loader,test_loader, device,
                                   train_val_test_summary)
