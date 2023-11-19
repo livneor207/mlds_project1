@@ -42,6 +42,8 @@ def load_model(model_load_path, training_configuration):
             print('model sigma')
             print(model.sigma)
             
+        
+    else:
         print('can not load model because file is not exists')
     return model
 
