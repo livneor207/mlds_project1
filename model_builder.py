@@ -31,12 +31,17 @@ def load_model(model_load_path, training_configuration):
         for name, param in model.named_parameters():
             if param.device.type != 'cpu':
                 param.to('cpu')
+                
         if learning_type  != 'supervised':
-            model.sigma.data = torch.Tensor([1,balance_factor,balance_factor2])
-
+            
+            
+            if balance_factor ==0:
+                model.sigma[1]*=0
+            if balance_factor2 ==0:
+                model.sigma[2]*=0 
             print('model sigma')
             print(model.sigma)
-    else:
+            
         print('can not load model because file is not exists')
     return model
 

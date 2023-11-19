@@ -376,7 +376,8 @@ if training_configuration.sup_ssl_withperm:
     # set supervised defintion
     student= None
     ssl_model.learning_type = 'supervised'
-    
+    training_configuration.learning_type = 'supervised'
+
     # send ssl model to device 
     ssl_model = ssl_model.to(device)
     
@@ -482,7 +483,8 @@ if training_configuration.sup_ssl_withoutperm:
     
     # set learning type 
     training_configuration.learning_type = 'supervised'
-
+    model.learning_type = 'supervised'
+    
     # generate model for supervised task using backbone of ssl model
     ssl_model =  SSLMODEL(model,
                           num_classes=amount_of_class,
@@ -595,6 +597,7 @@ if training_configuration.sup_withoutperm:
                  model_name = 'resnet50',
                  weights = 'IMAGENET1K_V1',
                  unfreeze = unfreeze)
+        
     
     # set student
     student= None
