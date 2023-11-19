@@ -793,11 +793,11 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split, tra
         if train_split!=1:
             try:
                 train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
-                test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+                # test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
     
             except:
                 train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
-                test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state) 
+                # test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state) 
     else:
    
         if learning_type == 'self_supervised':
@@ -818,12 +818,12 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split, tra
         if train_split!=1:
             try:
                 train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
-                if  learning_type != 'self_supervised':
-                    test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+                # if  learning_type != 'self_supervised':
+                #     test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
             except:
                 train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
-                if  learning_type != 'self_supervised':
-                   test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+                # if  learning_type != 'self_supervised':
+                #    test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
                 
     return train_index, val_index, test_index
 

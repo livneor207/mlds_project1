@@ -36,9 +36,9 @@ def load_model(model_load_path, training_configuration):
             
             
             if balance_factor ==0:
-                model.sigma[1]*=0
+                model.sigma[1].data *= 0
             if balance_factor2 ==0:
-                model.sigma[2]*=0 
+                model.sigma[2].data *= 0
             print('model sigma')
             print(model.sigma)
             
