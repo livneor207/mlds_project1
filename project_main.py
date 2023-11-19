@@ -77,11 +77,11 @@ training_configuration.add_argument('--moving_average_decay', type=float, defaul
 
 # permutation
 training_configuration.add_argument('--max_allowed_permutation', type=int, default = 24, help='Specify the amount of allowed permutation from all permutation, should be smaller than 1000')
-training_configuration.add_argument('--use_auto_weight', type=int, default = 1, help='Specify if model require to auto adjust the loss coeficient')
+training_configuration.add_argument('--use_auto_weight', type=int, default = 0, help='Specify if model require to auto adjust the loss coeficient')
 training_configuration.add_argument('--amount_of_patch', type=int, default = 4, help='Specify the grid size for permutation defenition')
 training_configuration.add_argument('--perm', type=str, default = 'perm', help='Specify use or not permutation augmentation')
-training_configuration.add_argument('--balance_factor', type=float, default = 1, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
-training_configuration.add_argument('--balance_factor2', type=float, default = 1, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
+training_configuration.add_argument('--balance_factor', type=float, default = 0.5, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
+training_configuration.add_argument('--balance_factor2', type=float, default = 0, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
 
 # datapreperation
 training_configuration.add_argument('--val_split', type=float, default = 0.2, help='Specify validation size')

@@ -1,285 +1,922 @@
 % general comand
 ######################################################################################################################### 
-python your_script.py \
+
+python project_main.py \
+    --task_name OxfordIIITPet \
     --ssl_model_name ssl_model \
     --sup_ssl_model_withperm_name sup_ssl_model_withperm \
     --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
-    --sup_model_withoutperm_name sup_ssl_model_withoutperm \
-    --sup_model_withperm_name sup_ssl_model_withperm \
-    --balance_factor 1.0 \
-    --balance_factor2 1.0 \
-    --batch_size 256 \
-    --task_name OxfordIIITPet \
+    --sup_model_withoutperm_name sup_model_withoutperm \
+    --sup_model_withperm_name sup_model_withperm \
     --moving_average_decay 0.996 \
-    --max_allowed_permutation 75 \
+    --max_allowed_permutation 24 \
     --use_auto_weight 1 \
-    --weight_decay 0.05 \
     --amount_of_patch 4 \
-    --num_workers 0 \
-    --max_opt 0 \
-    --optimizer_name AdamW \
-    --epochs_count 200 \
-    --scheduler_name ReduceLROnPlateau \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --hidden_size 512 \
-    --loss_functions_name ce \
     --perm perm \
-    --seed 42 \
-    --val_split 0.1 \
+    --balance_factor 1 \
+    --balance_factor2 1 \
+    --val_split 0.2 \
     --image_dim 224 \
     --train_split 1 \
     --rand_choise 1 \
-    --classification_loss_name ce \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
     --ssl_training 1 \
     --sup_ssl_withperm 1 \
     --sup_ssl_withoutperm 1 \
     --sup_withoutperm 1 \
     --sup_withperm 1 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
     --unfreeze 0 \
-    --pin_memory 1 \
-    --copy_weights 0
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
 
 
 # ask from chat GPT to convert command to single line (2)
 ######################################################################################################################### 
-simulation1 - CIFAR10 2x2 - Supervised with&without perm (2)
-
+simulation1 - Pets - Supervised no perm
 python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4 \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 1.0 \
-    --balance_factor2 1.0 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
+    --task_name OxfordIIITPet \
+    --ssl_model_name ssl_model \
+    --sup_ssl_model_withperm_name sup_ssl_model_withperm \
+    --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
     --use_auto_weight 1 \
-    --weight_decay 0.05 \
     --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
     --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
     --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
     --ssl_training 0 \
     --sup_ssl_withperm 0 \
     --sup_ssl_withoutperm 0 \
     --sup_withoutperm 1 \
-    --sup_withperm 1 \
-    --copy_weights 0
-
-
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4 --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1.0 --balance_factor2 1.0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 1 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 1 --sup_withperm 1 --copy_weights 0
-
-
-
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
 ######################################################################################################################### 
-simulation2 - CIFAR10 2x2 - BYOL Without  perm (3)
-
+simulation2 - Pets  - Supervised with perm 2x2
 python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_NO_PERM \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_NO_PERM \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_NO_PERM \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 0 \
-    --balance_factor2 0 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
-    --use_auto_weight 0 \
-    --weight_decay 0.05 \
-    --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --perm no_perm \
-    --val_split 0.1 \
-    --image_dim 128 \
-    --rand_choise 1 \
-    --ssl_training 1 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
-    --sup_withoutperm 0 \
-    --sup_withperm 0 \
-    --copy_weights 0
-	
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_NO_PERM --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_NO_PERM --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_NO_PERM --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 0 --balance_factor2 0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_NO_PERM --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_NO_PERM --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_NO_PERM --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 0 --balance_factor2 0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-
-######################################################################################################################### 
-simulation3 - CIFAR10 2x2 - BYOL With perm (3)
-
-python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_WITH_PERM \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_WITH_PERM \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_WITH_PERM \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 0 \
-    --balance_factor2 0 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
-    --use_auto_weight 0 \
-    --weight_decay 0.05 \
-    --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
-    --rand_choise 1 \
-    --ssl_training 1 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
-    --sup_withoutperm 0 \
-    --sup_withperm 0 \
-    --copy_weights 0
-	
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_WITH_PERM --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_WITH_PERM --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_WITH_PERM --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 0 --balance_factor2 0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_WITH_PERM --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_WITH_PERM --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_WITH_PERM --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 0 --balance_factor2 0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-
-#########################################################################################################################
-simulation4 - CIFAR10 2x2 - BYOL&PE&CLS
-python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 1 \
-    --balance_factor2 1 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
-    --use_auto_weight 0 \
-    --weight_decay 0.05 \
-    --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
-    --rand_choise 1 \
-    --ssl_training 1 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
-    --sup_withoutperm 0 \
-    --sup_withperm 0 \
-    --copy_weights 0
-	
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0 --load_ssl 1
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0 --load_ssl 1
-
-
-#########################################################################################################################
-simulation4 - CIFAR10 2x2 - BYOL&PE&CLS
-python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS_AUTO \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS_AUTO \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS_AUTO \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 1 \
-    --balance_factor2 1 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
+    --task_name OxfordIIITPet \
+    --ssl_model_name ssl_model \
+    --sup_ssl_model_withperm_name sup_ssl_model_withperm \
+    --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
     --use_auto_weight 1 \
-    --weight_decay 0.05 \
     --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
     --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
     --rand_choise 1 \
-    --ssl_training 1 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
     --sup_withoutperm 0 \
-    --sup_withperm 0 \
-    --copy_weights 0
-	
-	
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS_AUTO --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS_AUTO --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS_AUTO --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 1 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE_CLS_AUTO --sup_ssl_model	name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE_CLS_AUTO --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE_CLS_AUTO --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 1 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 0 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
+    --sup_withperm 1 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
 
-#########################################################################################################################
-simulation 5 - Pet 2x2 - SSL Training 
+######################################################################################################################### 
+simulation3 - Pets  - Supervised with perm 3x3
 python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_CLS \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_CLS \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_CLS \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
+    --task_name OxfordIIITPet \
+    --ssl_model_name ssl_model \
+    --sup_ssl_model_withperm_name sup_ssl_model_withperm \
+    --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_3_3 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 1 \
+    --amount_of_patch 9 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 1 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+######################################################################################################################### 
+simulation4 - Pets  - Supervised with perm 4x4
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name ssl_model \
+    --sup_ssl_model_withperm_name sup_ssl_model_withperm \
+    --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_4_4 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 1 \
+    --amount_of_patch 16 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 1 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation5 - Pets  - Supervised with perm 7x7
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name ssl_model \
+    --sup_ssl_model_withperm_name sup_ssl_model_withperm \
+    --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_7_7 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 1 \
+    --amount_of_patch 49 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 1 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+######################################################################################################################### 
+simulation6 - Pets  - SSL BYOL
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_BYOL_NOPERM_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_BYOL_NOPERM_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_NOPERM_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm no_perm \
     --balance_factor 0 \
-    --balance_factor2 1 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
-    --use_auto_weight 0 \
-    --weight_decay 0.05 \
-    --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
-    --rand_choise 1 \
-    --ssl_training 1 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
-    --sup_withoutperm 0 \
-    --sup_withperm 0 \
-    --copy_weights 0
-	
-python project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_CLS --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_CLS --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_CLS --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 0 --balance_factor2 1 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
-#########################################################################################################################
-python project_main.py \
-    --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE \
-    --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE \
-    --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE \
-    --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm \
-    --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm \
-    --balance_factor 1 \
     --balance_factor2 0 \
-    --batch_size 256 \
-    --task_name CIFAR10 \
-    --use_auto_weight 0 \
-    --weight_decay 0.05 \
-    --amount_of_patch 4 \
-    --num_workers 2 \
-    --max_opt 0 \
-    --epochs_count 150 \
-    --learning_rate 0.0001 \
-    --learning_type self_supervised \
-    --perm perm \
-    --val_split 0.1 \
-    --image_dim 128 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
     --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
     --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation7 - Pets  - SUP SSL BYOL
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_BYOL_NOPERM_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_BYOL_NOPERM_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_NOPERM_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm no_perm \
+    --balance_factor 0 \
+    --balance_factor2 0 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
     --sup_ssl_withperm 1 \
     --sup_ssl_withoutperm 1 \
     --sup_withoutperm 0 \
     --sup_withperm 0 \
-    --copy_weights 0
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
 	
-project_main.py --ssl_model_name CIFAR10_SSL_GRID4_BYOL_PE --sup_ssl_model_withperm_name CIFAR10_SUP_SSL_GRID4_withperm_BYOL_PE --sup_ssl_model_withoutperm_name CIFAR10_SUP_SSL_GRID4_withoutperm_BYOL_PE --sup_model_withoutperm_name CIFAR10_SUP_GRID4_withoutperm --sup_model_withperm_name CIFAR10_SUP_GRID4_GRID4_withperm --balance_factor 1 --balance_factor2 0 --batch_size 256 --task_name CIFAR10 --use_auto_weight 0 --weight_decay 0.05 --amount_of_patch 4 --num_workers 2 --max_opt 0 --epochs_count 150 --learning_rate 0.0001 --learning_type self_supervised --perm perm --val_split 0.1 --image_dim 128 --rand_choise 1 --ssl_training 1 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --copy_weights 0
+	
+	
+######################################################################################################################### 
+simulation8 - Pets  - SSL BYOL WITH PERM
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_BYOL_WITHPERM_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0 \
+    --balance_factor2 0 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation9 - Pets  - SUP SSL BYOL WITH PERM
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_BYOL_WITHPERM_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0 \
+    --balance_factor2 0 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 1 \
+    --sup_ssl_withoutperm 1 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+
+
+######################################################################################################################### 
+simulation10 - Pets  - SSL BYOL + CLS
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_CLS_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_CLS_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_CLS_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation11 - Pets  - SUP SSL BYOL + CLS
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_BYOL_WITHPERM_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 1 \
+    --sup_ssl_withoutperm 1 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+######################################################################################################################### 
+simulation12 - Pets  - SSL BYOL + PE
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_PE_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_PE_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_PE_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation13 - Pets  - SUP SSL BYOL + CLS
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_PE_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_PE_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_PE_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 1 \
+    --sup_ssl_withoutperm 1 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+
+######################################################################################################################### 
+simulation14 - Pets  - SSL BYOL + PE + CLS
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_PE_CLS_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_PE_CLS_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_PE_CLS_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+	
+######################################################################################################################### 
+simulation15 - Pets  - SUP SSL BYOL + PE + CLS
+######################################################################################################################### 
+python project_main.py \
+    --task_name OxfordIIITPet \
+    --ssl_model_name SSL_PE_CLS_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_PE_CLS_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_PE_CLS_2_2_WITHOUTPERM \
+    --sup_model_withoutperm_name Sup_Pets_withoutperm \
+    --sup_model_withperm_name Sup_Pets_withperm_2_2 \
+    --moving_average_decay 0.996 \
+    --max_allowed_permutation 24 \
+    --use_auto_weight 0 \
+    --amount_of_patch 4 \
+    --perm perm \
+    --balance_factor 0.5 \
+    --balance_factor2 0.5 \
+    --val_split 0.2 \
+    --image_dim 224 \
+    --train_split 1 \
+    --rand_choise 1 \
+    --pin_memory 1 \
+    --num_workers 0 \
+    --seed 42 \
+    --googledrive 0 \
+    --batch_size 256 \
+    --max_opt 0 \
+    --epochs_count 200 \
+    --learning_type self_supervised \
+    --ssl_training 0 \
+    --sup_ssl_withperm 1 \
+    --sup_ssl_withoutperm 1 \
+    --sup_withoutperm 0 \
+    --sup_withperm 0 \
+    --train_model 1 \
+    --loss_functions_name ce \
+    --classification_loss_name ce \
+    --ranking_loss CosineSimilarity \
+    --representation_loss CosineSimilarity \
+    --optimizer_name AdamW \
+    --weight_decay 4e-4 \
+    --learning_rate 1e-4 \
+    --scheduler_name ReduceLROnPlateau \
+    --optimizer_name_ssl Lars \
+    --weight_decay_ssl 4e-4 \
+    --learning_rate_ssl 2e-1 \
+    --hidden_size 512 \
+    --unfreeze 0 \
+    --copy_weights 0 \
+    --update_student 1 \
+    --load_ssl 0 \
+    --model_layer 7 \
+    --model_sub_layer 0 \
+    --pe_dim 512 \
+    --worm_up 0
+	
+	
+
+
+	
+	
+	
+	
+	
