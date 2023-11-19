@@ -234,10 +234,11 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
         
     elif task_name == 'OxfordIIITPet':
         
+        
         data_folder =  os.path.join(current_folder, 'Pets')
 
         data_set = torchvision.datasets.OxfordIIITPet(root=data_folder, split  = train, download=True)
-        
+
         data_class_df =  pd.DataFrame(data_set.class_to_idx.items(), columns = ['class_name', 'class_index'])
         folder_path  = os.path.join(data_folder, 'oxford-iiit-pet', 'images')
         # get all files names 
@@ -766,7 +767,7 @@ class MyDataset(Dataset):
 
     return sample
 
-def split_into_train_testval(all_train_df, test_df, random_state, val_split, train_split):
+def split_into_train_testval(all_train_df, test_df, random_state, val_split, train_split, data):
     """
     Parameters
     ----------
@@ -781,21 +782,40 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split, tra
     index list for each data set for train\test\validation
 
     """
-    try:
-        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
-    except:
-        train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
-        
-    test_index = np.arange(test_df.shape[0])
-
-    if train_split!=1:
+    if not data is None:
         try:
-            train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
-            # test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+            train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=val_split, random_state=random_state)
+        except:
+            train_index, val_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+            
+        test_index = np.arange(test_df.shape[0])
+    
+        if train_split!=1:
+            try:
+                train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
+                test_index, dummy = train_test_split(test_index, stratify = test_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+    
+            except:
+                train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
+                test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state) 
+    else:
+        try:
+            train_val_index, test_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=0.5, random_state=random_state)
+            train_index, val_index = train_test_split(train_val_index,  test_size=val_split, random_state=random_state)
 
         except:
-            train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
-            # test_index, dummy = train_test_split(test_index ,  test_size=1-train_split, random_state=random_state)    
+            train_val_index, test_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=val_split, random_state=random_state)
+            train_index, val_index = train_test_split(train_val_index,  test_size=val_split, random_state=random_state)
+
+    
+        if train_split!=1:
+            try:
+                train_index, dummy = train_test_split(train_index, stratify = all_train_df['class_index'][train_index] ,  test_size=1-train_split, random_state=random_state)
+                test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+            except:
+                train_index, dummy = train_test_split(train_index ,  test_size=1-train_split, random_state=random_state)
+                test_index, dummy = train_test_split(test_index, stratify = all_train_df['class_index'][test_index] ,  test_size=1-train_split, random_state=random_state)
+
     return train_index, val_index, test_index
 
 
@@ -890,7 +910,7 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     class_df =  class_df.drop_duplicates(subset=['class_name'])
 
     # split data into train test and validation sample index 
-    train_index, val_index, test_index= split_into_train_testval(all_train_df,test_df, random_state, val_split, train_split)
+    train_index, val_index, test_index= split_into_train_testval(all_train_df,test_df, random_state, val_split, train_split, train_data)
 
     # set 3 DataSets fpr train\test\validation     
     X_train = MyDataset(all_train_df, class_df, data_transforms, test_transforms ,index_list = train_index, amount_of_patch=amount_of_patch, 

@@ -65,7 +65,7 @@ tensorboard --logdir "C:\MSC\opencv-python-free-course-code\classification_proje
 training_configuration = argparse.ArgumentParser(description='Simulation argument')
 
 # path
-training_configuration.add_argument('--task_name', type=str, default = 'CIFAR10', help='Specify an task to work on (CIFAR10\CIFAR100\cat_dogs\OxfordIIITPet\FOOD101)')
+training_configuration.add_argument('--task_name', type=str, default = 'OxfordIIITPet', help='Specify an task to work on (CIFAR10\CIFAR100\cat_dogs\OxfordIIITPet\FOOD101)')
 training_configuration.add_argument('--ssl_model_name', type=str, default='ssl_model', help='Specify a sll model file name')
 training_configuration.add_argument('--sup_ssl_model_withperm_name', type=str, default='sup_ssl_model_withperm', help='Specify model name for supervsied learning on data with permutation')
 training_configuration.add_argument('--sup_ssl_model_withoutperm_name', type=str, default='sup_ssl_model_withoutperm', help='Specify model name for supervsied learning on data without permutation')
