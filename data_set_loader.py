@@ -810,7 +810,7 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split, tra
         else:
             try:
                 train_val_index, test_index = train_test_split(np.arange(all_train_df.shape[0]), stratify = all_train_df['class_index'] ,  test_size=0.5, random_state=random_state)
-                train_index, val_index = train_test_split(train_val_index,  test_size=val_split, random_state=random_state)
+                train_index, val_index = train_test_split(train_val_index, stratify = all_train_df['class_index'][train_val_index],  test_size=val_split, random_state=random_state)
 
             except:
                 train_val_index, test_index = train_test_split(np.arange(all_train_df.shape[0]) ,  test_size=0.5, random_state=random_state)
