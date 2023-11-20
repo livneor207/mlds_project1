@@ -680,6 +680,10 @@ class CNN(nn.Module):
     
         """
         self.sigma = nn.Parameter(torch.ones(3))
+        self.sigma[1].data *= balance_factor
+        self.sigma[2].data *= balance_factor2
+            
+            
         # self.sigma.data[1:3] = 0.5
         self.student = False
         self.backbone = backbone

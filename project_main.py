@@ -81,7 +81,7 @@ training_configuration.add_argument('--use_auto_weight', type=int, default = 0, 
 training_configuration.add_argument('--amount_of_patch', type=int, default = 4, help='Specify the grid size for permutation defenition')
 training_configuration.add_argument('--perm', type=str, default = 'perm', help='Specify use or not permutation augmentation')
 training_configuration.add_argument('--balance_factor', type=float, default = 0.5, help='Specify an factor to postion head prediction loss, if set to 0, remove the PE head')
-training_configuration.add_argument('--balance_factor2', type=float, default = 0, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
+training_configuration.add_argument('--balance_factor2', type=float, default = 0.5, help='Specify an factor to permutation index prediction loss, if set to 0, remove the classification head')
 
 # datapreperation
 training_configuration.add_argument('--val_split', type=float, default = 0.2, help='Specify validation size')
@@ -153,7 +153,7 @@ val_split = training_configuration.val_split
 image_dim = training_configuration.image_dim
 train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
-debug=  False
+debug =  False
 if debug: 
     train_split = 0.001
     val_split = 0.001
@@ -226,6 +226,10 @@ if training_configuration.ssl_training:
     # simulation name 
     sim_name = training_configuration.ssl_model_name
     print('simulation '  +sim_name + ' has been started' )
+    
+    
+    # training const 
+    training_configuration.val_split = 0.1
     
     # path defintion
     model_path = os.path.join(data_folder,  sim_name + '_epochs.pth')
@@ -347,7 +351,7 @@ if training_configuration.sup_ssl_withperm:
     
     # predefined parameter for this simulation
     training_configuration.perm = 'perm'
-    training_configuration.weight_decay = 1e-4 
+    training_configuration.weight_decay = 0 
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
     device = training_configuration.device
@@ -458,7 +462,7 @@ if training_configuration.sup_ssl_withoutperm:
         comment = "TensorBoard in PyTorch")
     
     # set simulation defention const
-    training_configuration.weight_decay = 1e-4
+    training_configuration.weight_decay = 0
     training_configuration.perm = 'no_perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
