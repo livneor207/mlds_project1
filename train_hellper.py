@@ -683,8 +683,8 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         is_worm_up = model.is_worm_up
         # is worm up --> start optimize addition head 
         if is_worm_up :
-            balance_factor = model.sigma[1]
-            balance_factor2 = model.sigma[2]
+            balance_factor = model.balance_factor
+            balance_factor2 = model.balance_factor2
         # is not worm up --> do not optimize addition head 
         else:
             balance_factor = balance_factor2 = 0

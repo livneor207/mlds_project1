@@ -98,7 +98,7 @@ training_configuration.add_argument('--googledrive', type=int, default=0, help='
 # training
 training_configuration.add_argument('--batch_size', type=int, default = 256, help='Specify an batch size for training sould, ssl improve as batch size increases')
 training_configuration.add_argument('--max_opt', type=int, default = 0, help='Specify if optimization goal is maximization of minimuzation')
-training_configuration.add_argument('--epochs_count', type=int, default = 200, help='Specify the amount of apoch for optimization training')
+training_configuration.add_argument('--epochs_count', type=int, default = 150, help='Specify the amount of apoch for optimization training')
 training_configuration.add_argument('--learning_type', type=str, default = 'self_supervised', help='Specify optimization type between ssl to supervised learning')
 training_configuration.add_argument('--ssl_training', type=int, default=1, help='Specify run ssl training')
 training_configuration.add_argument('--sup_ssl_withperm', type=int, default=1, help='Specify supervised training, data with permutation, backbone initilized using ssl model')
@@ -227,7 +227,6 @@ if training_configuration.ssl_training:
     sim_name = training_configuration.ssl_model_name
     print('simulation '  +sim_name + ' has been started' )
     
-    
     # training const 
     training_configuration.val_split = 0.1
     
@@ -351,7 +350,7 @@ if training_configuration.sup_ssl_withperm:
     
     # predefined parameter for this simulation
     training_configuration.perm = 'perm'
-    training_configuration.weight_decay = 0 
+    training_configuration.weight_decay = 1e-4 
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
     device = training_configuration.device
@@ -462,7 +461,7 @@ if training_configuration.sup_ssl_withoutperm:
         comment = "TensorBoard in PyTorch")
     
     # set simulation defention const
-    training_configuration.weight_decay = 0
+    training_configuration.weight_decay = 1e-4 
     training_configuration.perm = 'no_perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
