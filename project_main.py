@@ -229,7 +229,7 @@ if training_configuration.ssl_training:
     
     # training const 
     training_configuration.val_split = 0.1
-    
+
     # path defintion
     model_path = os.path.join(data_folder,  sim_name + '_epochs.pth')
     log_dir = os.path.join(data_folder,  sim_name)

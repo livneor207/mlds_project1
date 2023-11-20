@@ -165,6 +165,8 @@ def parse_train_data(task_name = 'cat_dogs', folder_path = '', train = True, cur
     data : data if exist (CIFAR)
 
     """
+    
+    current_folder = os.getcwd()
     if task_name == 'cat_dogs':
         
         # get all files names 
