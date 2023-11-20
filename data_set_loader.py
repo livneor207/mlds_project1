@@ -805,7 +805,7 @@ def split_into_train_testval(all_train_df, test_df, random_state, val_split, tra
         if learning_type == 'self_supervised':
             train_val_index =  np.arange(all_train_df.shape[0])
             test_index = np.array([])
-            train_index, val_index = train_test_split(train_val_index,  test_size=val_split, random_state=random_state)
+            train_index, val_index = train_test_split(train_val_index, stratify = all_train_df['class_index'], test_size=val_split, random_state=random_state)
 
         else:
             try:

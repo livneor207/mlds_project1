@@ -1248,7 +1248,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
         
         
         # update model score base optimization task 
-        current_val = update_ephoch_result(max_opt, val_classification_loss, val_f1_score)
+        current_val = update_ephoch_result(max_opt, val_classification_loss, val_accuracy)
         
         # suffle permutation per image for image1\2
         random.shuffle(train_loader.dataset.perm_order_list)

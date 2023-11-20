@@ -111,6 +111,8 @@ python project_main.py \
     --pe_dim 512 \
     --worm_up 0
 	
+python project_main.py --task_name OxfordIIITPet --ssl_model_name ssl_model --sup_ssl_model_withperm_name sup_ssl_model_withperm --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 1 --amount_of_patch 4 --perm perm --balance_factor 0.5 --balance_factor2 0.5 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 1 --sup_withperm 0 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+
 	
 ######################################################################################################################### 
 simulation2 - Pets  - Supervised with perm 2x2
@@ -167,6 +169,10 @@ python project_main.py \
     --pe_dim 512 \
     --worm_up 0
 
+python project_main.py --task_name OxfordIIITPet --ssl_model_name ssl_model --sup_ssl_model_withperm_name sup_ssl_model_withperm --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_2_2 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 1 --amount_of_patch 4 --perm perm --balance_factor 0.5 --balance_factor2 0.5 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 0 --sup_withperm 1 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+
+
+
 ######################################################################################################################### 
 simulation3 - Pets  - Supervised with perm 3x3
 python project_main.py \
@@ -222,6 +228,8 @@ python project_main.py \
     --pe_dim 512 \
     --worm_up 0
 	
+python project_main.py --task_name OxfordIIITPet --ssl_model_name ssl_model --sup_ssl_model_withperm_name sup_ssl_model_withperm --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_3_3 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 1 --amount_of_patch 9 --perm perm --balance_factor 0.5 --balance_factor2 0.5 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 0 --sup_withperm 1 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+
 	
 ######################################################################################################################### 
 simulation4 - Pets  - Supervised with perm 4x4
@@ -278,7 +286,8 @@ python project_main.py \
     --pe_dim 512 \
     --worm_up 0
 	
-	
+python project_main.py --task_name OxfordIIITPet --ssl_model_name ssl_model --sup_ssl_model_withperm_name sup_ssl_model_withperm --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_4_4 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 1 --amount_of_patch 16 --perm perm --balance_factor 0.5 --balance_factor2 0.5 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 0 --sup_withperm 1 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+
 	
 ######################################################################################################################### 
 simulation5 - Pets  - Supervised with perm 7x7
@@ -336,7 +345,8 @@ python project_main.py \
     --pe_dim 512 \
     --worm_up 0
 	
-	
+python project_main.py --task_name OxfordIIITPet --ssl_model_name ssl_model --sup_ssl_model_withperm_name sup_ssl_model_withperm --sup_ssl_model_withoutperm_name sup_ssl_model_withoutperm --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_7_7 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 1 --amount_of_patch 49 --perm perm --balance_factor 0.5 --balance_factor2 0.5 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 0 --sup_withperm 1 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+
 ######################################################################################################################### 
 simulation6 - Pets  - SSL BYOL
 ######################################################################################################################### 
@@ -572,6 +582,7 @@ python project_main.py \
 	
 
 python project_main.py --task_name OxfordIIITPet --ssl_model_name SSL_BYOL_WITHPERM_2_2 --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_2_2 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 0 --amount_of_patch 4 --perm perm --balance_factor 0 --balance_factor2 0 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 1 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
+python project_main.py --task_name OxfordIIITPet --ssl_model_name SSL_BYOL_WITHPERM_2_2 --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_2_2 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 0 --amount_of_patch 4 --perm perm --balance_factor 0 --balance_factor2 0 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 0 --sup_ssl_withperm 0 --sup_ssl_withoutperm 1 --sup_withoutperm 0 --sup_withperm 0 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
 
 ######################################################################################################################### 
 simulation10 - Pets  - SSL BYOL + CLS
@@ -636,9 +647,9 @@ simulation11 - Pets  - SUP SSL BYOL + CLS
 ######################################################################################################################### 
 python project_main.py \
     --task_name OxfordIIITPet \
-    --ssl_model_name SSL_BYOL_WITHPERM_2_2 \
-    --sup_ssl_model_withperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHPERM \
-    --sup_ssl_model_withoutperm_name SUP_SSL_BYOL_WITHPERM_2_2_WITHOUTPERM \
+    --ssl_model_name SSL_CLS_2_2 \
+    --sup_ssl_model_withperm_name SUP_SSL_CLS_2_2_WITHPERM \
+    --sup_ssl_model_withoutperm_name SUP_SSL_CLS_2_2_WITHOUTPERM \
     --sup_model_withoutperm_name Sup_Pets_withoutperm \
     --sup_model_withperm_name Sup_Pets_withperm_2_2 \
     --moving_average_decay 0.996 \
@@ -660,9 +671,9 @@ python project_main.py \
     --max_opt 0 \
     --epochs_count 200 \
     --learning_type self_supervised \
-    --ssl_training 0 \
-    --sup_ssl_withperm 1 \
-    --sup_ssl_withoutperm 1 \
+    --ssl_training 1 \
+    --sup_ssl_withperm 0 \
+    --sup_ssl_withoutperm 0 \
     --sup_withoutperm 0 \
     --sup_withperm 0 \
     --train_model 1 \
@@ -745,8 +756,6 @@ python project_main.py \
 
 !python '/content/gdrive/MyDrive/MLDS_project/project_main.py' --task_name OxfordIIITPet --ssl_model_name SSL_PE_2_2 --sup_ssl_model_withperm_name SUP_SSL_PE_2_2_WITHPERM --sup_ssl_model_withoutperm_name SUP_SSL_PE_2_2_WITHOUTPERM --sup_model_withoutperm_name Sup_Pets_withoutperm --sup_model_withperm_name Sup_Pets_withperm_2_2 --moving_average_decay 0.996 --max_allowed_permutation 24 --use_auto_weight 0 --amount_of_patch 4 --perm perm --balance_factor 0.5 --balance_factor2 0 --val_split 0.3 --image_dim 224 --train_split 1 --rand_choise 1 --pin_memory 1 --num_workers 0 --seed 42 --googledrive 0 --batch_size 256 --max_opt 0 --epochs_count 200 --learning_type self_supervised --ssl_training 1 --sup_ssl_withperm 0 --sup_ssl_withoutperm 0 --sup_withoutperm 0 --sup_withperm 0 --train_model 1 --loss_functions_name ce --classification_loss_name ce --ranking_loss CosineSimilarity --representation_loss CosineSimilarity --optimizer_name AdamW --weight_decay 4e-4 --learning_rate 1e-4 --scheduler_name ReduceLROnPlateau --optimizer_name_ssl Lars --weight_decay_ssl 4e-4 --learning_rate_ssl 2e-1 --hidden_size 512 --unfreeze 0 --copy_weights 0 --update_student 1 --load_ssl 0 --model_layer 7 --model_sub_layer 0 --pe_dim 512 --worm_up 0
 
-	
-	
 ######################################################################################################################### 
 simulation13 - Pets  - SUP SSL BYOL + PE
 ######################################################################################################################### 
@@ -821,7 +830,7 @@ python project_main.py \
     --perm perm \
     --balance_factor 0.5 \
     --balance_factor2 0.5 \
-    --val_split 0.3 \
+    --val_split 0.1 \
     --image_dim 224 \
     --train_split 1 \
     --rand_choise 1 \
@@ -831,7 +840,7 @@ python project_main.py \
     --googledrive 0 \
     --batch_size 256 \
     --max_opt 0 \
-    --epochs_count 200 \
+    --epochs_count 150 \
     --learning_type self_supervised \
     --ssl_training 1 \
     --sup_ssl_withperm 0 \

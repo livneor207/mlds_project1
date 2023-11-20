@@ -350,7 +350,7 @@ if training_configuration.sup_ssl_withperm:
     
     # predefined parameter for this simulation
     training_configuration.perm = 'perm'
-    training_configuration.weight_decay = 1e-4 
+    # training_configuration.weight_decay = 1e-4 
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
     device = training_configuration.device
@@ -461,7 +461,7 @@ if training_configuration.sup_ssl_withoutperm:
         comment = "TensorBoard in PyTorch")
     
     # set simulation defention const
-    training_configuration.weight_decay = 1e-4 
+    # training_configuration.weight_decay = 1e-4 
     training_configuration.perm = 'no_perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'self_supervised'
@@ -582,7 +582,7 @@ if training_configuration.sup_withoutperm:
         comment = "TensorBoard in PyTorch")
     
     # set simulation configuration 
-    training_configuration.weight_decay = 1e-4
+    # training_configuration.weight_decay = 1e-4
     training_configuration.perm = 'no_perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'supervised'
@@ -689,7 +689,7 @@ if training_configuration.sup_withperm:
         comment = "TensorBoard in PyTorch")
     
     # simulation configuration
-    training_configuration.weight_decay = 1e-4
+    # training_configuration.weight_decay = 1e-4
     training_configuration.perm = 'perm'
     training_configuration.max_opt = True
     training_configuration.learning_type = 'supervised'
