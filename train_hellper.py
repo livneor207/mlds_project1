@@ -499,6 +499,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     optimizer_bank = ['adam', 'lion', 'AdamW', 'Lars']
     include_params = [param for name, param in model.named_parameters() if 'sigma' not in name]
 
+
     if not optimizer_name in optimizer_bank:
        assert False, 'needed to add optimizer'
     # optimizer settings 
@@ -508,7 +509,7 @@ def set_optimizer(model, training_configuration, data_loader, amount_of_class = 
     elif optimizer_name == 'lion':
       optimizer = Lion(include_params, lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'AdamW':
-        # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay, betas=(0.9, 0.99), eps=1e-06)
+        # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = weight_decay, eps=1e-07)
         optimizer = torch.optim.AdamW(include_params, lr=learning_rate, weight_decay = weight_decay)
     elif optimizer_name == 'Lars':
         optimizer = LARS(include_params, lr=learning_rate, momentum=0.9, weight_decay= weight_decay)
@@ -654,7 +655,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             debug_grad= False
             if debug_grad:
                 print_grad(model)
-                
+           
+            # clip_gradient(model)
+            
             # optimization step
             optimizer.step()
             

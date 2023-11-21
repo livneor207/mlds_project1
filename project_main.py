@@ -117,7 +117,7 @@ training_configuration.add_argument('--representation_loss', type=str, default =
 # optimizer 
 training_configuration.add_argument('--optimizer_name', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
 training_configuration.add_argument('--weight_decay', type=float, default = 4e-4, help='Specify if to use weight decay regurelaization in optimizer')
-training_configuration.add_argument('--learning_rate', type=float, default = 1e-4, help='Specify learning rate for optimization')
+training_configuration.add_argument('--learning_rate', type=float, default = 4e-4, help='Specify learning rate for optimization')
 training_configuration.add_argument('--scheduler_name', type=str, default = 'None', help='Specify scheduler for optimization')
 
 # training_configuration.add_argument('--optimizer_name_ssl', type=str, default = 'AdamW', help='Specify optimizer name between adam and lion')
@@ -155,12 +155,12 @@ train_split = training_configuration.train_split
 rand_choise = training_configuration.rand_choise
 debug =  False
 if debug: 
-    train_split = 0.001
-    val_split = 0.001
+    # train_split = 0.001
+    # val_split = 0.001
     training_configuration.batch_size = 8
     training_configuration.epochs_count = 100
     
-    training_configuration.ssl_training = 1
+    training_configuration.ssl_training = 0
     training_configuration.sup_ssl_withperm = 0
     training_configuration.sup_ssl_withoutperm = 1
     training_configuration.sup_withoutperm = 1

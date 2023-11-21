@@ -149,8 +149,7 @@ def collect_grads(model):
              max_grad = torch.max(torch.abs(param[1].grad))
              grad_list.append(max_grad.item())
              
-    percentile_95 = np.percentile(grad_list, 95)
-    max_norm = percentile_95 * 1.25
+    max_norm = np.percentile(grad_list, 90)
     return max_norm
 
 def freeze_efficientnet_layers(model, model_name = 'efficientnet_v2_m'):
