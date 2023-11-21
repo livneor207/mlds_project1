@@ -600,7 +600,10 @@ if training_configuration.sup_withoutperm:
                  model_name = 'resnet50',
                  weights = 'IMAGENET1K_V1',
                  unfreeze = unfreeze)
-        
+    
+    if load_ssl:
+        model = load_model(model_path, training_configuration)
+
     
     # set student
     student= None
@@ -678,7 +681,7 @@ if training_configuration.sup_withperm:
     print('simulation '  +sim_name + ' has been started' )
     
     # set path's
-    model_path = os.path.join(data_folder, sim_name  + '_epochs')
+    model_path = os.path.join(data_folder, sim_name  + '_epochs.pth')
     log_dir = os.path.join(data_folder,  sim_name)
     train_val_test_summary = os.path.join(data_folder, sim_name  + '_summary.csv')
     
@@ -706,6 +709,9 @@ if training_configuration.sup_withperm:
                  weights = 'IMAGENET1K_V1',
                  unfreeze = unfreeze)
     
+    
+    if load_ssl:
+        model = load_model(model_path, training_configuration)
     # set student 
     student= None
     
