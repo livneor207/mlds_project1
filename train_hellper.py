@@ -827,7 +827,12 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             constarint_sigma2 = constarint_sigma2.to(device)
             constarint_sigma3 = torch.log(1+sigma_squered[2])
             constarint_sigma3 = constarint_sigma3.to(device)
-            criterion_loss += (constarint_sigma1+constarint_sigma2+constarint_sigma3)
+            if balance_factor !=0 :
+                criterion_loss += constarint_sigma2
+            if balance_factor2 !=0 :
+                criterion_loss += constarint_sigma3  
+            
+            criterion_loss += constarint_sigma1
         else:
             # multi by head factors
             rank_loss *= balance_factor
@@ -1204,7 +1209,7 @@ def main(model, student, optimizer, classification_criterion, ranking_criterion,
     initial_lr  = optimizer.param_groups[0]['lr']
     # set optimizer for sigma parameters     
     if hasattr(model, 'sigma'):
-        optimizer_sigma = torch.optim.Adam([model.sigma], lr=1e-4)
+        optimizer_sigma = torch.optim.Adam([model.sigma], lr=4e-4)
     else:
         optimizer_sigma =   None
     
