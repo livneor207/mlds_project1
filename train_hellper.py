@@ -980,7 +980,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
                 epoch_optimization_steps = data_loader.dataset.__len__()//data_loader_batch_size+1
                 current_steps = (epoch*epoch_optimization_steps+idx)
                 beta = model.student_ema_updater.initial_beta
-                total_amount_of_steps =  epoch_optimization_steps*num_epochs
+                total_amount_of_steps =  epoch_optimization_steps*(num_epochs*1.2)
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
                 
