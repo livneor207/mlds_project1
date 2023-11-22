@@ -821,12 +821,19 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             rank_loss = rank_loss/(sigma_squered[1]*2)
             perm_classification_loss = perm_classification_loss/(sigma_squered[2]*2)
             
-            constarint_sigma1 = torch.log(1+sigma_squered[0])
+            onstarint_sigma1 = torch.log(sigma1)
             constarint_sigma1 = constarint_sigma1.to(device)
-            constarint_sigma2 = torch.log(1+sigma_squered[1])
+            constarint_sigma2 = torch.log(sigma2)
             constarint_sigma2 = constarint_sigma2.to(device)
-            constarint_sigma3 = torch.log(1+sigma_squered[2])
-            constarint_sigma3 = constarint_sigma3.to(device)
+            constarint_sigma3 = torch.log(sigma3)
+            
+            
+            # constarint_sigma1 = torch.log(1+sigma_squered[0])
+            # constarint_sigma1 = constarint_sigma1.to(device)
+            # constarint_sigma2 = torch.log(1+sigma_squered[1])
+            # constarint_sigma2 = constarint_sigma2.to(device)
+            # constarint_sigma3 = torch.log(1+sigma_squered[2])
+            # constarint_sigma3 = constarint_sigma3.to(device)
             if balance_factor !=0 :
                 criterion_loss += constarint_sigma2
             if balance_factor2 !=0 :
@@ -980,7 +987,7 @@ def train(model, student, optimizer, optimizer_sigma, classification_criterion,
                 epoch_optimization_steps = data_loader.dataset.__len__()//data_loader_batch_size+1
                 current_steps = (epoch*epoch_optimization_steps+idx)
                 beta = model.student_ema_updater.initial_beta
-                total_amount_of_steps =  epoch_optimization_steps*(num_epochs*1.2)
+                total_amount_of_steps =  epoch_optimization_steps*(num_epochs*1)
                 new_beta =  1-(1-beta)*(np.cos(((np.pi*current_steps)/(total_amount_of_steps)))+1)/2
                 model.student_ema_updater.beta = new_beta
                 
