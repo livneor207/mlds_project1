@@ -54,6 +54,12 @@ import glob
 import argparse
 
 
+# os.getcwd()
+# path = r'/home/mlds_user/mlds_project1/expirements'
+#df =  collect_train_csv_summary(path, 'summary')
+sellect_rows_contain_substring_in_col(df, '_withoutperm', 'sim_name')
+sellect_rows_contain_substring_in_col(df, '_withperm', 'sim_name')
+
 plt.close('all')
 
 """
@@ -376,11 +382,17 @@ if training_configuration.sup_ssl_withperm:
                           image_dim=(3,image_dim, image_dim),
                           freeze_all = False,
                           model_name = 'resnet50')
+    
+    
+
     # set supervised defintion
     student= None
     ssl_model.learning_type = 'supervised'
     training_configuration.learning_type = 'supervised'
-
+    
+    if load_ssl:
+        ssl_model = load_model(model_path, training_configuration)
+        
     # send ssl model to device 
     ssl_model = ssl_model.to(device)
     
@@ -495,6 +507,11 @@ if training_configuration.sup_ssl_withoutperm:
                           freeze_all = False,
                           model_name = 'resnet50')
     
+    
+    if load_ssl:
+        ssl_model = load_model(model_path, training_configuration)
+        
+        
     # send model to device 
     ssl_model.to(device)
     

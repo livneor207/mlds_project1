@@ -26,8 +26,8 @@ def sellect_rows_contain_substring_in_col(df, substring, column):
     slice row from dataframe contain in specific columns the following substring
     """
     filtered_df = simulation_summary[simulation_summary[column].str.contains(substring, case=False)]
+    print(filtered_df)
     return filtered_df
-
 
 
 def collect_train_csv_summary(csv_folder_path, substring):
@@ -37,7 +37,8 @@ def collect_train_csv_summary(csv_folder_path, substring):
     file_type_to_find =  os.path.join(csv_folder_path, '*'+ substring + '.csv')
     all_csv_path = glob.glob(file_type_to_find)
     if substring.find('ephocs')!=-1:
-        results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss']
+        results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss',
+                           'test_accuracy', 'test_f1_score']
 
     elif substring.find('summary')!=-1:
         results_columns = ['sim_name','train_accuracy', 'train_f1_score',
@@ -65,9 +66,12 @@ def collect_train_csv_summary(csv_folder_path, substring):
                     i_results = [sim_name] + i_df.values.tolist()[0]
 
                 result_collector.append(i_results)
-        simulation_summary = pd.DataFrame(result_collector, columns = results_columns)  
+        simulation_summary = pd.DataFrame(result_collector, columns = results_columns)
+        print(simulation_summary)
     else:
         print('no csv file has been find to find is not defined')
+        
+    return simulation_summary
         
         
         
@@ -811,12 +815,12 @@ def step(model, student, data, labels, criterion, ranking_criterion,
         if model.use_auto_weight and is_worm_up:  
 
             sigma_squered = torch.pow(model.sigma,2)
-            # sigma1 = sigma_squered[0]
-            # sigma2 =  sigma_squered[1]
-            # sigma3 =  sigma_squered[2]
-            sigma1 = model.sigma[0]
-            sigma2 =  model.sigma[1]
-            sigma3 =  model.sigma[2]
+            sigma1 = sigma_squered[0]
+            sigma2 =  sigma_squered[1]
+            sigma3 =  sigma_squered[2]
+            # sigma1 = model.sigma[0]
+            # sigma2 =  model.sigma[1]
+            # sigma3 =  model.sigma[2]
             
             # criterion_loss = criterion_loss/(sigma1*2) 
             rank_loss = rank_loss/(sigma2*2)
@@ -824,9 +828,9 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             
             # constarint_sigma1 = torch.log(sigma1)
             # constarint_sigma1 = constarint_sigma1.to(device)
-            constarint_sigma2 = torch.log(sigma2)
+            constarint_sigma2 = torch.log(1+sigma2)
             constarint_sigma2 = constarint_sigma2.to(device)
-            constarint_sigma3 = torch.log(sigma3)
+            constarint_sigma3 = torch.log(1+sigma3)
             constarint_sigma3 = constarint_sigma3.to(device)
 
             
