@@ -57,8 +57,8 @@ import argparse
 # os.getcwd()
 # path = r'/home/mlds_user/mlds_project1/expirements'
 #df =  collect_train_csv_summary(path, 'summary')
-sellect_rows_contain_substring_in_col(df, '_withoutperm', 'sim_name')
-sellect_rows_contain_substring_in_col(df, '_withperm', 'sim_name')
+# sellect_rows_contain_substring_in_col(df, '_withoutperm', 'sim_name')
+# sellect_rows_contain_substring_in_col(df, '_withperm', 'sim_name')
 
 plt.close('all')
 

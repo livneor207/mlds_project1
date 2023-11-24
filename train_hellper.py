@@ -37,8 +37,7 @@ def collect_train_csv_summary(csv_folder_path, substring):
     file_type_to_find =  os.path.join(csv_folder_path, '*'+ substring + '.csv')
     all_csv_path = glob.glob(file_type_to_find)
     if substring.find('ephocs')!=-1:
-        results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss',
-                           'test_accuracy', 'test_f1_score']
+        results_columns = ['sim_name','train_accuracy', 'train_f_score', 'val_accuracy', 'val_f_score_loss']
 
     elif substring.find('summary')!=-1:
         results_columns = ['sim_name','train_accuracy', 'train_f1_score',
