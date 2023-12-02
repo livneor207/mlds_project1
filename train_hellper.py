@@ -821,12 +821,12 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             # sigma2 =  model.sigma[1]
             # sigma3 =  model.sigma[2]
             
-            # criterion_loss = criterion_loss/(sigma1*2) 
+            criterion_loss = criterion_loss/(sigma1*2) 
             rank_loss = rank_loss/(sigma2*2)
             perm_classification_loss = perm_classification_loss/(sigma3*2)
             
-            # constarint_sigma1 = torch.log(sigma1)
-            # constarint_sigma1 = constarint_sigma1.to(device)
+            constarint_sigma1 = torch.log(1+sigma1)
+            constarint_sigma1 = constarint_sigma1.to(device)
             constarint_sigma2 = torch.log(1+sigma2)
             constarint_sigma2 = constarint_sigma2.to(device)
             constarint_sigma3 = torch.log(1+sigma3)
@@ -844,7 +844,7 @@ def step(model, student, data, labels, criterion, ranking_criterion,
             if balance_factor2 !=0 :
                 criterion_loss += constarint_sigma3  
             
-            # criterion_loss += constarint_sigma1
+            criterion_loss += constarint_sigma1
         else:
             # multi by head factors
             rank_loss *= balance_factor
