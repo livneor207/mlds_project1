@@ -861,57 +861,72 @@ def initialize_dataloaders(all_train_df,  test_df, training_configuration, amoun
     # initiate transformation list  
     transformations = []
     
-    # use augmetation 
+    # use augmentation
     if rand_choise:
         # if use permutation
         if taske_name == 'perm':
             min_scale = 0.6
             transformations  = [
-                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
-                                transforms.RandomHorizontalFlip(p=0.5),
                                 transforms.RandomApply([transforms.RandomResizedCrop(size = (96, 96), scale=(min_scale, 1.0))], p=1),
-                                transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
+                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
                                 transforms.RandomGrayscale(p=0.2),
+                                transforms.RandomHorizontalFlip(p=0.5),
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
                                 ]
         # if do not use permutation
         else:
             min_scale = 0.2
-        
             transformations  = [
-                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
-                                transforms.RandomHorizontalFlip(p=0.5),
                                 transforms.RandomApply([transforms.RandomResizedCrop(size = (96, 96), scale=(min_scale, 1.0))], p=1),
-                                transforms.RandomResizedCrop(size = (image_size, image_size), scale=(min_scale, 1.0)),
+                                transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
                                 transforms.RandomGrayscale(p=0.2),
+                                transforms.RandomHorizontalFlip(p=0.5),
                                 transforms.RandomApply([transforms.GaussianBlur(kernel_size= 3, sigma = (0.1, 2))],p = 0.5)   
                                 ]
             
-        # choose on aumgetation randomly base transformation list 
-        rand_choise = transforms.RandomChoice(transformations)
-    # dont use aumgentation
+        # choose on augmentation randomly base transformation list
+        # rand_choise = transforms.RandomChoice(transformations)
+        rand_choise = transformations
+    # dont use augmentation
     else:
-        # non augmnetation 
+        # non augmentation
         rand_choise = transforms.RandomChoice( [transforms.RandomHorizontalFlip(p=0)])
     
-    # define train transformation for the case of permutation and non-pemutation case  
+    # define train transformation for the case of permutation and non-permutation case  
     if taske_name == 'perm':
-        data_transforms =   transforms.Compose([resize_transforms,
-                                                rand_choise,
-                                                resize_transforms,
-                                                transforms.ToTensor(),
-                                                transforms.Normalize(means, stds)
-                                                ])
+        if learning_type == 'supervised':
+            rand_choise = transforms.RandomChoice(transformations)
+
+            data_transforms = transforms.Compose([resize_transforms,
+                                                  rand_choise, 
+                                                  resize_transforms,
+                                                  transforms.ToTensor(),
+                                                  transforms.Normalize(means, stds)])
+
+        else:
+            data_transforms = transforms.Compose([resize_transforms] + 
+                                                 rand_choise + 
+                                                 [resize_transforms,
+                                                  transforms.ToTensor(),
+                                                  transforms.Normalize(means, stds)])
     elif taske_name == 'no_perm':
-        data_transforms =   transforms.Compose([
-                                                rand_choise,
-                                                resize_transforms,
-                                                transforms.ToTensor(),
-                                                transforms.Normalize(means, stds)
-                                                ])
+        if learning_type == 'supervised' and 0:
+            rand_choise = transforms.RandomChoice(transformations)
+            data_transforms = transforms.Compose([rand_choise,
+                                                  resize_transforms,
+                                                  transforms.ToTensor(),
+                                                  transforms.Normalize(means, stds)
+                                                  ])
+        else:
+            data_transforms = transforms.Compose(rand_choise + [
+                                                    resize_transforms,
+                                                    transforms.ToTensor(),
+                                                    transforms.Normalize(means, stds)
+                                                    ])
+        
     
     # define test transformation 
-    test_transforms =  transforms.Compose([ resize_transforms,
+    test_transforms =  transforms.Compose( [resize_transforms,
                                             transforms.ToTensor(),
                                             transforms.Normalize(means, stds)])
 
